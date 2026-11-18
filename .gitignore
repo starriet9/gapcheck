@@ -1,0 +1,14 @@
+# Private working files: NEVER tracked, NEVER published
+CLAUDE.md
+KICKOFF.md
+private/
+
+# Local tools and data (downloaded, large, or licence-restricted)
+tools/jdk/
+data/
+*.tar.gz
+*.zip
+.venv/
+__pycache__/
+tools/dl/
+tools/gradle-home/
