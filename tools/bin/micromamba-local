@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Project-local micromamba. HOME is redirected because micromamba registers envs in $HOME/.conda/environments.txt.
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$HERE/env-local.sh"
+export HOME="$(cd "$HERE/.." && pwd)/r-home/home"
+mkdir -p "$HOME"
+exec "$HERE/../micromamba/bin/micromamba" "$@"

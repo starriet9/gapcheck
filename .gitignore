@@ -12,3 +12,9 @@ data/
 __pycache__/
 tools/dl/
 tools/gradle-home/
+tools/uv-cache/
+tools/uv-python/
+tools/synthea/
+tools/micromamba/
+tools/r-env/
+tools/r-home/

@@ -1,0 +1,20 @@
+# Source this to confine micromamba/R state to the project's tools/ directory.
+_T="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export MAMBA_ROOT_PREFIX="$_T/micromamba/root"
+export CONDA_PKGS_DIRS="$_T/micromamba/pkgs"
+export MAMBA_NO_RC=true
+export XDG_CACHE_HOME="$_T/r-home/cache"
+export XDG_CONFIG_HOME="$_T/r-home/config"
+export XDG_DATA_HOME="$_T/r-home/data"
+export XDG_STATE_HOME="$_T/r-home/state"
+export R_LIBS_USER="$_T/r-home/library"
+export R_LIBS_SITE=""
+export R_ENVIRON_USER="$_T/r-home/Renviron"
+export R_PROFILE_USER="$_T/r-home/Rprofile"
+export R_USER_CACHE_DIR="$_T/r-home/cache/R"
+export R_USER_CONFIG_DIR="$_T/r-home/config/R"
+export R_USER_DATA_DIR="$_T/r-home/data/R"
+export R_HISTFILE="$_T/r-home/Rhistory"
+export TMPDIR="${TMPDIR:-/tmp}"
+export R_ENV_PREFIX="$_T/r-env"
+unset _T
