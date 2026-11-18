@@ -1,6 +1,6 @@
 """Post-generation patches (SPEC 4.1), each logged row by row.
 
-Order: P0 -> P1 -> (indication groups) -> P2. Every added or removed row is
+Order: P0 -> P1 -> (indication groups, strata.py) -> P2. Every added or removed row is
 written to `augmentation_ledger`: patch_id, patient, table_name, row_id,
 action ('add' or 'remove'), reason, sub_seed.
 
@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import json
 from pathlib import Path
 
 import duckdb
@@ -144,18 +145,204 @@ def apply_p1(con: duckdb.DuckDBPyConnection, seed: int) -> tuple[int, int]:
 
 
 # ---------------------------------------------------------------- P2
-def apply_p2(con: duckdb.DuckDBPyConnection, seed: int, groups: pd.DataFrame) -> None:
-    """P2: statin assignment within S2-S4 (SPEC 4.1). Not implemented yet.
+# Indication groups (oracle rows) of S2-S4. Rows 8 and 9 are separate groups,
+# so S4 is balanced within each risk bin.
+P2_GROUPS = ("2", "3", "8", "9")
+P2_MIN_AGE = 30
+# Native statin rows written at a wellness visit start 7 days after the
+# encounter (414 of 430 in the dev run: the stable ischemic heart disease
+# module's delay). P2 rows copy that pattern.
+P2_START_OFFSET_DAYS = 7
+DISPENSE_DAYS = 30
+P2_REASON = "statin added at a past wellness visit: seeded random half of an S2-S4 group (SPEC 4.1 P2)"
+STATIN_DISTRIBUTION_FILE = Path(__file__).with_name("statin_distribution.json")
 
-    TODO: needs the oracle's indication groups (first matching row among
-    1-11, ignoring row 0), passed in `groups` (PATIENT, group). Within each
-    of S2-S4, a seeded random half (sub_seed(seed, 'P2')) gets a statin:
-    start at a past wellness encounter at age >= 30, active at index; drug
-    and dose drawn from the generator's statin submodule
-    (medications/statin.json); every medications column filled as in native
-    rows; rows marked patch='P2' and written to the ledger.
+
+def load_statin_distribution() -> dict:
+    return json.loads(STATIN_DISTRIBUTION_FILE.read_text())
+
+
+def _band_match(band: str, age: int) -> bool:
+    lo, hi = (int(v) for v in band.split("-"))
+    return lo <= age <= hi
+
+
+def _draw(rng: np.random.Generator, spec: dict, age: int, gender: str) -> str:
+    """One lookup-table transition, as the generator's submodule does it."""
+    row = next((r for r in spec["table"] if r["gender"] == gender and _band_match(r["age"], age)),
+               None)
+    if row is None:
+        return spec["default"]
+    p = np.array([row["p"].get(t, 0.0) for t in spec["order"]])
+    if p.sum() <= 0:
+        return spec["default"]
+    return spec["order"][int(rng.choice(len(p), p=p / p.sum()))]
+
+
+def draw_statin(rng: np.random.Generator, age: int, gender: str, dist: dict | None = None
+                ) -> tuple[str, str]:
+    """(RxNorm code, display) from the generator's statin submodule tables."""
+    dist = dist or load_statin_distribution()
+    ing = _draw(rng, dist["ingredient"], age, gender)
+    prod = _draw(rng, dist["products"][ing], age, gender)
+    c = dist["codes"][prod]
+    return c["code"], c["display"]
+
+
+def _rank_key(seed: int, group: str, patient: str) -> str:
+    return hashlib.sha256(f"{seed}:{group}:{patient}".encode()).hexdigest()
+
+
+def p2_pool(con: duckdb.DuckDBPyConnection, groups: pd.DataFrame) -> pd.DataFrame:
+    """Patients of S2-S4 who can receive a P2 statin, with their candidate visits.
+
+    groups: DataFrame with PATIENT and group (indication row before P2).
+    Left out: 55822004 on or before index, an active statin at index (rows
+    added by P2 itself are ignored, so the plan can be recomputed), and
+    patients without a wellness encounter at age >= 30 whose start date plus
+    P2_START_OFFSET_DAYS is on or before index.
+    Returns one row per (patient, candidate encounter).
     """
-    raise NotImplementedError("P2 needs the oracle indication groups")
+    g = groups[groups.group.isin(P2_GROUPS)][["PATIENT", "group"]].drop_duplicates()
+    con.register("_p2_g", g)
+    df = con.execute(f"""
+        select g.PATIENT, g."group", c.index_date, c.birthdate, p.GENDER, p.STATE,
+               e.Id as ENCOUNTER, e.START as ESTART, e.PAYER
+        from _p2_g g
+        join cohort c on c.PATIENT = g.PATIENT
+        join patients p on p.Id = g.PATIENT
+        join encounters e on e.PATIENT = g.PATIENT
+        where e.ENCOUNTERCLASS = '{C.WELLNESS_CLASS}'
+          and {sql_date('START')} >= c.birthdate + interval {P2_MIN_AGE} year
+          and {sql_date('START')} + interval {P2_START_OFFSET_DAYS} day <= c.index_date
+          and not exists (select 1 from conditions d where d.PATIENT = g.PATIENT
+                          and d.CODE in {_in_list(C.HYPERLIPIDEMIA_VETERAN)}
+                          and {sql_date('START')} <= c.index_date)
+          and not exists (select 1 from medications m where m.PATIENT = g.PATIENT
+                          and m.patch is distinct from 'P2'
+                          and m.CODE in {_in_list(C.STATINS)}
+                          and {sql_date('START')} <= c.index_date
+                          and (m.STOP is null or {sql_date('STOP')} > c.index_date))
+        order by g.PATIENT, e.START, e.Id""").df()
+    con.unregister("_p2_g")
+    return df
+
+
+def _sim_end(con: duckdb.DuckDBPyConnection) -> pd.Timestamp:
+    """End of the simulation: the latest encounter STOP (dispense counts run to it)."""
+    v = con.execute("select max(STOP) from encounters").fetchall()[0][0]
+    return pd.Timestamp(v)
+
+
+def _donors(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
+    """Native statin rows without a reason code (cost columns are copied from these)."""
+    return con.execute(f"""
+        select CODE, PAYER, BASE_COST, PAYER_COVERAGE from medications
+        where patch is null and REASONCODE is null and CODE in {_in_list(C.STATINS)}
+          and BASE_COST is not null and PAYER_COVERAGE is not null
+        order by row_id""").df()
+
+
+def p2_plan(con: duckdb.DuckDBPyConnection, seed: int, groups: pd.DataFrame
+            ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Rows P2 adds (same columns as `medications`) and the per-patient assignment.
+
+    Within each indication group (rows 2, 3, 8, 9), the pool (see p2_pool) is
+    ranked by sha256('<sub_seed>:<group>:<patient>') and the first half (n // 2)
+    receives a statin. Each patient's draws (visit, drug and dose, cost donor)
+    use a generator seeded by the sub-seed and the patient id only.
+    """
+    s = sub_seed(seed, "P2")
+    pool = p2_pool(con, groups)
+    dist = load_statin_distribution()
+    donors = _donors(con)
+    if donors.empty:
+        raise RuntimeError("no native statin rows to copy cost columns from")
+    end = _sim_end(con)
+    cols = original_columns(con, "medications")
+
+    g = groups[groups.group.isin(P2_GROUPS)][["PATIENT", "group"]].drop_duplicates()
+    have = set(pool.PATIENT)
+    assign = []
+    for grp_id, grp in g.groupby("group", sort=True):
+        cand = sorted((p for p in grp.PATIENT if p in have), key=lambda p: _rank_key(s, grp_id, p))
+        chosen = set(cand[: len(cand) // 2])
+        for p in sorted(grp.PATIENT):
+            assign.append({"PATIENT": p, "group": grp_id, "in_pool": p in have,
+                           "assigned": p in chosen})
+    assign = pd.DataFrame(assign, columns=["PATIENT", "group", "in_pool", "assigned"])
+
+    rows, seen = [], {}
+    chosen = set(assign.PATIENT[assign.assigned])
+    for patient, visits in pool[pool.PATIENT.isin(chosen)].groupby("PATIENT", sort=True):
+        rng = _patient_rng(s, patient)
+        v = visits.iloc[int(rng.integers(len(visits)))]
+        start = pd.Timestamp(v.ESTART) + pd.Timedelta(days=P2_START_OFFSET_DAYS)
+        bd = pd.Timestamp(v.birthdate)
+        age = start.year - bd.year - ((start.month, start.day) < (bd.month, bd.day))
+        code, display = draw_statin(rng, age, v.GENDER, dist)
+        d = donors[(donors.CODE == code) & (donors.PAYER == v.PAYER)]
+        if d.empty:
+            d = donors[donors.CODE == code]
+        if d.empty:
+            d = donors
+        donor = d.iloc[int(rng.integers(len(d)))]
+        n = max(1, int((end - start).total_seconds() // (DISPENSE_DAYS * 86400)))
+        rec = {c: None for c in cols}
+        rec.update({"START": start.strftime("%Y-%m-%dT%H:%M:%SZ"), "STOP": None,
+                    "PATIENT": patient, "PAYER": v.PAYER, "ENCOUNTER": v.ENCOUNTER,
+                    "CODE": code, "DESCRIPTION": display, "BASE_COST": donor.BASE_COST,
+                    "PAYER_COVERAGE": donor.PAYER_COVERAGE, "DISPENSES": str(n),
+                    "TOTALCOST": f"{float(donor.BASE_COST) * n:.2f}",
+                    "REASONCODE": None, "REASONDESCRIPTION": None})
+        vals = [rec[c] for c in cols]
+        key = "\x1f".join("" if x is None else x for x in vals)
+        k = seen.get(key, 0)
+        seen[key] = k + 1
+        rows.append({"row_id": row_id("medications", vals, k), "patch": "P2", **rec})
+    add = pd.DataFrame(rows, columns=["row_id", "patch", *cols]).astype("string")
+    return add, assign
+
+
+def p2_applied(con: duckdb.DuckDBPyConnection) -> bool:
+    return con.execute("select count(*) from augmentation_ledger where patch_id = 'P2'"
+                       ).fetchall()[0][0] > 0
+
+
+def apply_p2(con: duckdb.DuckDBPyConnection, seed: int, groups: pd.DataFrame) -> dict:
+    """P2: give a statin to a seeded random half of each indication group of S2-S4 (SPEC 4.1).
+
+    groups: PATIENT, group (indication row before P2; see strata.py).
+    Adds rows to `medications` (patch='P2'), the ledger and table
+    `p2_assignment`. Raises if P2 was already applied.
+    """
+    if p2_applied(con):
+        raise RuntimeError("P2 already applied to this database")
+    s = sub_seed(seed, "P2")
+    add, assign = p2_plan(con, seed, groups)
+    con.register("_p2_assign", assign)
+    con.execute('create or replace table p2_assignment as select * from _p2_assign '
+                'order by "group", PATIENT')
+    con.unregister("_p2_assign")
+    if not add.empty:
+        clash = con.execute("select count(*) from medications where row_id in (select unnest(?))",
+                            [add.row_id.tolist()]).fetchall()[0][0]
+        if clash:
+            raise RuntimeError(f"P2 row ids clash with {clash} existing rows")
+        con.register("_p2_add", add)
+        con.execute("insert into medications select * from _p2_add")
+        con.execute(f"""
+            insert into augmentation_ledger
+            select 'P2', PATIENT, 'medications', row_id, 'add', '{P2_REASON}', '{s}'
+            from _p2_add order by PATIENT, row_id""")
+        con.unregister("_p2_add")
+        resort(con, "medications")
+    con.execute("update meta set value = value || ',P2' where key = 'patches'")
+    con.execute("insert into meta values ('p2_sub_seed', ?)", [str(s)])
+    by = assign.groupby("group")
+    return {"p2_rows_added": len(add),
+            "by_group": {k: {"group": len(v), "pool": int(v.in_pool.sum()),
+                               "assigned": int(v.assigned.sum())} for k, v in by}}
 
 
 # ---------------------------------------------------------------- ledger

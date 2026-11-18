@@ -1,9 +1,10 @@
+import numpy as np
 import pandas as pd
 import pytest
 
 from conftest import (ALLERGY, ASCVD, CKD3, DIABETES, FEMALE, P1_ONLY, S2, SEED, STROKE)
 from gapcheck import codes as C
-from gapcheck import load, patches
+from gapcheck import facts, load, oracle, patches
 
 P1_PATIENTS = {P1_ONLY, ASCVD, STROKE, S2, FEMALE, ALLERGY}
 
@@ -121,6 +122,89 @@ def test_p1_rows_sorted_in_place(patched):
     assert df.equals(df.sort_values(["PATIENT", "DATE", "row_id"]).reset_index(drop=True))
 
 
-def test_p2_not_implemented(patched):
-    with pytest.raises(NotImplementedError):
-        patches.apply_p2(patched, SEED, pd.DataFrame())
+# ---------------------------------------------------------------- P2
+# Fixture groups: S2 and FEMALE are row 2; DIABETES is row 3; CKD3 (55822004,
+# simvastatin) is put in row 3 to check it is left out; P1_ONLY and ALLERGY are
+# put in row 9 for the test.
+P2_GROUPS = pd.DataFrame({"PATIENT": [S2, FEMALE, DIABETES, CKD3, P1_ONLY, ALLERGY],
+                          "group": ["2", "2", "3", "3", "9", "9"]})
+
+
+def test_p2_pool_and_half(patched):
+    info = patches.apply_p2(patched, SEED, P2_GROUPS)
+    assert info["by_group"] == {"2": {"group": 2, "pool": 2, "assigned": 1},
+                                "3": {"group": 2, "pool": 1, "assigned": 0},
+                                "9": {"group": 2, "pool": 1, "assigned": 0}}
+    a = patched.execute("select * from p2_assignment").df().set_index("PATIENT")
+    assert not a.loc[CKD3, "in_pool"]  # 55822004 and an active statin
+    # P1_ONLY (31) has no wellness visit at age >= 30 at least 7 days before index
+    assert not a.loc[P1_ONLY, "in_pool"]
+    visits = q(patched, """select count(*) from encounters e join cohort c on c.PATIENT = e.PATIENT
+                           where e.PATIENT = ? and e.ENCOUNTERCLASS = 'wellness'
+                             and cast(substr(e.START, 1, 10) as date) >= c.birthdate + interval 30 year
+                             and cast(substr(e.START, 1, 10) as date) + interval 7 day <= c.index_date""",
+               [P1_ONLY])[0][0]
+    assert visits == 0
+    assert info["p2_rows_added"] == 1
+    with pytest.raises(RuntimeError):
+        patches.apply_p2(patched, SEED, P2_GROUPS)
+
+
+def test_p2_rows_like_native(patched):
+    patches.apply_p2(patched, SEED, P2_GROUPS)
+    add = patched.execute("select * from medications where patch = 'P2'").df()
+    assigned = set(patched.execute("select PATIENT from p2_assignment where assigned").df().PATIENT)
+    assert set(add.PATIENT) == assigned and len(add) == len(assigned)
+    filled = [c for c in add.columns if c not in ("STOP", "REASONCODE", "REASONDESCRIPTION")]
+    assert add[filled].notna().all().all()
+    assert add[["STOP", "REASONCODE", "REASONDESCRIPTION"]].isna().all().all()
+    dist = patches.load_statin_distribution()
+    known = {(v["code"], v["display"]) for v in dist["codes"].values()}
+    for r in add.itertuples():
+        assert (r.CODE, r.DESCRIPTION) in known and r.CODE in C.STATINS
+        enc = patched.execute("select START, ENCOUNTERCLASS, PAYER from encounters where Id = ?",
+                              [r.ENCOUNTER]).fetchall()[0]
+        assert enc[1] == "wellness" and enc[2] == r.PAYER
+        assert pd.Timestamp(r.START) - pd.Timestamp(enc[0]) == pd.Timedelta(days=7)
+        ix, bd = patched.execute("select index_date, birthdate from cohort where PATIENT = ?",
+                                 [r.PATIENT]).fetchall()[0]
+        start = pd.Timestamp(r.START).date()
+        assert start <= ix and facts.age_at(bd, start) >= 30
+        assert float(r.TOTALCOST) == pytest.approx(float(r.BASE_COST) * int(r.DISPENSES), abs=0.01)
+        assert int(r.DISPENSES) >= 1
+    led = patched.execute("select * from augmentation_ledger where patch_id = 'P2'").df()
+    assert set(led.row_id) == set(add.row_id) and (led.action == "add").all()
+    assert (led.sub_seed == str(patches.sub_seed(SEED, "P2"))).all()
+    df = patched.execute("select PATIENT, START, row_id from medications").df()
+    assert df.equals(df.sort_values(["PATIENT", "START", "row_id"]).reset_index(drop=True))
+
+
+def test_p2_patients_are_on_therapy(patched):
+    patches.apply_p2(patched, SEED, P2_GROUPS)
+    assigned = patched.execute("select PATIENT from p2_assignment where assigned").df().PATIENT
+    for p in assigned:
+        f = facts.patient_facts(patched, p)
+        assert f.on_statin and oracle.label(f).status == oracle.ON_THERAPY
+
+
+def test_p2_deterministic_and_seeded(tmp_path):
+    from conftest import FIXTURE
+    plans = []
+    for name, seed in [("a", SEED), ("b", SEED)] + [(f"s{i}", SEED + i) for i in range(1, 6)]:
+        con = load.load(FIXTURE, tmp_path / f"{name}.duckdb", seed=seed)
+        patches.apply_all(con, seed)
+        add, assign = patches.p2_plan(con, seed, P2_GROUPS)
+        plans.append((tuple(add.row_id), tuple(add.CODE), tuple(assign.assigned)))
+        con.close()
+    assert plans[0] == plans[1]
+    assert len(set(plans[1:])) > 1
+
+
+def test_draw_statin_follows_generator_tables():
+    dist = patches.load_statin_distribution()
+    rng = np.random.default_rng(1)
+    young = {patches.draw_statin(rng, 30, "F", dist)[0] for _ in range(50)}
+    assert young <= {"617310"}  # 26-35 F: atorvastatin 20 mg only
+    draws = [patches.draw_statin(rng, 50, "M", dist)[0] for _ in range(4000)]
+    ator = {v["code"] for k, v in dist["codes"].items() if "Atorvastatin" in k}
+    assert sum(c in ator for c in draws) / len(draws) == pytest.approx(0.614, abs=0.03)

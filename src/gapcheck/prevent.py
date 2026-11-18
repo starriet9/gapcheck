@@ -24,6 +24,8 @@ import math
 from functools import cache
 from pathlib import Path
 
+import numpy as np
+
 COEFFICIENTS_FILE = Path(__file__).with_name("prevent_coefficients.json")
 
 # Cholesterol mg/dL -> mmol/L, as used in Table S12A.
@@ -65,29 +67,30 @@ def load_coefficients():
         return json.load(f)
 
 
-def derived_terms(age, tc, hdl, sbp, bp_treated, statin, diabetes, smoker, egfr):
+def derived_terms(age, tc, hdl, sbp, bp_treated, statin, diabetes, smoker, egfr, vector=False):
     """Derived variables of the base model, named as in the coefficient file.
 
     Formulas follow the intermediate-calculation table of Table S12A/S12F.
     Cholesterol in mg/dL, SBP in mm Hg, eGFR in mL/min/1.73 m2. Flags are 0/1.
-    No range check here.
+    No range check here. With vector=True the inputs may be numpy arrays.
     """
+    mx, mn = (np.maximum, np.minimum) if vector else (max, min)
     a = (age - 55) / 10
     non_hdl = (tc - hdl) * MMOL_PER_MG_DL - 3.5
     hdl_c = (hdl * MMOL_PER_MG_DL - 1.3) / 0.3
-    sbp_ge_110 = (max(sbp, 110) - 130) / 20
-    egfr_lt_60 = (min(egfr, 60) - 60) / -15
+    sbp_ge_110 = (mx(sbp, 110) - 130) / 20
+    egfr_lt_60 = (mn(egfr, 60) - 60) / -15
     return {
         "age": a,
         "age_squared": a * a,  # 30-year model only
         "non_hdl": non_hdl,
         "hdl": hdl_c,
-        "sbp_lt_110": (min(sbp, 110) - 110) / 20,
+        "sbp_lt_110": (mn(sbp, 110) - 110) / 20,
         "sbp_ge_110": sbp_ge_110,
         "diabetes": diabetes,
         "smoker": smoker,
         "egfr_lt_60": egfr_lt_60,
-        "egfr_ge_60": (max(egfr, 60) - 90) / -15,
+        "egfr_ge_60": (mx(egfr, 60) - 90) / -15,
         "bp_treated": bp_treated,
         "statin": statin,
         "bp_treated_x_sbp_ge_110": bp_treated * sbp_ge_110,
@@ -173,3 +176,22 @@ def ascvd_risk(sex, age, tc, hdl, sbp, bp_treated, statin, diabetes, smoker, egf
     return prevent_risk(
         "ascvd", sex, age, tc, hdl, sbp, bp_treated, statin, diabetes, smoker, egfr, horizon
     )
+
+
+def ascvd_risk_array(sex, age, tc, hdl, sbp, bp_treated, statin, diabetes, smoker, egfr,
+                     horizon=10):
+    """Vectorized `ascvd_risk` (numpy arrays that broadcast). NO range check.
+
+    For the oracle's grid searches; the caller must pass only valid inputs.
+    Same formulas and coefficients as `ascvd_risk`.
+    """
+    if sex not in SEXES:
+        raise ValueError(f"sex must be one of {SEXES}, got {sex!r}")
+    if horizon not in HORIZONS:
+        raise ValueError(f"horizon must be 10 or 30, got {horizon!r}")
+    f = lambda x: np.asarray(x, dtype=float)
+    terms = derived_terms(f(age), f(tc), f(hdl), f(sbp), f(bp_treated), f(statin), f(diabetes),
+                          f(smoker), f(egfr), vector=True)
+    coefficients = load_coefficients()["models"]["ascvd"][f"{horizon}yr"][sex]
+    x = log_odds(coefficients, terms)
+    return 1.0 / (1.0 + np.exp(-x))

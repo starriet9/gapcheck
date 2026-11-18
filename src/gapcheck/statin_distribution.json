@@ -1,0 +1,756 @@
+{
+ "source": {
+  "module": "src/main/resources/modules/medications/statin.json",
+  "module_sha256": "b557a21d58df19bdcb294d219d7a78764f64859c19ebbcb70561782f800195bd",
+  "synthea_version": "v4.0.0",
+  "state": "Massachusetts",
+  "rule": "age bands are inclusive; first matching row in file order; no matching row -> transition with default_probability 1"
+ },
+ "ingredient": {
+  "order": [
+   "Prescribe_Atorvastatin",
+   "Prescribe_Ezetimibe_Simvastatin",
+   "Prescribe_Lovastatin",
+   "Prescribe_Pitavastatin",
+   "Prescribe_Pravastatin",
+   "Prescribe_Rosuvastatin",
+   "Prescribe_Simvastatin"
+  ],
+  "default": "Prescribe_Atorvastatin",
+  "table": [
+   {
+    "age": "26-35",
+    "gender": "F",
+    "p": {
+     "Prescribe_Atorvastatin": 1.0,
+     "Prescribe_Ezetimibe_Simvastatin": 0.0,
+     "Prescribe_Lovastatin": 0.0,
+     "Prescribe_Pitavastatin": 0.0,
+     "Prescribe_Pravastatin": 0.0,
+     "Prescribe_Rosuvastatin": 0.0,
+     "Prescribe_Simvastatin": 0.0
+    }
+   },
+   {
+    "age": "26-35",
+    "gender": "M",
+    "p": {
+     "Prescribe_Atorvastatin": 1.0,
+     "Prescribe_Ezetimibe_Simvastatin": 0.0,
+     "Prescribe_Lovastatin": 0.0,
+     "Prescribe_Pitavastatin": 0.0,
+     "Prescribe_Pravastatin": 0.0,
+     "Prescribe_Rosuvastatin": 0.0,
+     "Prescribe_Simvastatin": 0.0
+    }
+   },
+   {
+    "age": "36-45",
+    "gender": "F",
+    "p": {
+     "Prescribe_Atorvastatin": 0.34,
+     "Prescribe_Ezetimibe_Simvastatin": 0.0,
+     "Prescribe_Lovastatin": 0.0,
+     "Prescribe_Pitavastatin": 0.0,
+     "Prescribe_Pravastatin": 0.266,
+     "Prescribe_Rosuvastatin": 0.278,
+     "Prescribe_Simvastatin": 0.116
+    }
+   },
+   {
+    "age": "36-45",
+    "gender": "M",
+    "p": {
+     "Prescribe_Atorvastatin": 0.613,
+     "Prescribe_Ezetimibe_Simvastatin": 0.0,
+     "Prescribe_Lovastatin": 0.0,
+     "Prescribe_Pitavastatin": 0.0,
+     "Prescribe_Pravastatin": 0.13,
+     "Prescribe_Rosuvastatin": 0.126,
+     "Prescribe_Simvastatin": 0.13
+    }
+   },
+   {
+    "age": "46-65",
+    "gender": "F",
+    "p": {
+     "Prescribe_Atorvastatin": 0.576,
+     "Prescribe_Ezetimibe_Simvastatin": 0.02,
+     "Prescribe_Lovastatin": 0.03,
+     "Prescribe_Pitavastatin": 0.0,
+     "Prescribe_Pravastatin": 0.045,
+     "Prescribe_Rosuvastatin": 0.102,
+     "Prescribe_Simvastatin": 0.226
+    }
+   },
+   {
+    "age": "46-65",
+    "gender": "M",
+    "p": {
+     "Prescribe_Atorvastatin": 0.614,
+     "Prescribe_Ezetimibe_Simvastatin": 0.005,
+     "Prescribe_Lovastatin": 0.019,
+     "Prescribe_Pitavastatin": 0.0,
+     "Prescribe_Pravastatin": 0.083,
+     "Prescribe_Rosuvastatin": 0.093,
+     "Prescribe_Simvastatin": 0.187
+    }
+   },
+   {
+    "age": "65-103",
+    "gender": "F",
+    "p": {
+     "Prescribe_Atorvastatin": 0.468,
+     "Prescribe_Ezetimibe_Simvastatin": 0.009,
+     "Prescribe_Lovastatin": 0.029,
+     "Prescribe_Pitavastatin": 0.01,
+     "Prescribe_Pravastatin": 0.13,
+     "Prescribe_Rosuvastatin": 0.131,
+     "Prescribe_Simvastatin": 0.223
+    }
+   },
+   {
+    "age": "65-103",
+    "gender": "M",
+    "p": {
+     "Prescribe_Atorvastatin": 0.548,
+     "Prescribe_Ezetimibe_Simvastatin": 0.013,
+     "Prescribe_Lovastatin": 0.044,
+     "Prescribe_Pitavastatin": 0.004,
+     "Prescribe_Pravastatin": 0.09,
+     "Prescribe_Rosuvastatin": 0.086,
+     "Prescribe_Simvastatin": 0.215
+    }
+   }
+  ]
+ },
+ "products": {
+  "Prescribe_Atorvastatin": {
+   "order": [
+    "Prescribe_Atorvastatin_10_Mg_Oral_Tablet",
+    "Prescribe_Atorvastatin_20_Mg_Oral_Tablet",
+    "Prescribe_Atorvastatin_40_Mg_Oral_Tablet",
+    "Prescribe_Atorvastatin_80_Mg_Oral_Tablet",
+    "Prescribe_Atorvastatin_40_Mg_Oral_Tablet_Lipitor",
+    "Prescribe_Atorvastatin_10_Mg_Oral_Tablet_Lipitor"
+   ],
+   "default": "Prescribe_Atorvastatin_10_Mg_Oral_Tablet",
+   "table": [
+    {
+     "age": "26-35",
+     "gender": "F",
+     "p": {
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet_Lipitor": 0.0,
+      "Prescribe_Atorvastatin_20_Mg_Oral_Tablet": 1.0,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet_Lipitor": 0.0,
+      "Prescribe_Atorvastatin_80_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "26-35",
+     "gender": "M",
+     "p": {
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet_Lipitor": 0.0,
+      "Prescribe_Atorvastatin_20_Mg_Oral_Tablet": 0.324,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet": 0.676,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet_Lipitor": 0.0,
+      "Prescribe_Atorvastatin_80_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "36-45",
+     "gender": "F",
+     "p": {
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet": 0.647,
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet_Lipitor": 0.0,
+      "Prescribe_Atorvastatin_20_Mg_Oral_Tablet": 0.189,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet": 0.163,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet_Lipitor": 0.0,
+      "Prescribe_Atorvastatin_80_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "36-45",
+     "gender": "M",
+     "p": {
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet": 0.252,
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet_Lipitor": 0.0,
+      "Prescribe_Atorvastatin_20_Mg_Oral_Tablet": 0.291,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet": 0.152,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet_Lipitor": 0.0,
+      "Prescribe_Atorvastatin_80_Mg_Oral_Tablet": 0.306
+     }
+    },
+    {
+     "age": "46-65",
+     "gender": "F",
+     "p": {
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet": 0.28,
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet_Lipitor": 0.025,
+      "Prescribe_Atorvastatin_20_Mg_Oral_Tablet": 0.399,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet": 0.247,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet_Lipitor": 0.0,
+      "Prescribe_Atorvastatin_80_Mg_Oral_Tablet": 0.048
+     }
+    },
+    {
+     "age": "46-65",
+     "gender": "M",
+     "p": {
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet": 0.192,
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet_Lipitor": 0.009,
+      "Prescribe_Atorvastatin_20_Mg_Oral_Tablet": 0.285,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet": 0.27,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet_Lipitor": 0.021,
+      "Prescribe_Atorvastatin_80_Mg_Oral_Tablet": 0.224
+     }
+    },
+    {
+     "age": "65-103",
+     "gender": "F",
+     "p": {
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet": 0.344,
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet_Lipitor": 0.0,
+      "Prescribe_Atorvastatin_20_Mg_Oral_Tablet": 0.288,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet": 0.252,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet_Lipitor": 0.0,
+      "Prescribe_Atorvastatin_80_Mg_Oral_Tablet": 0.116
+     }
+    },
+    {
+     "age": "65-103",
+     "gender": "M",
+     "p": {
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet": 0.208,
+      "Prescribe_Atorvastatin_10_Mg_Oral_Tablet_Lipitor": 0.008,
+      "Prescribe_Atorvastatin_20_Mg_Oral_Tablet": 0.199,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet": 0.408,
+      "Prescribe_Atorvastatin_40_Mg_Oral_Tablet_Lipitor": 0.0,
+      "Prescribe_Atorvastatin_80_Mg_Oral_Tablet": 0.177
+     }
+    }
+   ]
+  },
+  "Prescribe_Ezetimibe_Simvastatin": {
+   "order": [
+    "Prescribe_Ezetimibe_10_Mg_Simvastatin_20_Mg_Oral_Tablet",
+    "Prescribe_Ezetimibe_10_Mg_Simvastatin_40_Mg_Oral_Tablet",
+    "Prescribe_Ezetimibe_10_Mg_Simvastatin_80_Mg_Oral_Tablet",
+    "Prescribe_Ezetimibe_10_Mg_Simvastatin_40_Mg_Oral_Tablet_Vytorin"
+   ],
+   "default": "Prescribe_Ezetimibe_10_Mg_Simvastatin_20_Mg_Oral_Tablet",
+   "table": [
+    {
+     "age": "46-65",
+     "gender": "F",
+     "p": {
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_20_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_40_Mg_Oral_Tablet": 1.0,
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_40_Mg_Oral_Tablet_Vytorin": 0.0,
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_80_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "46-65",
+     "gender": "M",
+     "p": {
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_20_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_40_Mg_Oral_Tablet": 0.5,
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_40_Mg_Oral_Tablet_Vytorin": 0.5,
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_80_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "65-103",
+     "gender": "F",
+     "p": {
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_20_Mg_Oral_Tablet": 1.0,
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_40_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_40_Mg_Oral_Tablet_Vytorin": 0.0,
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_80_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "65-103",
+     "gender": "M",
+     "p": {
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_20_Mg_Oral_Tablet": 0.582,
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_40_Mg_Oral_Tablet": 0.418,
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_40_Mg_Oral_Tablet_Vytorin": 0.0,
+      "Prescribe_Ezetimibe_10_Mg_Simvastatin_80_Mg_Oral_Tablet": 0.0
+     }
+    }
+   ]
+  },
+  "Prescribe_Lovastatin": {
+   "order": [
+    "Prescribe_Lovastatin_10_Mg_Oral_Tablet",
+    "Prescribe_Lovastatin_20_Mg_Oral_Tablet",
+    "Prescribe_Lovastatin_40_Mg_Oral_Tablet"
+   ],
+   "default": "Prescribe_Lovastatin_10_Mg_Oral_Tablet",
+   "table": [
+    {
+     "age": "46-65",
+     "gender": "F",
+     "p": {
+      "Prescribe_Lovastatin_10_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Lovastatin_20_Mg_Oral_Tablet": 1.0,
+      "Prescribe_Lovastatin_40_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "46-65",
+     "gender": "M",
+     "p": {
+      "Prescribe_Lovastatin_10_Mg_Oral_Tablet": 0.413,
+      "Prescribe_Lovastatin_20_Mg_Oral_Tablet": 0.587,
+      "Prescribe_Lovastatin_40_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "65-103",
+     "gender": "F",
+     "p": {
+      "Prescribe_Lovastatin_10_Mg_Oral_Tablet": 0.076,
+      "Prescribe_Lovastatin_20_Mg_Oral_Tablet": 0.27,
+      "Prescribe_Lovastatin_40_Mg_Oral_Tablet": 0.655
+     }
+    },
+    {
+     "age": "65-103",
+     "gender": "M",
+     "p": {
+      "Prescribe_Lovastatin_10_Mg_Oral_Tablet": 0.255,
+      "Prescribe_Lovastatin_20_Mg_Oral_Tablet": 0.173,
+      "Prescribe_Lovastatin_40_Mg_Oral_Tablet": 0.572
+     }
+    }
+   ]
+  },
+  "Prescribe_Pitavastatin": {
+   "order": [
+    "Prescribe_Pitavastatin_Calcium_1_Mg_Oral_Tablet_Livalo",
+    "Prescribe_Pitavastatin_Calcium_2_Mg_Oral_Tablet_Livalo",
+    "Prescribe_Pitavastatin_Calcium_4_Mg_Oral_Tablet_Livalo"
+   ],
+   "default": "Prescribe_Pitavastatin_Calcium_1_Mg_Oral_Tablet_Livalo",
+   "table": [
+    {
+     "age": "65-103",
+     "gender": "F",
+     "p": {
+      "Prescribe_Pitavastatin_Calcium_1_Mg_Oral_Tablet_Livalo": 0.0,
+      "Prescribe_Pitavastatin_Calcium_2_Mg_Oral_Tablet_Livalo": 0.351,
+      "Prescribe_Pitavastatin_Calcium_4_Mg_Oral_Tablet_Livalo": 0.649
+     }
+    },
+    {
+     "age": "65-103",
+     "gender": "M",
+     "p": {
+      "Prescribe_Pitavastatin_Calcium_1_Mg_Oral_Tablet_Livalo": 1.0,
+      "Prescribe_Pitavastatin_Calcium_2_Mg_Oral_Tablet_Livalo": 0.0,
+      "Prescribe_Pitavastatin_Calcium_4_Mg_Oral_Tablet_Livalo": 0.0
+     }
+    }
+   ]
+  },
+  "Prescribe_Pravastatin": {
+   "order": [
+    "Prescribe_Pravastatin_Sodium_10_Mg_Oral_Tablet",
+    "Prescribe_Pravastatin_Sodium_20_Mg_Oral_Tablet",
+    "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet",
+    "Prescribe_Pravastatin_Sodium_80_Mg_Oral_Tablet",
+    "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet_Pravachol"
+   ],
+   "default": "Prescribe_Pravastatin_Sodium_10_Mg_Oral_Tablet",
+   "table": [
+    {
+     "age": "36-45",
+     "gender": "F",
+     "p": {
+      "Prescribe_Pravastatin_Sodium_10_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Pravastatin_Sodium_20_Mg_Oral_Tablet": 1.0,
+      "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet_Pravachol": 0.0,
+      "Prescribe_Pravastatin_Sodium_80_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "36-45",
+     "gender": "M",
+     "p": {
+      "Prescribe_Pravastatin_Sodium_10_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Pravastatin_Sodium_20_Mg_Oral_Tablet": 0.386,
+      "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet": 0.614,
+      "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet_Pravachol": 0.0,
+      "Prescribe_Pravastatin_Sodium_80_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "46-65",
+     "gender": "F",
+     "p": {
+      "Prescribe_Pravastatin_Sodium_10_Mg_Oral_Tablet": 0.06,
+      "Prescribe_Pravastatin_Sodium_20_Mg_Oral_Tablet": 0.157,
+      "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet": 0.783,
+      "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet_Pravachol": 0.0,
+      "Prescribe_Pravastatin_Sodium_80_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "46-65",
+     "gender": "M",
+     "p": {
+      "Prescribe_Pravastatin_Sodium_10_Mg_Oral_Tablet": 0.11,
+      "Prescribe_Pravastatin_Sodium_20_Mg_Oral_Tablet": 0.225,
+      "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet": 0.621,
+      "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet_Pravachol": 0.0,
+      "Prescribe_Pravastatin_Sodium_80_Mg_Oral_Tablet": 0.045
+     }
+    },
+    {
+     "age": "65-103",
+     "gender": "F",
+     "p": {
+      "Prescribe_Pravastatin_Sodium_10_Mg_Oral_Tablet": 0.112,
+      "Prescribe_Pravastatin_Sodium_20_Mg_Oral_Tablet": 0.121,
+      "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet": 0.496,
+      "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet_Pravachol": 0.0,
+      "Prescribe_Pravastatin_Sodium_80_Mg_Oral_Tablet": 0.271
+     }
+    },
+    {
+     "age": "65-103",
+     "gender": "M",
+     "p": {
+      "Prescribe_Pravastatin_Sodium_10_Mg_Oral_Tablet": 0.04,
+      "Prescribe_Pravastatin_Sodium_20_Mg_Oral_Tablet": 0.398,
+      "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet": 0.549,
+      "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet_Pravachol": 0.0,
+      "Prescribe_Pravastatin_Sodium_80_Mg_Oral_Tablet": 0.013
+     }
+    }
+   ]
+  },
+  "Prescribe_Rosuvastatin": {
+   "order": [
+    "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet",
+    "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet_Crestor",
+    "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet",
+    "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet_Crestor",
+    "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet",
+    "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet",
+    "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet_Crestor",
+    "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet_Crestor"
+   ],
+   "default": "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet",
+   "table": [
+    {
+     "age": "36-45",
+     "gender": "F",
+     "p": {
+      "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet": 1.0,
+      "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet_Crestor": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet_Crestor": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet_Crestor": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet_Crestor": 0.0
+     }
+    },
+    {
+     "age": "36-45",
+     "gender": "M",
+     "p": {
+      "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet_Crestor": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet": 1.0,
+      "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet_Crestor": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet_Crestor": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet_Crestor": 0.0
+     }
+    },
+    {
+     "age": "46-65",
+     "gender": "F",
+     "p": {
+      "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet": 0.262,
+      "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet_Crestor": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet": 0.25,
+      "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet_Crestor": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet": 0.214,
+      "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet_Crestor": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet": 0.275,
+      "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet_Crestor": 0.0
+     }
+    },
+    {
+     "age": "46-65",
+     "gender": "M",
+     "p": {
+      "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet": 0.526,
+      "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet_Crestor": 0.102,
+      "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet_Crestor": 0.032,
+      "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet": 0.037,
+      "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet_Crestor": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet": 0.303,
+      "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet_Crestor": 0.0
+     }
+    },
+    {
+     "age": "65-103",
+     "gender": "F",
+     "p": {
+      "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet": 0.467,
+      "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet_Crestor": 0.024,
+      "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet": 0.152,
+      "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet_Crestor": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet": 0.067,
+      "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet_Crestor": 0.037,
+      "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet": 0.253,
+      "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet_Crestor": 0.0
+     }
+    },
+    {
+     "age": "65-103",
+     "gender": "M",
+     "p": {
+      "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet": 0.431,
+      "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet_Crestor": 0.038,
+      "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet": 0.21,
+      "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet_Crestor": 0.042,
+      "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet": 0.085,
+      "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet_Crestor": 0.0,
+      "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet": 0.165,
+      "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet_Crestor": 0.028
+     }
+    }
+   ]
+  },
+  "Prescribe_Simvastatin": {
+   "order": [
+    "Prescribe_Simvastatin_10_Mg_Oral_Tablet",
+    "Prescribe_Simvastatin_40_Mg_Oral_Tablet",
+    "Prescribe_Simvastatin_20_Mg_Oral_Tablet",
+    "Prescribe_Simvastatin_80_Mg_Oral_Tablet",
+    "Prescribe_Simvastatin_5_Mg_Oral_Tablet"
+   ],
+   "default": "Prescribe_Simvastatin_10_Mg_Oral_Tablet",
+   "table": [
+    {
+     "age": "36-45",
+     "gender": "F",
+     "p": {
+      "Prescribe_Simvastatin_10_Mg_Oral_Tablet": 1.0,
+      "Prescribe_Simvastatin_20_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Simvastatin_40_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Simvastatin_5_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Simvastatin_80_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "36-45",
+     "gender": "M",
+     "p": {
+      "Prescribe_Simvastatin_10_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Simvastatin_20_Mg_Oral_Tablet": 0.214,
+      "Prescribe_Simvastatin_40_Mg_Oral_Tablet": 0.786,
+      "Prescribe_Simvastatin_5_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Simvastatin_80_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "46-65",
+     "gender": "F",
+     "p": {
+      "Prescribe_Simvastatin_10_Mg_Oral_Tablet": 0.122,
+      "Prescribe_Simvastatin_20_Mg_Oral_Tablet": 0.369,
+      "Prescribe_Simvastatin_40_Mg_Oral_Tablet": 0.509,
+      "Prescribe_Simvastatin_5_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Simvastatin_80_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "46-65",
+     "gender": "M",
+     "p": {
+      "Prescribe_Simvastatin_10_Mg_Oral_Tablet": 0.03,
+      "Prescribe_Simvastatin_20_Mg_Oral_Tablet": 0.642,
+      "Prescribe_Simvastatin_40_Mg_Oral_Tablet": 0.328,
+      "Prescribe_Simvastatin_5_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Simvastatin_80_Mg_Oral_Tablet": 0.0
+     }
+    },
+    {
+     "age": "65-103",
+     "gender": "F",
+     "p": {
+      "Prescribe_Simvastatin_10_Mg_Oral_Tablet": 0.255,
+      "Prescribe_Simvastatin_20_Mg_Oral_Tablet": 0.293,
+      "Prescribe_Simvastatin_40_Mg_Oral_Tablet": 0.355,
+      "Prescribe_Simvastatin_5_Mg_Oral_Tablet": 0.031,
+      "Prescribe_Simvastatin_80_Mg_Oral_Tablet": 0.066
+     }
+    },
+    {
+     "age": "65-103",
+     "gender": "M",
+     "p": {
+      "Prescribe_Simvastatin_10_Mg_Oral_Tablet": 0.086,
+      "Prescribe_Simvastatin_20_Mg_Oral_Tablet": 0.383,
+      "Prescribe_Simvastatin_40_Mg_Oral_Tablet": 0.487,
+      "Prescribe_Simvastatin_5_Mg_Oral_Tablet": 0.0,
+      "Prescribe_Simvastatin_80_Mg_Oral_Tablet": 0.044
+     }
+    }
+   ]
+  }
+ },
+ "codes": {
+  "Prescribe_Atorvastatin_10_Mg_Oral_Tablet": {
+   "code": "617312",
+   "display": "atorvastatin 10 MG Oral Tablet"
+  },
+  "Prescribe_Atorvastatin_20_Mg_Oral_Tablet": {
+   "code": "617310",
+   "display": "atorvastatin 20 MG Oral Tablet"
+  },
+  "Prescribe_Atorvastatin_40_Mg_Oral_Tablet": {
+   "code": "617311",
+   "display": "atorvastatin 40 MG Oral Tablet"
+  },
+  "Prescribe_Atorvastatin_80_Mg_Oral_Tablet": {
+   "code": "259255",
+   "display": "atorvastatin 80 MG Oral Tablet"
+  },
+  "Prescribe_Atorvastatin_40_Mg_Oral_Tablet_Lipitor": {
+   "code": "617320",
+   "display": "atorvastatin 40 MG Oral Tablet [Lipitor]"
+  },
+  "Prescribe_Atorvastatin_10_Mg_Oral_Tablet_Lipitor": {
+   "code": "617314",
+   "display": "atorvastatin 10 MG Oral Tablet [Lipitor]"
+  },
+  "Prescribe_Ezetimibe_10_Mg_Simvastatin_20_Mg_Oral_Tablet": {
+   "code": "476349",
+   "display": "ezetimibe 10 MG / simvastatin 20 MG Oral Tablet"
+  },
+  "Prescribe_Ezetimibe_10_Mg_Simvastatin_40_Mg_Oral_Tablet": {
+   "code": "476350",
+   "display": "ezetimibe 10 MG / simvastatin 40 MG Oral Tablet"
+  },
+  "Prescribe_Ezetimibe_10_Mg_Simvastatin_80_Mg_Oral_Tablet": {
+   "code": "476351",
+   "display": "ezetimibe 10 MG / simvastatin 80 MG Oral Tablet"
+  },
+  "Prescribe_Ezetimibe_10_Mg_Simvastatin_40_Mg_Oral_Tablet_Vytorin": {
+   "code": "1245441",
+   "display": "ezetimibe 10 MG / simvastatin 40 MG Oral Tablet [Vytorin]"
+  },
+  "Prescribe_Lovastatin_10_Mg_Oral_Tablet": {
+   "code": "197903",
+   "display": "lovastatin 10 MG Oral Tablet"
+  },
+  "Prescribe_Lovastatin_20_Mg_Oral_Tablet": {
+   "code": "197904",
+   "display": "lovastatin 20 MG Oral Tablet"
+  },
+  "Prescribe_Lovastatin_40_Mg_Oral_Tablet": {
+   "code": "197905",
+   "display": "lovastatin 40 MG Oral Tablet"
+  },
+  "Prescribe_Pitavastatin_Calcium_1_Mg_Oral_Tablet_Livalo": {
+   "code": "861646",
+   "display": "pitavastatin calcium 1 MG Oral Tablet [Livalo]"
+  },
+  "Prescribe_Pitavastatin_Calcium_2_Mg_Oral_Tablet_Livalo": {
+   "code": "861650",
+   "display": "pitavastatin calcium 2 MG Oral Tablet [Livalo]"
+  },
+  "Prescribe_Pitavastatin_Calcium_4_Mg_Oral_Tablet_Livalo": {
+   "code": "861654",
+   "display": "pitavastatin calcium 4 MG Oral Tablet [Livalo]"
+  },
+  "Prescribe_Pravastatin_Sodium_10_Mg_Oral_Tablet": {
+   "code": "904458",
+   "display": "pravastatin sodium 10 MG Oral Tablet"
+  },
+  "Prescribe_Pravastatin_Sodium_20_Mg_Oral_Tablet": {
+   "code": "904467",
+   "display": "pravastatin sodium 20 MG Oral Tablet"
+  },
+  "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet": {
+   "code": "904475",
+   "display": "pravastatin sodium 40 MG Oral Tablet"
+  },
+  "Prescribe_Pravastatin_Sodium_80_Mg_Oral_Tablet": {
+   "code": "904481",
+   "display": "pravastatin sodium 80 MG Oral Tablet"
+  },
+  "Prescribe_Pravastatin_Sodium_40_Mg_Oral_Tablet_Pravachol": {
+   "code": "904477",
+   "display": "pravastatin sodium 40 MG Oral Tablet [Pravachol]"
+  },
+  "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet": {
+   "code": "859747",
+   "display": "rosuvastatin calcium 10 MG Oral Tablet"
+  },
+  "Prescribe_Rosuvastatin_Calcium_10_Mg_Oral_Tablet_Crestor": {
+   "code": "859749",
+   "display": "rosuvastatin calcium 10 MG Oral Tablet [Crestor]"
+  },
+  "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet": {
+   "code": "859751",
+   "display": "rosuvastatin calcium 20 MG Oral Tablet"
+  },
+  "Prescribe_Rosuvastatin_Calcium_20_Mg_Oral_Tablet_Crestor": {
+   "code": "859753",
+   "display": "rosuvastatin calcium 20 MG Oral Tablet [Crestor]"
+  },
+  "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet": {
+   "code": "859419",
+   "display": "rosuvastatin calcium 40 MG Oral Tablet"
+  },
+  "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet": {
+   "code": "859424",
+   "display": "rosuvastatin calcium 5 MG Oral Tablet"
+  },
+  "Prescribe_Rosuvastatin_Calcium_40_Mg_Oral_Tablet_Crestor": {
+   "code": "859421",
+   "display": "rosuvastatin calcium 40 MG Oral Tablet [Crestor]"
+  },
+  "Prescribe_Rosuvastatin_Calcium_5_Mg_Oral_Tablet_Crestor": {
+   "code": "859426",
+   "display": "rosuvastatin calcium 5 MG Oral Tablet [Crestor]"
+  },
+  "Prescribe_Simvastatin_10_Mg_Oral_Tablet": {
+   "code": "314231",
+   "display": "simvastatin 10 MG Oral Tablet"
+  },
+  "Prescribe_Simvastatin_40_Mg_Oral_Tablet": {
+   "code": "198211",
+   "display": "simvastatin 40 MG Oral Tablet"
+  },
+  "Prescribe_Simvastatin_20_Mg_Oral_Tablet": {
+   "code": "312961",
+   "display": "simvastatin 20 MG Oral Tablet"
+  },
+  "Prescribe_Simvastatin_80_Mg_Oral_Tablet": {
+   "code": "200345",
+   "display": "simvastatin 80 MG Oral Tablet"
+  },
+  "Prescribe_Simvastatin_5_Mg_Oral_Tablet": {
+   "code": "312962",
+   "display": "simvastatin 5 MG Oral Tablet"
+  }
+ }
+}
