@@ -101,12 +101,12 @@ The oracle returns CANNOT_DETERMINE, naming every such X, when a deciding X is a
 
 ### 3.5 PREVENT implementation
 
-- Own implementation of the PREVENT base equations, 10-year and 30-year ASCVD (Khan et al., Circulation 2024;149:430–449). Coefficients transcribed from the paper's supplement (Supplemental Tables S12A, base 10-year, and S12F, base 30-year), with the table cited in code. The supplement's worked example (Table S12A) is the first unit test.
+- Own implementation of the PREVENT base equations, 10-year and 30-year ASCVD (Khan et al., Circulation 2024;149:430–449). Coefficients transcribed from the paper's supplement (Supplemental Tables S12A, base 10-year, and S12F, base 30-year), with the table cited in code. The supplement's worked examples (Tables S12A and S12F) are the first unit tests. They fix smoking, statin and eGFR < 60 at zero and SBP above 110, so those terms are checked only against the packages and the AHA calculator.
 - Inputs: sex, age, total cholesterol, HDL-C, systolic BP, BP treatment, statin use, diabetes, current smoking, eGFR. BMI is not in the ASCVD base equation, so BMI never causes CANNOT_DETERMINE.
-- Valid ranges, as given in Table S12A: age 30–79 (30-year risk: 30–59), TC 130–320 mg/dL, HDL-C 20–100, SBP 90–200, eGFR 15–150. Both packages below stop at eGFR 140, so cross-check rows with eGFR 141–150 are compared with the AHA calculator only.
+- Valid ranges, as given in Tables S12A and S12F: age 30–79, TC 130–320 mg/dL, HDL-C 20–100, SBP 90–200, eGFR 15–150. The 30-year risk is used only at ages 30–59: the guideline uses it only there (sec. 4.2.3.7 recs 2–3), `pyprevent` rejects it above 59 and `preventr` flags it as questionable, although Table S12F lists 30–79. Both packages stop at eGFR 140, so cross-check rows with eGFR 141–150 are compared with the AHA calculator only.
 - Cross-checks, all pinned:
   - `pyprevent` 0.1.7 (MIT) on 1,000 random valid inputs (with a valid BMI, which it validates).
-  - `preventr` 0.12.2 (MIT, R) on the same inputs, in a project-local R environment, skipping SBP > 180 (which it rejects). If R cannot be run without a system install, this check is dropped and recorded as a deviation.
+  - `preventr` 0.12.2 (MIT, R) on the same inputs, in a project-local R environment, skipping SBP > 180 (which it rejects). Its public output is rounded to three decimals, so the comparison uses its internal full-precision path. If R cannot be run without a system install, this check is dropped and recorded as a deviation.
   - 10 hand entries in the AHA online PREVENT calculator.
   - Agreement: absolute difference < 0.1 percentage point on every row. A larger difference blocks the oracle until explained.
 - At least 30 hand-written vignette tests of the decision table, including every row boundary.

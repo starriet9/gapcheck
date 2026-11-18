@@ -1,0 +1,299 @@
+{
+  "source": {
+    "paper": "Khan SS, et al. Development and Validation of the American Heart Association's PREVENT Equations. Circulation. 2024;149(6):430-449. doi:10.1161/CIRCULATIONAHA.123.067626",
+    "supplement": "Supplemental Tables (xlsx), PMC author manuscript NIHMS1953934",
+    "supplement_sha256": "64c0853148769fae8bd20179bd497ec9415bc4146dd95314ca346475d3938872",
+    "tables": {
+      "S12A": "Table S12A Base 10yr",
+      "S12F": "Table S12F Base 30yr"
+    },
+    "model": "PREVENT base model (no UACR, HbA1c or SDI)",
+    "note": "Coefficients copied from the beta-coefficient table of each sheet. Women/men columns checked against the sheet's worked example. BMI terms are blank for ASCVD and total CVD and are omitted. Cholesterol is converted with mmol/L = mg/dL x 0.02586.",
+    "extracted_by": "scripts/extract_prevent_coefficients.py"
+  },
+  "allowable_range_in_table": {
+    "S12A": {
+      "age": "30-79 years",
+      "tc": "130 to 320 mg/dl",
+      "hdl": "20 to 100 mg/dl",
+      "sbp": "90 to 200 mmHg",
+      "diabetes": "0 or 1",
+      "smoker": "0 or 1",
+      "bmi": "18.5 to <40 kg/m2",
+      "egfr": "15 to 150 ml/min/1.73m2",
+      "bp_treated": "0 or 1",
+      "statin": "0 or 1"
+    },
+    "S12F": {
+      "age": "30-79 years",
+      "tc": "130 to 320 mg/dl",
+      "hdl": "20 to 100 mg/dl",
+      "sbp": "90 to 200 mmHg",
+      "diabetes": "0 or 1",
+      "smoker": "0 or 1",
+      "bmi": "18.5 to <40 kg/m2",
+      "egfr": "15 to 150 ml/min/1.73m2",
+      "bp_treated": "0 or 1",
+      "statin": "0 or 1"
+    }
+  },
+  "terms": {
+    "age": "Age per 10 years",
+    "age_squared": "Age per 10 years squared",
+    "non_hdl": "non-HDL-C per 1 mmol/L",
+    "hdl": "HDL-C per 0.3 mmol/L",
+    "sbp_lt_110": "SBP <110 per 20 mmHg",
+    "sbp_ge_110": "SBP ≥110 per 20 mmHg",
+    "diabetes": "Diabetes",
+    "smoker": "Current smoking",
+    "egfr_lt_60": "eGFR <60, per -15 ml",
+    "egfr_ge_60": "eGFR 60+, per -15 ml",
+    "bp_treated": "Anti-hypertensive use",
+    "statin": "Statin use",
+    "bp_treated_x_sbp_ge_110": "Treated SBP ≥110 mm Hg per 20 mm Hg",
+    "statin_x_non_hdl": "Treated non-HDL-C",
+    "age_x_non_hdl": "Age per 10yr * non-HDL-C per 1 mmol/L",
+    "age_x_hdl": "Age per 10yr * HDL-C per 0.3 mml/L",
+    "age_x_sbp_ge_110": "Age per 10yr * SBP ≥110 mm Hg per 20 mmHg",
+    "age_x_diabetes": "Age per 10yr * diabetes",
+    "age_x_smoker": "Age per 10yr * current smoking",
+    "age_x_egfr_lt_60": "Age per 10yr * eGFR <60, per -15 ml",
+    "constant": "Constant"
+  },
+  "models": {
+    "ascvd": {
+      "10yr": {
+        "female": {
+          "age": 0.719883,
+          "non_hdl": 0.1176967,
+          "hdl": -0.151185,
+          "sbp_lt_110": -0.0835358,
+          "sbp_ge_110": 0.3592852,
+          "diabetes": 0.8348585,
+          "smoker": 0.4831078,
+          "egfr_lt_60": 0.4864619,
+          "egfr_ge_60": 0.0397779,
+          "bp_treated": 0.2265309,
+          "statin": -0.0592374,
+          "bp_treated_x_sbp_ge_110": -0.0395762,
+          "statin_x_non_hdl": 0.0844423,
+          "age_x_non_hdl": -0.0567839,
+          "age_x_hdl": 0.0325692,
+          "age_x_sbp_ge_110": -0.1035985,
+          "age_x_diabetes": -0.2417542,
+          "age_x_smoker": -0.0791142,
+          "age_x_egfr_lt_60": -0.1671492,
+          "constant": -3.819975
+        },
+        "male": {
+          "age": 0.7099847,
+          "non_hdl": 0.1658663,
+          "hdl": -0.1144285,
+          "sbp_lt_110": -0.2837212,
+          "sbp_ge_110": 0.3239977,
+          "diabetes": 0.7189597,
+          "smoker": 0.3956973,
+          "egfr_lt_60": 0.3690075,
+          "egfr_ge_60": 0.0203619,
+          "bp_treated": 0.2036522,
+          "statin": -0.0865581,
+          "bp_treated_x_sbp_ge_110": -0.0322916,
+          "statin_x_non_hdl": 0.114563,
+          "age_x_non_hdl": -0.0300005,
+          "age_x_hdl": 0.0232747,
+          "age_x_sbp_ge_110": -0.0927024,
+          "age_x_diabetes": -0.2018525,
+          "age_x_smoker": -0.0970527,
+          "age_x_egfr_lt_60": -0.1217081,
+          "constant": -3.500655
+        }
+      },
+      "30yr": {
+        "female": {
+          "age": 0.4669202,
+          "age_squared": -0.0893118,
+          "non_hdl": 0.1256901,
+          "hdl": -0.1542255,
+          "sbp_lt_110": -0.0018093,
+          "sbp_ge_110": 0.322949,
+          "diabetes": 0.6296707,
+          "smoker": 0.268292,
+          "egfr_lt_60": 0.100106,
+          "egfr_ge_60": 0.0499663,
+          "bp_treated": 0.1875292,
+          "statin": 0.0152476,
+          "bp_treated_x_sbp_ge_110": -0.0276123,
+          "statin_x_non_hdl": 0.0736147,
+          "age_x_non_hdl": -0.0521962,
+          "age_x_hdl": 0.0316918,
+          "age_x_sbp_ge_110": -0.1046101,
+          "age_x_diabetes": -0.2727793,
+          "age_x_smoker": -0.1530907,
+          "age_x_egfr_lt_60": -0.1299149,
+          "constant": -1.974074
+        },
+        "male": {
+          "age": 0.3994099,
+          "age_squared": -0.0937484,
+          "non_hdl": 0.1744643,
+          "hdl": -0.120203,
+          "sbp_lt_110": -0.0665117,
+          "sbp_ge_110": 0.2753037,
+          "diabetes": 0.4790257,
+          "smoker": 0.1782635,
+          "egfr_lt_60": -0.0218789,
+          "egfr_ge_60": 0.0602553,
+          "bp_treated": 0.1421182,
+          "statin": 0.0135996,
+          "bp_treated_x_sbp_ge_110": -0.0218265,
+          "statin_x_non_hdl": 0.1013148,
+          "age_x_non_hdl": -0.0312619,
+          "age_x_hdl": 0.020673,
+          "age_x_sbp_ge_110": -0.0920935,
+          "age_x_diabetes": -0.2159947,
+          "age_x_smoker": -0.1548811,
+          "age_x_egfr_lt_60": -0.0712547,
+          "constant": -1.736444
+        }
+      }
+    },
+    "total_cvd": {
+      "10yr": {
+        "female": {
+          "age": 0.7939329,
+          "non_hdl": 0.0305239,
+          "hdl": -0.1606857,
+          "sbp_lt_110": -0.2394003,
+          "sbp_ge_110": 0.3600781,
+          "diabetes": 0.8667604,
+          "smoker": 0.5360739,
+          "egfr_lt_60": 0.6045917,
+          "egfr_ge_60": 0.0433769,
+          "bp_treated": 0.3151672,
+          "statin": -0.1477655,
+          "bp_treated_x_sbp_ge_110": -0.0663612,
+          "statin_x_non_hdl": 0.1197879,
+          "age_x_non_hdl": -0.0819715,
+          "age_x_hdl": 0.0306769,
+          "age_x_sbp_ge_110": -0.0946348,
+          "age_x_diabetes": -0.27057,
+          "age_x_smoker": -0.078715,
+          "age_x_egfr_lt_60": -0.1637806,
+          "constant": -3.307728
+        },
+        "male": {
+          "age": 0.7688528,
+          "non_hdl": 0.0736174,
+          "hdl": -0.0954431,
+          "sbp_lt_110": -0.4347345,
+          "sbp_ge_110": 0.3362658,
+          "diabetes": 0.7692857,
+          "smoker": 0.4386871,
+          "egfr_lt_60": 0.5378979,
+          "egfr_ge_60": 0.0164827,
+          "bp_treated": 0.288879,
+          "statin": -0.1337349,
+          "bp_treated_x_sbp_ge_110": -0.0475924,
+          "statin_x_non_hdl": 0.150273,
+          "age_x_non_hdl": -0.0517874,
+          "age_x_hdl": 0.0191169,
+          "age_x_sbp_ge_110": -0.1049477,
+          "age_x_diabetes": -0.2251948,
+          "age_x_smoker": -0.0895067,
+          "age_x_egfr_lt_60": -0.1543702,
+          "constant": -3.031168
+        }
+      },
+      "30yr": {
+        "female": {
+          "age": 0.5503079,
+          "age_squared": -0.0928369,
+          "non_hdl": 0.0409794,
+          "hdl": -0.1663306,
+          "sbp_lt_110": -0.1628654,
+          "sbp_ge_110": 0.3299505,
+          "diabetes": 0.6793894,
+          "smoker": 0.3196112,
+          "egfr_lt_60": 0.1857101,
+          "egfr_ge_60": 0.0553528,
+          "bp_treated": 0.2894,
+          "statin": -0.075688,
+          "bp_treated_x_sbp_ge_110": -0.056367,
+          "statin_x_non_hdl": 0.1071019,
+          "age_x_non_hdl": -0.0751438,
+          "age_x_hdl": 0.0301786,
+          "age_x_sbp_ge_110": -0.0998776,
+          "age_x_diabetes": -0.3206166,
+          "age_x_smoker": -0.1607862,
+          "age_x_egfr_lt_60": -0.1450788,
+          "constant": -1.318827
+        },
+        "male": {
+          "age": 0.4627309,
+          "age_squared": -0.0984281,
+          "non_hdl": 0.0836088,
+          "hdl": -0.1029824,
+          "sbp_lt_110": -0.2140352,
+          "sbp_ge_110": 0.2904325,
+          "diabetes": 0.5331276,
+          "smoker": 0.2141914,
+          "egfr_lt_60": 0.1155556,
+          "egfr_ge_60": 0.0603775,
+          "bp_treated": 0.232714,
+          "statin": -0.0272112,
+          "bp_treated_x_sbp_ge_110": -0.0384488,
+          "statin_x_non_hdl": 0.134192,
+          "age_x_non_hdl": -0.0511759,
+          "age_x_hdl": 0.0165865,
+          "age_x_sbp_ge_110": -0.1101437,
+          "age_x_diabetes": -0.2585943,
+          "age_x_smoker": -0.1566406,
+          "age_x_egfr_lt_60": -0.1166776,
+          "constant": -1.148204
+        }
+      }
+    }
+  },
+  "worked_examples": {
+    "S12A": {
+      "inputs": {
+        "age": 50,
+        "tc": 200,
+        "hdl": 45,
+        "sbp": 160,
+        "diabetes": 1,
+        "smoker": 0,
+        "bmi": 35,
+        "egfr": 90,
+        "bp_treated": 1,
+        "statin": 0
+      },
+      "risk": {
+        "total_cvd_female": 0.14683939095644824,
+        "total_cvd_male": 0.16317056158151638,
+        "ascvd_female": 0.09195089753632872,
+        "ascvd_male": 0.10194362642179755
+      }
+    },
+    "S12F": {
+      "inputs": {
+        "age": 50,
+        "tc": 200,
+        "hdl": 45,
+        "sbp": 160,
+        "diabetes": 1,
+        "smoker": 0,
+        "bmi": 35,
+        "egfr": 90,
+        "bp_treated": 1,
+        "statin": 0
+      },
+      "risk": {
+        "total_cvd_female": 0.5298503870635785,
+        "total_cvd_male": 0.5143976549039669,
+        "ascvd_female": 0.3542551988690411,
+        "ascvd_male": 0.3485940384298915
+      }
+    }
+  }
+}
