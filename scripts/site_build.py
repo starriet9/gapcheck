@@ -8,8 +8,8 @@ Inputs (all in the repository; nothing is fetched):
   site/user_text.md     sentences the author writes (placeholders until then)
   site/log.json         the dated log (at most 10 rows)
   site/events.json      public upstream events with server timestamps
-  site/data/card.json   the twin-patient card (scripts/site_card.py)
-  site/data/score.json  score file of the pre-registered test run (written by
+  site/card.json   the twin-patient card (scripts/site_card.py)
+  site/score.json  score file of the pre-registered test run (written by
                         scripts/score_runs.py; aggregate numbers only); if it is
                         absent the page is in its preview state
   SPEC.md, PROTOCOL.md, RUNS.md, Makefile, git history
@@ -620,11 +620,11 @@ def load_figure1():
 # ---------------------------------------------------------------- page
 def build(out_dir: Path, res_p: Path | None = None) -> Path:
     cfg = json.loads((SITE / "config.json").read_text())
-    card = json.loads((SITE / "data" / "card.json").read_text())
+    card = json.loads((SITE / "card.json").read_text())
     log = json.loads((SITE / "log.json").read_text())
     events = {x["id"]: x for x in json.loads((SITE / "events.json").read_text())["events"]}
     user = user_sections((SITE / "user_text.md").read_text())
-    res_p = res_p or SITE / "data" / "score.json"
+    res_p = res_p or SITE / "score.json"
     results = json.loads(res_p.read_text()) if res_p.exists() else None
     spec, protocol, runs_text = read("SPEC.md"), read("PROTOCOL.md"), read("RUNS.md")
     repo = Repo(cfg)
@@ -752,7 +752,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="pages")
     ap.add_argument("--strict", action="store_true")
-    ap.add_argument("--results", help="score file to use instead of site/data/score.json "
+    ap.add_argument("--results", help="score file to use instead of site/score.json "
                     "(for trying the results layout on a mock run; not for publishing)")
     a = ap.parse_args()
     out = Path(a.out) if Path(a.out).is_absolute() else ROOT / a.out

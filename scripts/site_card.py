@@ -1,8 +1,8 @@
-"""Build the data of the page's twin-patient card (site/data/card.json).
+"""Build the data of the page's twin-patient card (site/card.json).
 
 Usage:
   python scripts/site_card.py [--cases data/cases/<set>] [--runs data/runs] \
-      [--out site/data/card.json]
+      [--out site/card.json]
 
 The card has three states, all built from files, none typed by hand:
   1. a base patient's original record (condition C0),
@@ -381,7 +381,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--cases", default=CASE_SET)
     ap.add_argument("--runs", default="data/runs")
-    ap.add_argument("--out", default="site/data/card.json")
+    ap.add_argument("--out", default="site/card.json")
     ap.add_argument("--gap-only", action="store_true",
                     help="pair rule: only twins whose original record is labelled GAP")
     a = ap.parse_args()
