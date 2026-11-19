@@ -48,7 +48,7 @@ Reporting guideline: Gallifant J, et al. The TRIPOD-LLM reporting guideline for 
 | 14c | Protocol access | H only; answered | `PROTOCOL.md` at the release tag; release URL in `RUNS.md` sec. 1 | At tag |
 | 14d | Registration | H only; answered | Not in a trial or study registry. Time-stamped by a tagged commit and a GitHub Release; the test seed comes from a public randomness beacon pulse after the release (`PROTOCOL.md` sec. 13). Any external registration is listed in `RUNS.md` sec. 1 | At tag |
 | 14e | Data availability | Yes | `SPEC.md` sec. 8: test set, augmentation and edit ledgers, model outputs and traces are released; generator data is public domain | With results |
-| 14f | Code availability | Yes | This repository; `make reproduce` | Code: answered. `make reproduce`: planned |
+| 14f | Code availability | Yes | This repository; `make reproduce` (`Makefile`) | Code: answered. Re-scoring of saved test outputs by `make reproduce`: with results |
 | 15 | Patient and public involvement | H only; answered | None | Answered |
 | 16a | Flow of records through the study; numbers per label | Yes (E) | Gate report (cohort, candidates, eligible, each exclusion rule); `RUNS.md` sec. 3 (clusters, cases per condition, expected label counts) | With results |
 | 16b | Characteristics by data source and split; dates; sample size | Yes (E) | Gate reports for the development and test sets; characteristics table (age, sex, stratum, statin status) for both sets | Planned |
