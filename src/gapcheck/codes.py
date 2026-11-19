@@ -414,10 +414,15 @@ PALLIATIVE_NOT_COUNTED = ("D9110",)
 
 # --------------------------------------------------------------------------
 # Pregnancy: active at index, or any pregnancy condition dated 0-365 days
-# before index (not sampled; structured reason "pregnancy", counted by the
-# oracle only for women aged 30-49).
+# before index (not sampled; structured reason "pregnancy", a category that
+# also covers planned pregnancy and lactation, counted by the oracle only for
+# women aged 30-49).
 # Found by: source (pregnancy.json: every pregnancy starts with 72892002,
 # which ends at delivery, abortion or miscarriage); data.
+# Lactation: no code. Neither the v4.0.0 modules (grep for lactat,
+# breastfe, "breast feed") nor the dev data (grep of every DESCRIPTION)
+# contain a lactation or breastfeeding condition, procedure or encounter, so
+# lactation can only be documented in notes.
 # --------------------------------------------------------------------------
 PREGNANCY = _index([
     Code("72892002", "Normal pregnancy (finding)"),
@@ -491,10 +496,17 @@ SMOKING_VALUES = SMOKING_CURRENT + SMOKING_NOT_CURRENT
 # Encounter class of the annual wellness visit (P1 adds eGFR rows there).
 WELLNESS_CLASS = "wellness"
 
-# Allergy or intolerance entries that mention a statin. Synthea v4.0.0 does
+# Allergy or intolerance entries that name a statin: a statin ingredient, the
+# word "statin" or "statins", or "HMG-CoA reductase inhibitor(s)", each as
+# whole words (so nystatin, cilastatin, somatostatin and the like do not
+# match). Matched case-insensitively against DESCRIPTION. Synthea v4.0.0 does
 # not generate any (allergies/drug_allergy_incidence.json has no statin);
 # record edits may add them.
-STATIN_ALLERGY_PATTERN = r"statin|hmg-coa"
+STATIN_INGREDIENTS = ("atorvastatin", "rosuvastatin", "simvastatin", "pravastatin",
+                      "lovastatin", "fluvastatin", "pitavastatin", "cerivastatin")
+STATIN_ALLERGY_PATTERN = (r"\b(?:" + "|".join(STATIN_INGREDIENTS) + r")\b"
+                          r"|\bstatins?\b"
+                          r"|\bHMG-?\s?CoA\s+reductase\s+inhibitors?\b")
 
 
 def codes(d: dict[str, Code]) -> tuple[str, ...]:

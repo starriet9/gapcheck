@@ -23,9 +23,13 @@ Rules:
 - Diabetes onset: earliest START of any diabetes code on or before index.
 - Structured reasons (SPEC 3.3), `reason_entries`: pregnancy conditions
   (category "pregnancy") and hospice or palliative-care encounters,
-  procedures or conditions (category "palliative") dated 0-365 days before
-  index. The date is START if it falls in that window, else STOP if STOP
-  falls in it. (Statin allergy rows are in `allergies`.)
+  procedures or conditions (category "palliative", including the ICD-10-CM
+  condition Z51.5) dated 0-365 days before index. The date is START if it
+  falls in that window, else STOP if STOP falls in it. Statin allergy rows
+  are in `allergies` (`statin_related`); `allergy_reason_date` and
+  `reason_in_window` give their rule: an allergy active at index counts
+  whatever its start date, an ended one only if its STOP is 0-365 days
+  before index.
 """
 from __future__ import annotations
 
@@ -391,7 +395,25 @@ def _years(start: date | None, index: date) -> float | None:
     return None if start is None else (index - start).days / 365.25
 
 
-REASON_WINDOW_DAYS = 365  # same window as oracle.REASON_WINDOW_DAYS
+REASON_WINDOW_DAYS = 365  # SPEC 3.3; a project convention, not a guideline number
+
+
+def reason_in_window(d: date | None, index: date, active_at_index: bool = False) -> bool:
+    """A reason dated `d` counts at `index`: dated 0-365 days before index, or
+    (statin allergy rows active at index) dated any time on or before index."""
+    if d is None:
+        return False
+    days = (index - d).days
+    return days >= 0 and (active_at_index or days <= REASON_WINDOW_DAYS)
+
+
+def allergy_reason_date(a: "AllergyRow") -> date | None:
+    """Date of the reason a statin allergy row documents: START if the row is
+    active at index (it counts whatever that date), else STOP (it counts only if
+    STOP is 0-365 days before index). None if the row does not name a statin."""
+    if not a.statin_related:
+        return None
+    return a.start if a.active else a.stop
 
 
 def _reason_entries(rec: PatientRecord, ix: date) -> tuple[ReasonEntry, ...]:

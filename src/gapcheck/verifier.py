@@ -51,7 +51,8 @@ RISK_TOLERANCE = 0.001   # 0.1 percentage point, risks are fractions
 VALUE_TOLERANCE = 0.05   # recorded values have one decimal
 INPUT_TOLERANCE = 0.5    # a PREVENT input may be the cited value rounded
 # Two-call rule (check 2): 10-year risk cuts at which the main-analysis label
-# changes (3%: rows 10 and 11a/11b; 5%: rows 9 and 10). 10% is not one: rows 8
+# changes (3%: rows 10 and 11a/11b, and row 5 vs rows 7/11b at ages 30-39 with
+# diabetes; 5%: rows 9 and 10). 10% is not one: rows 8
 # and 9 are both GAP, so two results at 8% and 12% give the same label. A
 # static list of cut points, like REQUIRED_INPUTS; the decision table itself is
 # never evaluated. The 30-year risk (rows 11a/11b) is not compared.

@@ -15,11 +15,11 @@ from dataclasses import dataclass, replace
 
 import numpy as np
 
-from . import oracle, prevent
+from . import oracle
 
 STRATA = ("S1", "S2", "S3", "S4", "S5")
 STRATUM_OF_ROW = {"1": "S1", "2": "S2", "3": "S3", "8": "S4", "9": "S4", "7": "S5", "11b": "S5"}
-# Rows whose label (or, for row 7, whose exclusion rule) needs PREVENT.
+# Rows whose label (or, for row 7, whose sampling rule) needs PREVENT.
 PREVENT_ROWS = frozenset({"5", "7", "8", "9", "10", "11a", "11b"})
 P1_EGFR_RANGE = (60.0, 140.0)
 P1_EGFR_VALUES = np.arange(60.0, 140.0 + 0.5, 1.0)
@@ -37,8 +37,12 @@ EXCLUSIONS: dict[str, tuple[tuple[str, ...], str]] = {
     "dx_55822004": (PRIMARY, "diagnosis 55822004 (S2-S5)"),
     "primary_prevention_76_79": (PRIMARY, "primary prevention at age 76-79"),
     "diabetes_outside_40_75": (PRIMARY, "diabetes outside age 40-75"),
-    "ldl_lt70_risk_ge5": (PRIMARY, "LDL-C < 70 with 10-year risk >= 5%"),
-    "age60_79_risk_lt3_ldl160_189": (PRIMARY, "age 60-79, risk < 3%, LDL-C 160-189"),
+    "row7_label_changes_at_ldl70": (
+        PRIMARY, "row 7 (LDL-C < 70) and the label is not NOT_INDICATED with LDL-C set to 70 "
+                 "(for a P1 eGFR, at some eGFR 60-140)"),
+    "age60_75_risk_lt3_ldl160_189": (
+        PRIMARY, "age 60-75, risk < 3%, LDL-C 160-189 (row 11a by the reading of rec 3's age "
+                 "limit)"),
     "prevent_input_missing_or_out_of_range": (
         PRIMARY, "a PREVENT input missing or out of range where PREVENT is needed"),
     "native_egfr_gt150": (PRIMARY, "native (generator) eGFR > 150 where PREVENT is needed"),
@@ -83,9 +87,20 @@ class StrataRow:
 
 
 def has_structured_reason(f) -> bool:
-    """Any structured reason dated 0-365 days before index, whatever age and sex."""
-    return any(0 <= (f.index_date - r.date).days <= oracle.REASON_WINDOW_DAYS
-               for r in oracle.reasons_from_facts(f))
+    """Any structured reason that counts at index (`oracle.reason_counts`), whatever
+    age and sex (broader than the oracle's pregnancy rule on purpose: no base patient
+    carries a pregnancy entry that the oracle ignores)."""
+    return any(oracle.reason_counts(r, f.index_date) for r in oracle.reasons_from_facts(f))
+
+
+def row7_stays_at_ldl70(x: oracle.OracleInputs, p1: bool) -> bool:
+    """Row-7 sampling rule (SPEC 5.1): the indication label is still NOT_INDICATED
+    with LDL-C set to 70 (other inputs as recorded); with a P1 eGFR, at every eGFR
+    60-140."""
+    x70 = replace(x, ldl=70.0)
+    if p1 and all(oracle.usable(x70).values()):
+        return all(oracle.row_status(r) == oracle.NOT_INDICATED for r in rows_over_egfr(x70))
+    return oracle.evaluate(x70, ignore_row0=True)["status"] == oracle.NOT_INDICATED
 
 
 def ascvd_type(f) -> str | None:
@@ -156,17 +171,12 @@ def assign(f) -> StrataRow:
     if row_dep:
         ex.append("p1_egfr_dependent")
 
-    if row == "7":
-        # LDL-C < 70 with 10-year risk >= 5%; with a P1 eGFR, at any eGFR 60-140.
-        if prevent_ok:
-            eg = P1_EGFR_VALUES if p1 else np.array([x.egfr])
-            r = prevent.ascvd_risk_array("male" if x.sex == "M" else "female", x.age, x.tc,
-                                         x.hdl, x.sbp, int(x.bp_treated), int(x.on_statin),
-                                         int(x.diabetes), int(x.smoker), eg)
-            if np.max(r) >= oracle.RISK_INTERMEDIATE:
-                ex.append("ldl_lt70_risk_ge5")
-    if row == "11b" and f.age >= 60 and x.ldl is not None and 160 <= x.ldl < 190:
-        ex.append("age60_79_risk_lt3_ldl160_189")
+    if row == "7" and not row7_stays_at_ldl70(x, p1):
+        # Rec 12 covers only part of LDL-C < 70; the 70-189 recommendations do not
+        # reach it (take-home message 8 for CKD reads 'regardless of LDL-C level').
+        ex.append("row7_label_changes_at_ldl70")
+    if row == "11a" and f.age >= 60 and x.ldl is not None and 160 <= x.ldl < 190:
+        ex.append("age60_75_risk_lt3_ldl160_189")
     if (row in PREVENT_ROWS or (row is None and set(ind.row_set) & PREVENT_ROWS)) \
             and not prevent_ok:
         ex.append("prevent_input_missing_or_out_of_range")

@@ -38,7 +38,7 @@ PAGE_SIZE = 20
 SNIPPET_CHARS = 80
 MAX_SNIPPETS = 3
 NOTE_TABLE_COLUMNS = ("note_id", "DATE", "TEXT")
-REASON_WINDOW_DAYS = 365          # SPEC 3.3
+REASON_WINDOW_DAYS = F.REASON_WINDOW_DAYS  # SPEC 3.3
 PREGNANCY_REASON_AGES = (30, 49)  # SPEC 3.3
 
 
@@ -154,7 +154,8 @@ TOOL_SPECS: dict[str, dict] = {
         }, list(S.PREVENT_ARGS)),
     },
     "guideline_lookup": {
-        "description": "One decision-table row: rule, label and the quoted guideline sources.",
+        "description": "One decision-table row: rule, label and its guideline sources (verbatim "
+                       "quotes; kind \"figure\" is a summary of figure boxes, not a quote).",
         "parameters": _obj({"row": {"type": "string"}}, ["row"]),
     },
 }
@@ -392,9 +393,10 @@ class CaseEnv:
             raise ToolError("unknown row; rows are " + ", ".join(
                 k for k in ROW_BY_ID if k != "X"))
         return {"row": r.id, "group": r.group, "rule": r.rule, "label": r.label,
-                "encoding": r.encoding,
+                "encoding": " ".join(r.encoding),
                 "sources": [{"section": s.section, "rec": s.rec, "cor": s.cor, "loe": s.loe,
-                             "quote": s.quote} for s in r.sources]}
+                             "quote": s.quote, "kind": s.kind, "role": s.role}
+                            for s in r.sources]}
 
     # ---------------------------------------------------------- fixed queries
     def named_list(self, name: str) -> list[str]:
@@ -429,17 +431,17 @@ class CaseEnv:
         raise KeyError(name)
 
     def structured_reasons(self) -> list[str]:
-        """Structured reason entries dated 0-365 days before index (SPEC 3.3)."""
+        """Structured reason entries that count at index (SPEC 3.3): dated 0-365 days
+        before index, or a statin allergy row active at index."""
         f = self.facts()
-
-        def inwin(d):
-            return d is not None and 0 <= (self.index_date - d).days <= REASON_WINDOW_DAYS
-        out = [a.row_id for a in f.allergies if a.statin_related and inwin(a.start)]
+        ix = self.index_date
+        out = [a.row_id for a in f.allergies
+               if F.reason_in_window(F.allergy_reason_date(a), ix, a.active)]
         lo, hi = PREGNANCY_REASON_AGES
         for e in f.reason_entries:
             if e.category == "pregnancy" and not (f.sex == "F" and lo <= f.age <= hi):
                 continue
-            if inwin(e.date):
+            if F.reason_in_window(e.date, ix):
                 out.append(e.row_id)
         return out
 

@@ -275,8 +275,8 @@ def test_required_inputs_cover_oracle_paths():
             used -= {"row5_features"}
         if r.row in ("0", "1", "2", "3", "3b", "4", "6", "7"):
             used -= set(oracle.PREVENT_INPUTS) - {"age", "lipid_panel", "statins", "diabetes"}
-        if r.row in ("4", "6", "7"):
-            used -= {"ckd"}
+        if r.row in ("4", "5", "6", "7"):
+            used -= {"ckd"}  # row 3b needs age 40-75; at row 5, CKD >= 3 is a row-5 feature
         assert used <= set(verifier.REQUIRED_INPUTS[r.row]), (r.row, used)
 
 

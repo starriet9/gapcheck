@@ -1,6 +1,7 @@
 """Hand-built PatientFacts for oracle and strata tests (no database needed)."""
 from __future__ import annotations
 
+import re
 from datetime import date, timedelta
 
 from gapcheck import codes as C
@@ -76,8 +77,13 @@ def make(age=50, sex="M", ldl=120.0, tc=200.0, hdl=50.0, sbp=130.0, smoker=False
     earlier = tuple(obs(float(v), index - timedelta(days=365 * (i + 1)))
                     for i, v in enumerate(ldl_earlier_ge190))
     present = {"lipid_panel": panel, "sbp": sbp_o, "smoking": sm, "egfr": eg}
-    alg = tuple(AllergyRow(_rid("alg"), "x", desc, "intolerance", "medication", d, None, True,
-                           "statin" in desc.lower()) for desc, d in allergies)
+    alg = []
+    for a in allergies:  # (description, start) or (description, start, stop)
+        desc, d, stop = (tuple(a) + (None,))[:3]
+        alg.append(AllergyRow(_rid("alg"), "x", desc, "intolerance", "medication", d, stop,
+                              stop is None or stop > index,
+                              bool(re.search(C.STATIN_ALLERGY_PATTERN, desc, re.I))))
+    alg = tuple(alg)
     return PatientFacts(
         patient=_rid("pat"), index_date=index, age=age, sex=sex,
         lipid_panel=panel, ldl_history_max=ldl_max, ldl_ge190_earlier=earlier,

@@ -1,4 +1,6 @@
 """Stratum assignment and the 'not sampled' rules (SPEC 5.1), on hand-built facts."""
+from dataclasses import replace
+
 import numpy as np
 
 from gapcheck import oracle, prevent, strata
@@ -102,27 +104,54 @@ def test_s5_rules():
     assert (s.indication_row, s.stratum) == ("11b", "S5")
     s = st(make(**LOW | {"ldl": 60.0, "tc": 150.0}))
     assert (s.indication_row, s.stratum) == ("7", "S5")
-    # LDL-C < 70 with 10-year risk >= 5%
+    # LDL-C < 70 with 10-year risk >= 5% (GAP at LDL-C 70)
     s = st(make(**P5 | {"ldl": 60.0}, sbp=190.0))
-    assert s.indication_row == "7" and s.blocking() == ("ldl_lt70_risk_ge5",)
-    # age 60-79, risk < 3%, LDL-C 160-189
+    assert s.indication_row == "7" and s.blocking() == ("row7_label_changes_at_ldl70",)
+    # age 60-75, risk < 3%, LDL-C 160-189: row 11a now (not a stratum), still flagged
     s = st(make(age=62, sex="F", tc=240.0, hdl=70.0, ldl=165.0, sbp=112.0))
-    assert s.indication_row == "11b" and s.blocking() == ("age60_79_risk_lt3_ldl160_189",)
+    assert s.indication_row == "11a" and s.candidate is None
+    assert "age60_75_risk_lt3_ldl160_189" in s.exclusions
     # diabetes 30-39 landing in row 7
     s = st(make(**LOW | {"age": 35, "ldl": 60.0, "tc": 150.0}, diabetes=True))
     assert s.indication_row == "7" and "diabetes_outside_40_75" in s.blocking()
 
 
-def test_ldl_lt70_risk_checked_over_p1_egfr_range():
-    # Risk just under 5% at the recorded eGFR but over 5% at eGFR 60 -> excluded with P1.
+def test_row7_rule_label_at_ldl70():
+    """Row 7 is sampled only if the label stays NOT_INDICATED at LDL-C 70 (M1)."""
+    s3 = sbp_at(0.03, **P5 | {"ldl": 60.0})
+    # 10-year risk 3-5%: DISCUSS (row 10) at LDL-C 70
+    s = st(make(**P5 | {"ldl": 60.0}, sbp=s3 + 1.0))
+    assert s.indication_row == "7" and s.blocking() == ("row7_label_changes_at_ldl70",)
+    # 30-year risk >= 10% at 30-59 (row 11a at LDL-C 70)
+    p = dict(age=45, sex="M", tc=230.0, hdl=40.0, ldl=60.0)
+    s30 = sbp_at(0.03, **p)
+    f = make(**p, sbp=s30 - 2.0)
+    r = oracle.label(f)
+    assert r.row == "7"
+    r70 = oracle.evaluate(replace(oracle.inputs_from_facts(f), ldl=70.0), ignore_row0=True)
+    assert (r70["row"] == "11a") == ("row7_label_changes_at_ldl70" in st(f).exclusions)
+    # CKD stage 3 at 40-75: GAP (row 3b) at LDL-C 70
+    s = st(make(**LOW | {"age": 50, "ldl": 60.0, "tc": 150.0}, ckd=3))
+    assert s.indication_row == "7" and s.blocking() == ("row7_label_changes_at_ldl70",)
+
+
+def test_row7_rule_checked_over_p1_egfr_range():
+    # Risk just under 5% at the recorded eGFR but over 5% at eGFR 60 -> excluded with P1;
+    # just under 3% at eGFR 140 and over 3% at eGFR 60 -> excluded with P1 too.
     p = P5 | {"ldl": 65.0}
-    s_cut = sbp_at(0.05, egfr=90.0, **p)
-    f_native = make(**p, sbp=s_cut - 0.5, egfr=140.0)
-    f_p1 = make(**p, sbp=s_cut - 0.5, egfr=140.0, egfr_p1=True)
-    assert "ldl_lt70_risk_ge5" not in st(f_native).exclusions
-    risks = prevent.ascvd_risk_array("male", 55, 200.0, 50.0, s_cut - 0.5, 0, 0, 0, 0,
-                                     strata.P1_EGFR_VALUES)
-    assert ("ldl_lt70_risk_ge5" in st(f_p1).exclusions) == bool(risks.max() >= 0.05)
+    for cut in (0.05, 0.03):
+        s_cut = sbp_at(cut, egfr=140.0, **p)
+        f_native = make(**p, sbp=s_cut - 0.5, egfr=140.0)
+        f_p1 = make(**p, sbp=s_cut - 0.5, egfr=140.0, egfr_p1=True)
+        risks = prevent.ascvd_risk_array("male", 55, 200.0, 50.0, s_cut - 0.5, 0, 0, 0, 0,
+                                         strata.P1_EGFR_VALUES)
+        assert risks.min() < cut <= risks.max()
+        if cut == 0.05:  # at eGFR 140 the risk is 3-5%: DISCUSS at 70, as for P1
+            r70 = oracle.evaluate(replace(oracle.inputs_from_facts(f_native), ldl=70.0),
+                                  ignore_row0=True)
+            assert r70["status"] == oracle.DISCUSS
+        assert "row7_label_changes_at_ldl70" in st(f_p1).exclusions
+        assert st(f_p1).blocking() == ("row7_label_changes_at_ldl70",)
 
 
 def test_prevent_input_out_of_range_where_needed():

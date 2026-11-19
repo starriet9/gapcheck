@@ -1,7 +1,9 @@
 """Rule baselines R0 and R1 (SPEC 6).
 
 R0: the oracle on structured data only. Reasons come only from structured
-    allergy/intolerance rows that mention a statin (`oracle.reasons_from_facts`).
+    entries (`oracle.reasons_from_facts`): allergy/intolerance rows that name a
+    statin (active at index, or ended within 365 days), pregnancy conditions,
+    hospice or palliative-care entries.
 R1: R0 plus keyword and regular-expression rules over notes dated 0-365 days
     before index, one rule set per reason category (SPEC 3.3), with simple
     negation handling and exclusion of family-member context.

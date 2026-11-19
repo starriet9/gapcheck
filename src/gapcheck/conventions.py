@@ -36,7 +36,8 @@ latest timestamp, use the row with the smallest row id.
 - Closed-world inputs (absence means "no"; never missing): clinical ASCVD (any qualifying \
 code on or before index, stop dates ignored), diabetes, CKD stage and the row-5 features \
 (active diagnosis codes at index), statin and BP treatment (start on or before index and no \
-stop, or stop after index), diabetes duration (from the earliest diabetes start date). Age \
+stop, or stop after index), type 2 diabetes duration (from the earliest type 2 diabetes \
+start date). Age \
 and sex are always present.
 - Open-world inputs (absence means unknown): the lipid panel (TC, HDL-C and LDL-C from the \
 latest date at which all three were measured), systolic BP, smoking status, eGFR (only the \
@@ -54,15 +55,18 @@ prevent_risk tool; do not compute PREVENT by hand."""
 
 REASON_RULES = """\
 - Categories: statin intolerance or statin-attributed muscle symptoms; patient declined; \
-pregnancy or planned pregnancy (women aged 30-49 only); decompensated cirrhosis or acute \
-liver failure (stable chronic liver disease is not a reason); hospice, palliative care or \
-limited life expectancy.
+pregnancy, planned pregnancy or lactation (women aged 30-49 only); decompensated cirrhosis \
+or acute liver failure (stable chronic liver disease is not a reason); hospice, palliative \
+care or limited life expectancy.
 - A reason needs an explicit refusal, intolerance, contraindication or care goal. Deferral \
 ("will revisit next visit") is not a reason. Negated statements and statements about \
 relatives are not reasons.
 - A reason counts if dated 0-365 days before the index date, in a note or in a structured \
 entry (a statin allergy or intolerance row, a pregnancy condition, a hospice or \
-palliative-care encounter, procedure or referral). A note reason needs no structured entry.
+palliative-care encounter, procedure, referral or palliative-care diagnosis). A statin \
+allergy or intolerance row that is active at index (no stop date, or a stop date after \
+index) counts whatever its start date; an ended one counts only if its stop date is 0-365 \
+days before index. A note reason needs no structured entry.
 - A reason changes GAP to DOCUMENTED_REASON, and nothing else."""
 
 ENCODING_RULES = """\
@@ -70,6 +74,11 @@ ENCODING_RULES = """\
 ESRD, dialysis or kidney transplant are excluded from this set of patients.
 - PREVENT 10% or more is GAP (row 8), like 5% to < 10% (row 9).
 - Ages 76-79 in primary prevention are DISCUSS (row 6). Rows 1 and 2 have no age limit.
+- Diabetes at ages 30-39 (row 5): DISCUSS with a row-5 feature, a 10-year risk of 3% or \
+more, or a 30-year risk of 10% or more; otherwise NOT_INDICATED (row 7 or row 11b). There \
+is no GAP through rows 8 and 9 at these ages.
+- Row 11a: LDL-C 160-189 counts at any age 30-75; the 30-year risk only at ages 30-59.
+- LDL-C and risk thresholds apply to the recorded value and the unrounded risk.
 - Diabetes excludes prediabetes. Ischemic heart disease (414545008) counts as clinical ASCVD.
 - Statins are matched by ingredient, including ezetimibe/simvastatin."""
 
@@ -118,7 +127,8 @@ def _rows_table() -> str:
     for r in oracle.ROWS:
         if r.id == "X":
             continue
-        cors = ", ".join(dict.fromkeys(s.cor for s in r.sources if s.cor)) or "-"
+        cors = ", ".join(dict.fromkeys(s.cor for s in r.sources
+                                       if s.cor and s.role == "basis")) or "-"
         if r.label == oracle.NOT_INDICATED and cors == "1":
             cors = "1 (counseling, no statin)"
         lines.append(f"| {r.id} | {r.group} | {r.rule} | {r.label} | {cors} |")
@@ -153,7 +163,10 @@ def _code_lists() -> str:
         _codes_line("Hospice or palliative care (structured reason)",
                     {**C.PALLIATIVE_ENCOUNTERS, **C.PALLIATIVE_PROCEDURES,
                      **C.PALLIATIVE_CONDITIONS}),
-        "- Statin allergy or intolerance rows: allergy rows whose description names a statin.",
+        "- Statin allergy or intolerance rows: allergy rows whose description names a statin "
+        "ingredient (" + ", ".join(C.STATIN_INGREDIENTS) + "), the word statin or statins, or "
+        "HMG-CoA reductase inhibitor (whole words; nystatin, cilastatin, somatostatin do not "
+        "count).",
         "- Observations (LOINC): " + "; ".join(
             f"{name} {c.code}" for name, c in (("TC", C.TC), ("HDL-C", C.HDL), ("LDL-C", C.LDL),
                                               ("triglycerides", C.TG), ("SBP", C.SBP),

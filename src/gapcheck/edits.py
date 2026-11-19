@@ -369,9 +369,11 @@ def margins_ok(f: PatientFacts, res: oracle.OracleResult) -> bool:
     return True
 
 
-def silence_zone(f: PatientFacts, res: oracle.OracleResult) -> bool:
-    """Label resting on guideline silence (age 60-79, risk < 3%, LDL-C 160-189; SPEC 5.1)."""
-    return res.row == "11b" and f.age >= 60 and f.ldl is not None and 160 <= f.ldl < 190
+def rec3_age_zone(f: PatientFacts, res: oracle.OracleResult) -> bool:
+    """Age 60-75, risk < 3%, LDL-C 160-189 (row 11a): the label depends on reading rec 3's
+    age limit as applying to the 30-year risk only (Table 1, Figure 6), so twins here
+    are not used (SPEC 5.1, 5.2)."""
+    return res.row == "11a" and f.age >= 60 and f.ldl is not None and 160 <= f.ldl < 190
 
 
 # ---------------------------------------------------------------- builders
@@ -476,7 +478,7 @@ def _fmt(v: float) -> str:
 
 def _c5_ok(tw: Twin) -> bool:
     return bool(tw.check and tw.p1_stable and margins_ok(tw.facts, tw.result)
-                and not silence_zone(tw.facts, tw.result))
+                and not rec3_age_zone(tw.facts, tw.result))
 
 
 def ldl_source_ok(f: PatientFacts, res: oracle.OracleResult) -> bool:
@@ -582,7 +584,7 @@ def _risk_twin(base: Base, kind: str, variant: str, target, partner_status=None)
         if partner_status is None:
             # first member of a two-twin pair: only its own rules here
             if tw.p1_stable and margins_ok(tw.facts, tw.result) \
-                    and not silence_zone(tw.facts, tw.result) \
+                    and not rec3_age_zone(tw.facts, tw.result) \
                     and tw.result.status != oracle.CANNOT_DETERMINE:
                 return tw
         elif _c5_ok(tw):

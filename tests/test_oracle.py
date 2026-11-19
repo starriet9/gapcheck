@@ -34,20 +34,32 @@ def sbp_at(target, horizon=10, **p):
 
 
 # ---------------------------------------------------------------- table
+def all_sources():
+    srcs = [s for r in oracle.ROWS for s in r.sources]
+    srcs += [s for r in oracle.REASONS for s in r.sources] + list(oracle.CONTEXT_SOURCES)
+    srcs += [s for c in oracle.CONVENTIONS for s in c.sources]
+    return srcs
+
+
 def test_table_metadata():
     ids = [r.id for r in oracle.ROWS]
     assert ids == ["0", "X", "1", "2", "3", "3b", "4", "5", "6", "7", "8", "9", "10", "11a", "11b"]
-    srcs = [s for r in oracle.ROWS for s in r.sources]
-    srcs += [s for v in oracle.REASON_SOURCES.values() for s in v] + list(oracle.CONTEXT_SOURCES)
+    srcs = all_sources()
     for s in srcs:
         assert 2624 <= s.page <= 2757 and s.pdf_page == s.page - 2623
         assert s.quote and s.section
+        assert s.kind in oracle.SOURCE_KINDS and s.role in oracle.SOURCE_ROLES
+        assert (s.kind == "figure") == s.section.startswith("Figure"), s
     for r in oracle.ROWS:
         if r.id != "0":
-            assert r.sources, r.id
-        if r.label == GAP:  # every GAP row rests on a COR 1 recommendation
-            assert any(s.cor == "1" for s in r.sources), r.id
+            assert r.sources and r.scope, r.id
+        assert isinstance(r.encoding, tuple)
+        if r.label == GAP:  # every GAP row rests on a quoted COR 1 recommendation
+            assert any(s.cor == "1" and s.kind == "quote" and s.role == "basis"
+                       for s in r.sources), r.id
     assert {s.cor for s in srcs if s.cor} <= {"1", "2a", "2b", "3: No Benefit"}
+    assert oracle.REASON_CATEGORIES == tuple(oracle.REASON_SOURCES)
+    assert oracle.REASON_SOURCES["liver_failure"][0].section == "Table 25"
 
 
 def test_row_status_variants():
@@ -131,8 +143,8 @@ def test_diabetes_age_bounds(age, status, row):
 
 def test_diabetes_39_goes_to_row5():
     r = lab(make(**LOW | {"age": 39}, diabetes=True))
-    assert r.row in ("10", "11a", "11b") and "5" in r.path
-    assert r.status != GAP
+    assert "5" in r.path and r.row in ("5", "7", "11b")
+    assert r.status in (DISCUSS, NOT_INDICATED)
 
 
 def test_diabetes_no_ldl_floor_and_lipid_not_deciding():
@@ -162,19 +174,68 @@ def test_ckd_stage_and_age():
 
 
 # ---------------------------------------------------------------- row 5
-def test_diabetes_30_39_high_risk_is_gap_via_rows_8_9():
+def test_diabetes_30_39_high_risk_is_discuss_not_gap():
+    """Figure 9: at 30-39, 10-year risk >= 3% is COR 2a at any level (no GAP via rows 8-9)."""
     f = make(age=35, sex="M", diabetes=True, tc=240.0, hdl=40.0, ldl=160.0, sbp=130.0,
              bp=True, smoker=True)
     r = lab(f)
-    assert r.risk10 >= 0.05 and r.status == GAP and r.row in ("8", "9")
-    assert r.path.index("5") < r.path.index(r.row)
+    assert r.risk10 >= 0.05 and (r.status, r.row) == (DISCUSS, "5")
+    assert "8" not in r.path and "9" not in r.path
+    assert lab(f, variant="S-C").status == DISCUSS
+
+
+DM35 = dict(age=35, sex="M", tc=200.0, hdl=50.0, ldl=120.0, diabetes=True)
+
+
+def test_diabetes_30_39_10_year_3_percent_cut():
+    s = sbp_at(0.03, **DM35)
+    lo, hi = lab(make(**DM35, sbp=s - 0.3)), lab(make(**DM35, sbp=s + 0.3))
+    assert lo.risk10 < 0.03 <= hi.risk10
+    assert (hi.status, hi.row) == (DISCUSS, "5")
+    if lo.risk30 < 0.10:
+        assert (lo.status, lo.row) == (NOT_INDICATED, "11b")
+    else:
+        assert (lo.status, lo.row) == (DISCUSS, "5")
+
+
+def test_diabetes_30_39_30_year_10_percent_cut():
+    p = dict(age=32, sex="F", tc=170.0, hdl=65.0, ldl=100.0, diabetes=True)
+    s = sbp_at(0.10, horizon=30, **p)
+    lo, hi = lab(make(**p, sbp=s - 0.3)), lab(make(**p, sbp=s + 0.3))
+    assert hi.risk10 < 0.03 and lo.risk30 < 0.10 <= hi.risk30
+    assert (lo.status, lo.row, hi.status, hi.row) == (NOT_INDICATED, "11b", DISCUSS, "5")
+
+
+def test_diabetes_30_39_risk_applies_at_any_ldl():
+    """Figure 9 has no LDL-C condition: LDL-C < 70 with risk >= 3% is DISCUSS, not row 7."""
+    f = make(age=35, sex="M", diabetes=True, tc=200.0, hdl=40.0, ldl=60.0, sbp=150.0,
+             bp=True, smoker=True)
+    r = lab(f)
+    assert r.risk10 >= 0.03 and (r.status, r.row) == (DISCUSS, "5")
+    # LDL-C 160-189 with low 10- and 30-year risk: Figure 9 NO branch (row 11b).
+    p = dict(age=30, sex="F", tc=250.0, hdl=80.0, ldl=165.0, sbp=100.0, diabetes=True)
+    r = lab(make(**p))
+    if r.risk30 < 0.10:
+        assert (r.status, r.row) == (NOT_INDICATED, "11b")
+
+
+def test_diabetes_30_39_missing_smoking_deciding():
+    p = dict(age=32, sex="F", tc=170.0, hdl=65.0, ldl=100.0, diabetes=True)
+    s = sbp_at(0.10, horizon=30, **p) - 0.3  # NOT_INDICATED as a non-smoker
+    assert lab(make(**p, sbp=s)).status == NOT_INDICATED
+    assert lab(make(**p, sbp=s, smoker=True)).status == DISCUSS
+    r = lab(make(**p, sbp=s, smoker=None))
+    assert r.status == CANNOT_DETERMINE and r.missing == ("smoking",)
+    r = lab(make(**p, sbp=s, smoker=None, retinopathy=True))
+    assert (r.status, r.row, r.missing) == (DISCUSS, "5", ())  # a feature decides alone
 
 
 @pytest.mark.parametrize("years,status,row", [(9.9, NOT_INDICATED, "11b"), (10.0, DISCUSS, "5")])
 def test_diabetes_duration_10_years(years, status, row):
     f = make(**LOW | {"age": 35, "ldl": 100.0}, diabetes=True, dm_years=years)
     r = lab(f)
-    assert r.risk10 is not None and r.risk10 < 0.03
+    if row == "11b":  # no feature: PREVENT decides (10-year < 3%, 30-year < 10%)
+        assert r.risk10 < 0.03 and r.risk30 < 0.10
     assert (r.status, r.row) == (status, row)
 
 
@@ -251,8 +312,20 @@ def test_ldl_159_160_low_risk():
     b = lab(make(**LOW | {"ldl": 160.0, "tc": 240.0}))
     assert a.risk30 < 0.10
     assert (a.status, a.row, b.status, b.row) == (NOT_INDICATED, "11b", DISCUSS, "11a")
-    c = lab(make(**P3 | {"ldl": 160.0, "tc": 240.0}, sbp=112.0))  # age 62: rec 3 does not apply
-    assert c.risk10 < 0.03 and (c.status, c.row) == (NOT_INDICATED, "11b")
+    # Age 62: LDL-C 160-189 counts at any age (Table 1, Figure 6); 30-year risk does not.
+    c = lab(make(**P3 | {"ldl": 160.0, "tc": 240.0}, sbp=112.0))
+    assert c.risk10 < 0.03 and c.risk30 is None and (c.status, c.row) == (DISCUSS, "11a")
+    d = lab(make(**P3 | {"ldl": 159.0, "tc": 240.0}, sbp=112.0))
+    assert (d.status, d.row) == (NOT_INDICATED, "11b")
+
+
+@pytest.mark.parametrize("age,row", [(59, "11a"), (60, "11a"), (64, "11a"), (76, "6")])
+def test_ldl_160_189_low_risk_ages_30_75(age, row):
+    f = make(age=age, sex="F", tc=240.0, hdl=70.0, ldl=170.0, sbp=100.0)
+    r = lab(f)
+    assert r.row == row and r.status == DISCUSS
+    if row == "11a":
+        assert r.risk10 < 0.03
 
 
 # ---------------------------------------------------------------- deciding inputs
@@ -378,10 +451,37 @@ def test_structured_statin_allergy_is_a_reason():
     r = lab(f)
     assert r.status == DOCUMENTED_REASON and r.reason.category == "statin_intolerance"
     assert r.reason.source == f.allergies[0].row_id
-    old = make(ascvd=("MI",), allergies=[("Statin intolerance", INDEX - timedelta(days=400))])
-    assert lab(old).status == GAP
     other = make(ascvd=("MI",), allergies=[("Aspirin", INDEX - timedelta(days=100))])
     assert lab(other).status == GAP
+
+
+@pytest.mark.parametrize("start,stop,status", [
+    (400, None, DOCUMENTED_REASON),    # active at index, started long ago
+    (3000, None, DOCUMENTED_REASON),
+    (100, -10, DOCUMENTED_REASON),     # stop after index: still active
+    (400, 200, DOCUMENTED_REASON),     # ended, stop within 365 days
+    (100, 0, DOCUMENTED_REASON),       # ended on the index date
+    (900, 400, GAP),                   # ended more than 365 days ago
+    (300, 366, GAP)])                  # (stop before start is not generated; still ended)
+def test_statin_allergy_active_or_recently_ended(start, stop, status):
+    a = [("atorvastatin intolerance", INDEX - timedelta(days=start),
+          None if stop is None else INDEX - timedelta(days=stop))]
+    f = make(ascvd=("MI",), allergies=a)
+    assert lab(f).status == status
+
+
+@pytest.mark.parametrize("desc,match", [
+    ("Statin intolerance", True), ("Statin-induced myopathy", True),
+    ("Allergy to statins", True), ("Rosuvastatin", True), ("simvastatin 20 MG", True),
+    ("Cerivastatin", True), ("Allergy to HMG-CoA reductase inhibitor", True),
+    ("Nystatin", False), ("Allergy to nystatin (finding)", False), ("Cilastatin", False),
+    ("Imipenem and cilastatin", False), ("Somatostatin", False), ("Ecallantide", False),
+    ("Aspirin", False), ("Penicillin V", False)])
+def test_statin_allergy_pattern(desc, match):
+    import re
+    assert bool(re.search(C.STATIN_ALLERGY_PATTERN, desc, re.I)) == match
+    f = make(ascvd=("MI",), allergies=[(desc, INDEX - timedelta(days=10))])
+    assert (lab(f).status == DOCUMENTED_REASON) == match
 
 
 @pytest.mark.parametrize("cat,sex,age,days,status", [
