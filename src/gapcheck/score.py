@@ -269,13 +269,32 @@ def stability(runs: list[dict[str, dict]], case_ids: list[str]) -> dict:
     return _prop(same, len(case_ids))
 
 
+def run_case_ids(run_dir: str | Path) -> list[str] | None:
+    """The case ids a run was started on (manifest `case_ids`), or None if the manifest
+    does not list them (then the whole case set is scored)."""
+    p = Path(run_dir) / "manifest.json"
+    if not p.exists():
+        return None
+    ids = json.loads(p.read_text()).get("case_ids")
+    return None if ids is None else list(ids)
+
+
 def score(case_dir: str | Path, run_dir: str | Path, extra_runs=(), n_boot: int = N_BOOT,
           seed: int = BOOT_SEED) -> dict:
+    """Score a run on the cases it was started on (all of them, if the manifest does not
+    say). A case of that list with no record for a system counts as wrong."""
     case_list = CS.read_cases(case_dir)
+    n_set = len(case_list)
+    ids = run_case_ids(run_dir)
+    if ids is not None:
+        unknown = set(ids) - {c["case_id"] for c in case_list}
+        if unknown:
+            raise ValueError(f"run lists cases not in the case set: {sorted(unknown)[:5]}")
+        case_list = [c for c in case_list if c["case_id"] in set(ids)]
     design = Design(case_list)
     run = load_run(run_dir)
     out = {"case_set": Path(case_dir).name, "run": Path(run_dir).name,
-           "n_cases": len(case_list)}
+           "n_cases": len(case_list), "n_cases_in_set": n_set}
     for variant in ("main", "S-A", "S-C"):
         ok = {s: np.array([correct(c, recs.get(c["case_id"]), variant) for c in case_list])
               for s, recs in run.items()}

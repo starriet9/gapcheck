@@ -30,7 +30,7 @@ from pathlib import Path
 
 from . import baselines, conventions, oracle, verifier
 from . import schema as S
-from .backends import Backend
+from .backends import Backend, BackendError
 from .serialize import est_tokens, serialize
 from .tools import CaseEnv, dumps, tool_specs
 
@@ -44,8 +44,13 @@ class Settings:
     max_steps: int = 20          # A1: rounds of tool calls
     repair_steps: int = 8        # A2 repair: rounds of tool calls
     l1_tool_rounds: int = 2
-    context_limit: int = 32000   # estimated tokens (chars / 4), L1 build stop
+    context_limit: int = 32000   # estimated tokens (chars / chars_per_token), L1 build stop
     page_size: int = 20
+    # Characters per token for the build-stop estimate. 4 is a rough English
+    # figure; records full of ids, dates and numbers tokenize denser (a Qwen
+    # tokenizer measured about 2.2-2.3 on dev L1 prompts). Calibrate it with
+    # the server's tokenizer before trusting the build stop.
+    chars_per_token: float = 4.0
 
     @classmethod
     def from_dict(cls, d: dict | None) -> "Settings":
@@ -156,15 +161,21 @@ def converse(backend: Backend, messages: list[dict], tools: list[dict], env: Cas
 
 
 def answer(backend, messages, tools, env, max_rounds, run) -> tuple[dict | None, str | None]:
-    """Converse, parse and validate; one re-ask on an invalid reply."""
-    text = converse(backend, messages, tools, env, max_rounds, run)
-    out, err = parse_answer(text)
-    if out is not None:
-        return out, None
-    msg = prompt("reask").format(error=err)
-    messages.append({"role": "user", "content": msg})
-    run.user("reask", msg)
-    text = converse(backend, messages, tools, env, 0, run)
+    """Converse, parse and validate; one re-ask on an invalid reply. A request the
+    server rejects (BackendError, e.g. context overflow) ends with no answer and no
+    re-ask: a longer conversation would be rejected too."""
+    try:
+        text = converse(backend, messages, tools, env, max_rounds, run)
+        out, err = parse_answer(text)
+        if out is not None:
+            return out, None
+        msg = prompt("reask").format(error=err)
+        messages.append({"role": "user", "content": msg})
+        run.user("reask", msg)
+        text = converse(backend, messages, tools, env, 0, run)
+    except BackendError as e:
+        run.trace.append({"type": "error", "error": str(e)})
+        return None, f"backend: {e}"
     out, err2 = parse_answer(text)
     return (out, None) if out is not None else (None, err2)
 
@@ -253,8 +264,11 @@ def run_agent(env: CaseEnv, backend: Backend, st: Settings, verify: bool = True
                        forced_fallback=True)
 
 
-def l1_prompt_tokens(env: CaseEnv) -> tuple[int, int]:
-    """(serialization tokens, whole L1 prompt tokens), estimated as chars / 4."""
+def l1_prompt_tokens(env: CaseEnv, chars_per_token: float = 4.0) -> tuple[int, int]:
+    """(serialization tokens, whole L1 prompt tokens with the tool definition),
+    estimated as characters / chars_per_token."""
     msgs = l1_messages(env)
     ser = serialize(env)
-    return est_tokens(ser), est_tokens("".join(m["content"] for m in msgs))
+    tools = json.dumps(tool_specs(("prevent_risk",)))
+    return (est_tokens(ser, chars_per_token),
+            est_tokens("".join(m["content"] for m in msgs) + tools, chars_per_token))

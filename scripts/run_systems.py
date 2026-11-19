@@ -99,7 +99,7 @@ def main() -> None:
     if "L1" in names:
         for c in case_list:
             env = CaseEnv.from_case(case_dir, c["case_id"], page_size=st.page_size)
-            ser_t, prompt_t = systems.l1_prompt_tokens(env)
+            ser_t, prompt_t = systems.l1_prompt_tokens(env, st.chars_per_token)
             serialize.build_stop(case_dir, c["case_id"], serialize.serialize(env), prompt_t,
                                  st.context_limit)
             l1_sizes[c["case_id"]] = {"serialization_tokens": ser_t, "prompt_tokens": prompt_t}
@@ -108,6 +108,7 @@ def main() -> None:
     manifest = {
         "run_id": a.run_id, "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "git": git_state(), "systems": names, "n_cases": len(case_list),
+        "case_ids": [c["case_id"] for c in case_list],
         "case_set": {"path": rel(case_dir),
                      "manifest_sha256": hashlib.sha256(
                          (case_dir / "manifest.json").read_bytes()).hexdigest()},
@@ -140,6 +141,7 @@ def main() -> None:
             r["audit"] = audit(r["output"], env)
             files[s].write(json.dumps({"case_id": cid, "system": s, **r},
                                       ensure_ascii=False, default=str) + "\n")
+            files[s].flush()  # a run stopped early keeps every finished case
         env.close()
         if n % 20 == 0 or n == len(case_list):
             print(f"{n}/{len(case_list)} cases, {time.time() - t0:.0f} s", flush=True)

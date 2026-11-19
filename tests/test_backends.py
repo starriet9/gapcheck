@@ -120,3 +120,81 @@ def test_mock_backend_and_config(tmp_path):
         "CANNOT_DETERMINE"
     with pytest.raises(ValueError):
         B.make_backend({"backend": "other"})
+
+
+# ---------------------------------------------------------------- real-server behaviour
+OVERFLOW_BODY = (b'{"error":{"code":400,"message":"request (34561 tokens) exceeds the available '
+                 b'context size (32768 tokens), try increasing it",'
+                 b'"type":"exceed_context_size_error"}}')
+OK_REPLY = {"choices": [{"message": {"content": "{}"}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 90, "completion_tokens": 3,
+                      "prompt_tokens_details": {"cached_tokens": 80}},
+            "timings": {"prompt_n": 10, "prompt_ms": 120.0, "predicted_n": 3,
+                        "predicted_ms": 300.0}}
+CFG = {"backend": "openai_compat", "base_url": "http://127.0.0.1:8088/v1", "model": "m",
+       "max_tokens": 4096}
+
+
+def _http_error(code, body):
+    import io
+    import urllib.error
+    return urllib.error.HTTPError("http://x", code, "err", {}, io.BytesIO(body))
+
+
+def test_openai_4xx_is_a_backend_error_and_5xx_is_not():
+    """A rejected request (a prompt over the context window, as a real llama.cpp server
+    answers it) is a BackendError the run can record; a server failure still raises."""
+    import urllib.error
+
+    def reject(url, payload, headers, timeout):
+        raise _http_error(400, OVERFLOW_BODY)
+
+    with pytest.raises(B.BackendError) as e:
+        B.make_backend(CFG, transport=reject).chat(MSGS)
+    assert e.value.status == 400 and "exceeds the available context size" in str(e.value)
+
+    def crash(url, payload, headers, timeout):
+        raise _http_error(500, b"boom")
+
+    with pytest.raises(urllib.error.HTTPError):
+        B.make_backend(CFG, transport=crash).chat(MSGS)
+
+
+def test_openai_usage_keeps_cache_and_server_timings():
+    r = B.make_backend(CFG, transport=lambda *a: OK_REPLY).chat(MSGS)
+    assert r.usage["input_tokens"] == 90 and r.usage["cached_tokens"] == 80
+    assert r.usage["server_prompt_n"] == 10 and r.usage["server_predicted_ms"] == 300.0
+
+
+def test_llamacpp_preflight_caps_max_tokens_and_refuses_overflow():
+    sent = []
+
+    def transport(n_prompt):
+        def t(url, payload, headers, timeout):
+            sent.append(url)
+            if url.endswith("/apply-template"):
+                assert payload["messages"] and payload["chat_template_kwargs"]
+                return {"prompt": "rendered"}
+            if url.endswith("/tokenize"):
+                assert payload == {"content": "rendered"}
+                return {"tokens": list(range(n_prompt))}
+            assert url.endswith("/v1/chat/completions")
+            sent.append(payload["max_tokens"])
+            return OK_REPLY
+        return t
+
+    cfg = {**CFG, "preflight": "llamacpp", "context_window": 32768,
+           "extra": {"chat_template_kwargs": {"enable_thinking": False}}}
+    r = B.make_backend(cfg, transport=transport(30000)).chat(MSGS)
+    assert sent == ["http://127.0.0.1:8088/apply-template", "http://127.0.0.1:8088/tokenize",
+                    "http://127.0.0.1:8088/v1/chat/completions", 2768]
+    assert r.usage["preflight_prompt_tokens"] == 30000 and r.usage["max_tokens_sent"] == 2768
+
+    sent.clear()
+    with pytest.raises(B.BackendError) as e:
+        B.make_backend(cfg, transport=transport(32600)).chat(MSGS)
+    assert "not sent" in str(e.value)
+    assert not any(isinstance(x, str) and x.endswith("/chat/completions") for x in sent)
+
+    with pytest.raises(ValueError):
+        B.make_backend({**CFG, "preflight": "llamacpp"})  # needs context_window

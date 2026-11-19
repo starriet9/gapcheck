@@ -9,7 +9,7 @@ import casedb
 from conftest import FIXTURE, SEED
 from gapcheck import cases, edits, load, oracle, patches, score, serialize, systems, verifier
 from gapcheck import schema as S
-from gapcheck.backends import MockBackend, Response, ToolCall
+from gapcheck.backends import BackendError, MockBackend, Response, ToolCall
 from gapcheck.mock_agents import ABSTAIN, ReferenceAgent
 from gapcheck.tools import CaseEnv
 
@@ -235,3 +235,82 @@ def test_oracle_complete_needs_a_case():
     with pytest.raises(RuntimeError):
         OracleCompleteAgent().bind(env)
     env.close()
+
+
+# ---------------------------------------------------------------- real-server failures
+class _RejectWhen:
+    """Reference agent whose server rejects a request once `when(messages)` holds."""
+
+    def __init__(self, when, **kw):
+        self.inner = ReferenceAgent(**kw)
+        self.when = when
+
+    def bind(self, env):
+        self.inner.bind(env)
+
+    def __call__(self, messages, tools):
+        if self.when(messages):
+            raise BackendError(400, "request exceeds the available context size")
+        return self.inner(messages, tools)
+
+
+def _in_repair(messages):
+    return any(m["role"] == "user" and m["content"].startswith("The evidence checks failed")
+               for m in messages)
+
+
+def test_backend_error_is_recorded_not_fatal(env):
+    """A request the server rejects (context overflow) ends that system's run with no
+    answer and no re-ask; it does not crash the run."""
+    b = MockBackend(_RejectWhen(lambda m: len(m) > 3))
+    a1, a2 = systems.run_agent(env, b, ST)
+    assert not a1["schema_valid"] and a1["error"].startswith("backend: HTTP 400")
+    assert not [t for t in a1["trace"] if t["type"] == "user"]  # no re-ask
+    assert [t["type"] for t in a1["trace"]][-1] == "error"
+    assert not a2["schema_valid"] and not a2["forced_fallback"]
+    l1 = systems.run_l1(env, MockBackend(_RejectWhen(lambda m: True)), ST)
+    assert not l1["schema_valid"] and l1["error"].startswith("backend")
+
+
+def test_backend_error_in_repair_forces_fallback(env):
+    b = MockBackend(_RejectWhen(_in_repair, mutate=_fake_row, repair=lambda a: a))
+    a1, a2 = systems.run_agent(env, b, ST)
+    assert a1["schema_valid"] and a2["forced_fallback"]
+    assert a2["output"]["status"] == oracle.CANNOT_DETERMINE
+    assert a2["error"].startswith("backend") and len(a2["verifier"]) == 1
+
+
+def test_l1_estimate_counts_tools_and_takes_chars_per_token(env):
+    """Real tokenizers give about 1.75x chars/4 on these prompts; the build-stop estimate
+    must be calibratable, and it includes the prevent_risk definition."""
+    ser4, p4 = systems.l1_prompt_tokens(env)
+    msgs = systems.l1_messages(env)
+    assert p4 > serialize.est_tokens("".join(m["content"] for m in msgs))
+    ser2, p2 = systems.l1_prompt_tokens(env, 2.2)
+    assert p2 > 1.8 * p4 > p4 and ser2 > ser4
+    assert systems.Settings.from_dict({"chars_per_token": 2.2}).chars_per_token == 2.2
+
+
+def test_score_uses_the_run_case_list(case_set, tmp_path):
+    """A run on part of a case set is scored on its own cases (manifest case_ids), not
+    with every other case counted wrong; a listed case with no record is wrong."""
+    cl = cases.read_cases(case_set)
+    picked = [c for c in cl if c["condition"] in ("C0", "C1")][:3]
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "manifest.json").write_text(json.dumps({"case_ids": [c["case_id"] for c in picked]}))
+    lines = []
+    for c in picked[:2]:
+        env = CaseEnv.from_case(case_set, c["case_id"])
+        lines.append(json.dumps({"case_id": c["case_id"], "system": "R1",
+                                 **systems.run_rule("R1", env)}, default=str))
+        env.close()
+    (run / "R1.jsonl").write_text("\n".join(lines) + "\n")
+    s = score.score(case_set, run, n_boot=50)
+    assert s["n_cases"] == 3 and s["n_cases_in_set"] == len(cl)
+    acc = s["accuracy_main"]["systems"]["R1"]["by_condition"]
+    n_ok = sum(acc[k]["est"] * s["accuracy_main"]["n_cases"][k] for k in ("C0", "C1")
+               if acc[k]["est"] is not None)
+    assert round(n_ok) == 2  # the third listed case has no record: wrong
+    (run / "manifest.json").write_text("{}")
+    assert score.score(case_set, run, n_boot=50)["n_cases"] == len(cl)

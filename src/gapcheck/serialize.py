@@ -18,9 +18,12 @@ revascularization procedures (row 1); the SPEC list names conditions only.
 
 `build_stop(case_dir, case_id, text, ...)` raises `BuildStop` if a row the
 oracle uses, or a planted sentence, is not in the text, or if the prompt is
-over the context limit (tokens estimated as characters / 4).
+over the context limit (tokens estimated as characters / chars_per_token, 4 by
+default; see systems.Settings.chars_per_token).
 """
 from __future__ import annotations
+
+import math
 
 from . import codes as C
 from .tools import CaseEnv
@@ -35,8 +38,8 @@ class BuildStop(RuntimeError):
     pass
 
 
-def est_tokens(text: str) -> int:
-    return -(-len(text) // CHARS_PER_TOKEN)
+def est_tokens(text: str, chars_per_token: float = CHARS_PER_TOKEN) -> int:
+    return math.ceil(len(text) / chars_per_token)
 
 
 def _d10(x) -> str | None:

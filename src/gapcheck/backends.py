@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import urllib.error
 import urllib.request
 import uuid
 from dataclasses import dataclass, field
@@ -57,6 +58,16 @@ class Response:
         if self.raw is not None:
             m["raw"] = self.raw
         return m
+
+
+class BackendError(RuntimeError):
+    """The server rejected one request (HTTP 4xx), for example because the prompt is
+    longer than the context window. The run records it for that case and goes on;
+    connection failures and server errors (5xx) are not caught."""
+
+    def __init__(self, status: int, message: str):
+        super().__init__(f"HTTP {status}: {message}")
+        self.status = status
 
 
 class Backend:
@@ -171,6 +182,17 @@ class OpenAICompatBackend(Backend):
     Config keys: base_url, model, revision (recorded; the server must serve
     that revision), temperature, seed, max_tokens, timeout, extra (dict of
     further request fields), api_key_env (name of an env var, optional).
+    A 4xx response (such as a prompt over the context window) raises BackendError.
+
+    Optional context preflight for llama.cpp servers (`preflight: "llamacpp"`
+    with `context_window`, the server's context size): before each request the
+    prompt is rendered and counted with the server's own /apply-template and
+    /tokenize. If fewer than `min_reply_tokens` (default 256) tokens are left,
+    BackendError is raised without sending the request; otherwise max_tokens is
+    capped to the room left. This matters because an ik_llama.cpp server
+    (context shift off) answers an over-long request with HTTP 400 but goes on
+    prefilling it for minutes, blocking the only slot; with context shift on it
+    truncates silently instead.
     """
     name = "openai_compat"
 
@@ -178,8 +200,31 @@ class OpenAICompatBackend(Backend):
         for k in ("base_url", "model"):
             if not cfg.get(k):
                 raise ValueError(f"openai_compat config needs {k}")
+        if cfg.get("preflight") not in (None, "llamacpp"):
+            raise ValueError(f"unknown preflight {cfg['preflight']!r}")
+        if cfg.get("preflight") and not cfg.get("context_window"):
+            raise ValueError("preflight needs context_window")
         self.cfg = cfg
         self.transport = transport or _http_post
+
+    def _post(self, url: str, payload: dict, headers: dict) -> dict:
+        try:
+            return self.transport(url, payload, headers, self.cfg.get("timeout", 600))
+        except urllib.error.HTTPError as e:
+            if not 400 <= e.code < 500:
+                raise
+            try:
+                body = e.read().decode(errors="replace")
+            except (OSError, AttributeError):
+                body = ""
+            raise BackendError(e.code, body[:500] or str(e.reason)) from e
+
+    def count_prompt_tokens(self, payload: dict, headers: dict) -> int:
+        """Prompt tokens of a chat payload, rendered and counted by a llama.cpp server."""
+        root = self.cfg["base_url"].rstrip("/")
+        root = root[:-3] if root.endswith("/v1") else root
+        prompt = self._post(root + "/apply-template", payload, headers)["prompt"]
+        return len(self._post(root + "/tokenize", {"content": prompt}, headers)["tokens"])
 
     def chat(self, messages, tools=None) -> Response:
         msgs, t = to_openai(messages, tools)
@@ -197,15 +242,33 @@ class OpenAICompatBackend(Backend):
         if c.get("api_key_env") and os.environ.get(c["api_key_env"]):
             headers["Authorization"] = "Bearer " + os.environ[c["api_key_env"]]
         t0 = time.perf_counter()
-        data = self.transport(c["base_url"].rstrip("/") + "/chat/completions", payload, headers,
-                              c.get("timeout", 600))
+        n_prompt = None
+        if c.get("preflight"):
+            n_prompt = self.count_prompt_tokens(payload, headers)
+            room = int(c["context_window"]) - n_prompt
+            if room < int(c.get("min_reply_tokens", 256)):
+                raise BackendError(413, f"context overflow: prompt {n_prompt} tokens, "
+                                        f"context window {c['context_window']} (not sent)")
+            payload["max_tokens"] = min(payload["max_tokens"], room)
+        data = self._post(c["base_url"].rstrip("/") + "/chat/completions", payload, headers)
         r = from_openai(data)
+        if n_prompt is not None:
+            r.usage["preflight_prompt_tokens"] = n_prompt
+            r.usage["max_tokens_sent"] = payload["max_tokens"]
+        cached = ((data.get("usage") or {}).get("prompt_tokens_details") or {}).get(
+            "cached_tokens")
+        if cached is not None:
+            r.usage["cached_tokens"] = cached
+        tm = data.get("timings") or {}  # llama.cpp: prompt tokens processed, ms
+        for k in ("prompt_n", "prompt_ms", "predicted_n", "predicted_ms"):
+            if k in tm:
+                r.usage["server_" + k] = tm[k]
         r.latency_s = time.perf_counter() - t0
         return r
 
     def describe(self) -> dict:
         keep = ("base_url", "model", "revision", "temperature", "seed", "top_p", "max_tokens",
-                "extra")
+                "extra", "preflight", "context_window", "min_reply_tokens")
         return {"backend": self.name, **{k: self.cfg.get(k) for k in keep}}
 
 
