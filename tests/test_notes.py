@@ -74,3 +74,39 @@ def test_unknown_note_raises():
     import pytest
     with pytest.raises(KeyError):
         notes.render_notes(tables(), [notes.Plant("note_x", "hpi", 0, "t", "x")])
+
+
+def test_nothing_dated_after_index_in_notes():
+    """An encounter that runs past the index date (the last encounter START date, an
+    inpatient stay) lists only what is dated on or before it: the facts and the tools
+    hide later rows, so a note must not show them. (Under a non-UTC generator zone this
+    also caught index-day diagnoses whose local date fell on the next day.)"""
+    t = tables()
+    stay = pd.DataFrame([{"Id": "e3", "START": "2025-06-01T22:00:00Z",
+                          "STOP": "2025-06-03T10:00:00Z", "PATIENT": "p1",
+                          "ENCOUNTERCLASS": "inpatient", "CODE": "3",
+                          "DESCRIPTION": "Hospital admission (procedure)",
+                          "REASONDESCRIPTION": None}])
+    t["encounters"] = pd.concat([t["encounters"], stay], ignore_index=True)
+    t["conditions"] = pd.concat([t["conditions"], _t(
+        [("c4", "2025-06-01", None, "e3", "Ischemic heart disease (disorder)"),
+         ("c5", "2025-06-02", None, "e3", "Diabetes mellitus type 2 (disorder)")],
+        ["row_id", "START", "STOP", "ENCOUNTER", "DESCRIPTION"])], ignore_index=True)
+    t["medications"] = pd.concat([t["medications"], _t(
+        [("m2", "2025-06-02T08:00:00Z", None, "e3", "atorvastatin 80 MG Oral Tablet")],
+        ["row_id", "START", "STOP", "ENCOUNTER", "DESCRIPTION"])], ignore_index=True)
+    t["procedures"] = _t([("p1", "2025-06-01T23:00:00Z", "e3", "Electrocardiographic procedure"),
+                          ("p2", "2025-06-02T09:00:00Z", "e3", "Percutaneous coronary intervention")],
+                         ["row_id", "START", "ENCOUNTER", "DESCRIPTION"])
+    t["observations"] = pd.concat([t["observations"], _t(
+        [("o4", "2025-06-02T06:00:00Z", "e3", "laboratory", "4548-4", "Hemoglobin A1c", "8.1")],
+        ["row_id", "DATE", "ENCOUNTER", "CATEGORY", "CODE", "DESCRIPTION", "VALUE"])],
+        ignore_index=True)
+    last = notes.render_notes(t)[-1].text
+    assert last.startswith("Date: 2025-06-01\n")
+    assert "Diagnosed at this visit: Ischemic heart disease." in last
+    assert "Procedures performed: Electrocardiographic procedure." in last
+    for later in ("Diabetes mellitus", "atorvastatin", "Percutaneous coronary", "A1c"):
+        assert later not in last, later
+    # Earlier notes are unchanged by the extra encounter.
+    assert notes.render_notes(t)[:2] == notes.render_notes(tables())

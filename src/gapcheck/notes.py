@@ -7,6 +7,12 @@ that date); Allergies; Medications (active on that date); Assessment and
 Plan (this encounter's new diagnoses, procedures, prescriptions and the
 names of laboratory panels done). No numeric results.
 
+Nothing dated after the index date (the last encounter's START date, as in
+load.py) appears in any note: an encounter that runs past that date (an
+inpatient stay) lists only its diagnoses, procedures, prescriptions and
+laboratory panels dated on or before it, as the facts and the tools see the
+record.
+
 Planted sentences (from the edit ledger) are inserted into the HPI or the
 plan at a slot drawn by the edit, so they never sit at a fixed position.
 
@@ -163,10 +169,21 @@ def render_notes(tables: dict[str, pd.DataFrame], plants=()) -> list[Note]:
                   key=lambda r: (r["START"] or "", r["DESCRIPTION"] or "", r.get("row_id") or ""))
     obs = _rows(tables["observations"], ["DATE", "ENCOUNTER", "CATEGORY", "CODE", "DESCRIPTION",
                                          "VALUE", "row_id"])
+    # Index date (load.py: the last encounter START date). Rows linked to an encounter
+    # but dated after it (a stay that runs past the index date) are left out.
+    cut = max((_d(e["START"]) for e in enc), default=None)
+
+    def by_index(r: dict, col: str = "START") -> bool:
+        d = _d(r.get(col))
+        return d is not None and (cut is None or d <= cut)
+
+    cond_enc = [c for c in cond if by_index(c)]
+    procs = [x for x in procs if by_index(x)]
+    meds_enc = [m for m in meds if by_index(m)]
     smoking = sorted((o for o in obs if o["CODE"] == C.SMOKING.code),
                      key=lambda o: (o["DATE"], o.get("row_id") or ""))
     labs_by_enc: dict[str, list[str]] = {}
-    for o in sorted((o for o in obs if o["CATEGORY"] == "laboratory"),
+    for o in sorted((o for o in obs if o["CATEGORY"] == "laboratory" and by_index(o, "DATE")),
                     key=lambda o: (o["DATE"], o["CODE"])):
         labs_by_enc.setdefault(o["ENCOUNTER"], []).append(panel_name(o["CODE"], o["DESCRIPTION"]))
 
@@ -207,9 +224,9 @@ def render_notes(tables: dict[str, pd.DataFrame], plants=()) -> list[Note]:
                     for a in algs if _active(a, d))
         med = _uniq(m["DESCRIPTION"] for m in meds if _active(m, d))
 
-        new_dx = _uniq(_clean(c["DESCRIPTION"]) for c in cond if c["ENCOUNTER"] == eid)
+        new_dx = _uniq(_clean(c["DESCRIPTION"]) for c in cond_enc if c["ENCOUNTER"] == eid)
         pr = _uniq(_clean(p["DESCRIPTION"]) for p in procs if p["ENCOUNTER"] == eid)
-        rx = _uniq(m["DESCRIPTION"] for m in meds if m["ENCOUNTER"] == eid)
+        rx = _uniq(m["DESCRIPTION"] for m in meds_enc if m["ENCOUNTER"] == eid)
         labs = _uniq(labs_by_enc.get(eid, []))
         plan = []
         if new_dx:
