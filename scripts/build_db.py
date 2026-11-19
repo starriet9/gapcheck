@@ -3,7 +3,8 @@
 Usage: python scripts/build_db.py <run_dir> [--seed N]
 
 <run_dir> holds output/csv (and run_manifest.json from
-scripts/generate_synthea.sh, which gives the seed if --seed is omitted).
+scripts/generate_synthea.sh, which gives the seed if --seed is omitted, and
+the generator's time zone, stored as meta.generator_time_zone).
 Writes <run_dir>/gapcheck.duckdb and <run_dir>/augmentation_ledger.csv.
 """
 import argparse
@@ -23,13 +24,18 @@ def main() -> None:
     run = Path(a.run_dir)
     seed = a.seed
     manifest = run / "run_manifest.json"
+    man = json.loads(manifest.read_text()) if manifest.exists() else {}
     if seed is None:
-        seed = json.loads(manifest.read_text())["seed"]
+        seed = man["seed"]
     db = run / "gapcheck.duckdb"
     if db.exists() and a.force:
         db.unlink()
     t0 = time.time()
     con = load.load(run / "output" / "csv", db, seed=seed)
+    # Date-only CSV columns are in the generator's zone (SPEC 4); runs before the
+    # zone was pinned have no entry.
+    con.execute("insert into meta values ('generator_time_zone', ?)",
+                [man.get("time_zone", "not recorded")])
     counts = con.execute("select * from load_counts").df().iloc[0].to_dict()
     res = patches.apply_all(con, seed)
     n = patches.export_ledger(con, run / "augmentation_ledger.csv")

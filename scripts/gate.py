@@ -61,6 +61,8 @@ def main() -> None:
     ap.add_argument("db")
     ap.add_argument("--seed", type=int, help="patch seed (default: meta.seed)")
     ap.add_argument("--name", help="set name for the report (default: db folder name)")
+    ap.add_argument("--time-zone", help="generator JVM time zone, for sets whose database "
+                                        "and run manifest do not record it")
     a = ap.parse_args()
     db = Path(a.db)
     run = db.parent
@@ -71,6 +73,10 @@ def main() -> None:
     meta = dict(con.execute("select key, value from meta").fetchall())
     seed = a.seed if a.seed is not None else int(meta["seed"])
     cohort_n = con.execute("select count(*) from cohort").fetchall()[0][0]
+    tz = meta.get("generator_time_zone")
+    if tz in (None, "not recorded") and (run / "run_manifest.json").exists():
+        tz = json.loads((run / "run_manifest.json").read_text()).get("time_zone")
+    tz = a.time_zone or tz or "not recorded"
 
     t0 = time.time()
     recs = list(facts.iter_records(con))
@@ -218,7 +224,7 @@ def main() -> None:
                 row[f"{label}_cohort_margin"] = mg
             need.append(row)
 
-    out = {"set": name, "seed": seed, "cohort": cohort_n, "p2": p2_info,
+    out = {"set": name, "seed": seed, "time_zone": tz, "cohort": cohort_n, "p2": p2_info,
            "ledger_rows": n_ledger, "indication_rows": dict(rows),
            "indication_rows_on_statin": dict(rows_on), "strata": per,
            "cohort_exclusions": dict(cohort_ex), "p1_impact": p1_impact, "gate": gate,
@@ -246,6 +252,11 @@ def render(o: dict) -> str:
       "(Synthea v4.0.0); a designed test set, not prevalence.")
     w("")
     w(f"- Seed: {o['seed']}. Cohort (alive, aged 30-79 at index): {o['cohort']:,}.")
+    tz = o.get("time_zone", "not recorded")
+    w(f"- Generator JVM time zone: {tz}"
+      + ("." if tz == "UTC" else
+         " (date-only columns such as birth dates and condition start dates are dates in "
+         "this zone, timestamps are UTC; sets generated later pin UTC, SPEC 4)."))
     p2 = o["p2"]
     w(f"- P2 statin rows added: {p2['p2_rows_added']}"
       + (" (already applied; plan recomputed and matched)" if p2.get("already_applied") else "")

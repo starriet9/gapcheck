@@ -10,8 +10,14 @@
 #   JAVA_XMX  JVM heap (default 32g)
 #
 # Writes <out_dir>/output/csv/*.csv, <out_dir>/synthea.log and
-# <out_dir>/run_manifest.json (jar sha256, java version, argv, timestamps,
-# sha256 of every CSV).
+# <out_dir>/run_manifest.json (jar sha256, java version, time zone, argv,
+# timestamps, sha256 of every CSV).
+#
+# Time zone: the JVM runs in UTC whatever the caller's zone. Synthea writes
+# date-only CSV columns (BIRTHDATE, DEATHDATE, condition, allergy and care-plan
+# START/STOP) in the JVM default zone and timestamps in UTC, and in some zones
+# the generated patients themselves differ (the yearly insurance enrollment is
+# computed in the default zone). With UTC every date is the UTC date.
 set -euo pipefail
 
 if [ "$#" -ne 3 ]; then
@@ -30,6 +36,8 @@ JAVA="tools/jdk/bin/java"
 REFERENCE_DATE="20261118"
 THREADS="${THREADS:-1}"
 JAVA_XMX="${JAVA_XMX:-32g}"
+TIME_ZONE="UTC"
+export TZ="$TIME_ZONE"
 
 case "$OUT" in
   /*) echo "out_dir must be relative to the repo root" >&2; exit 2 ;;
@@ -43,7 +51,7 @@ echo "$JAR_SHA256  $JAR" | sha256sum -c --quiet -
 mkdir -p "$OUT"
 
 ARGS=(
-  -Xmx"$JAVA_XMX" -jar "$JAR"
+  -Duser.timezone="$TIME_ZONE" -Xmx"$JAVA_XMX" -jar "$JAR"
   -s "$SEED" -cs "$SEED" -r "$REFERENCE_DATE" -e "$REFERENCE_DATE" -p "$N" -a 30-79
   --exporter.baseDirectory="$OUT/output/"
   --exporter.years_of_history=0
@@ -72,6 +80,7 @@ JAVA_VERSION="$("$JAVA" -version 2>&1 | head -1)"
   printf '  "jar_sha256": "%s",\n' "$JAR_SHA256"
   printf '  "java": "%s",\n' "$JAVA"
   printf '  "java_version": %s,\n' "$(jq -Rn --arg v "$JAVA_VERSION" '$v')"
+  printf '  "time_zone": "%s",\n' "$TIME_ZONE"
   printf '  "argv": %s,\n' "$(printf '%s\n' "$JAVA" "${ARGS[@]}" | jq -R . | jq -s -c .)"
   printf '  "seed": %s,\n  "n_alive": %s,\n  "reference_date": "%s",\n' "$SEED" "$N" "$REFERENCE_DATE"
   printf '  "started_utc": "%s",\n  "finished_utc": "%s",\n' "$STARTED" "$FINISHED"

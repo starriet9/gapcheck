@@ -16,8 +16,12 @@ Plus `cohort` (one row per included patient: index date, age, sex) and
 30-79 at the index date, which is the date of their last encounter START.
 
 Dates: every Synthea timestamp is UTC ISO 8601 ("2026-11-01T07:01:57Z"), so
-the first 10 characters are the UTC date. This module and facts.py use that
-rule everywhere.
+the first 10 characters are the UTC date. Date-only columns (BIRTHDATE,
+DEATHDATE, condition and allergy START/STOP) are written in the JVM default
+time zone; scripts/generate_synthea.sh pins it to UTC, so they are UTC dates
+too. This module and facts.py use the first 10 characters as the UTC date
+everywhere. (With a zone east of UTC, a diagnosis made at an evening encounter
+on the index date would be dated the next day and fall after index.)
 """
 from __future__ import annotations
 

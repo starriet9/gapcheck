@@ -120,3 +120,16 @@ def test_refuses_existing_db(tmp_path):
     load.load(FIXTURE, tmp_path / "x.duckdb").close()
     with pytest.raises(FileExistsError):
         load.load(FIXTURE, tmp_path / "x.duckdb")
+
+
+def test_generator_pins_utc_and_records_it():
+    """Synthea writes date-only columns in the JVM zone and timestamps in UTC, and its
+    patients depend on the zone; the pipeline reads every date as a UTC date. The generator
+    script must pin UTC both ways and record it in the run manifest."""
+    from pathlib import Path
+    sh = (Path(__file__).parents[1] / "scripts" / "generate_synthea.sh").read_text()
+    assert 'TIME_ZONE="UTC"' in sh and 'export TZ="$TIME_ZONE"' in sh
+    assert '-Duser.timezone="$TIME_ZONE"' in sh
+    assert '"time_zone": "%s"' in sh
+    i_export, i_java = sh.index('export TZ="$TIME_ZONE"'), sh.index('"$JAVA" "${ARGS[@]}"')
+    assert i_export < i_java
