@@ -240,8 +240,8 @@ ROWS: tuple[Row, ...] = (
     Row("5", "Diabetes, 30-39",
         "Active diabetes and age 30-39. DISCUSS if any of: type 2 diabetes >= 10 years, "
         "albuminuria or proteinuria, CKD stage >= 3, retinopathy, neuropathy; or 10-year "
-        "PREVENT risk >= 3%; or 30-year risk >= 10%. Otherwise NOT_INDICATED: row 7 if LDL-C "
-        "< 70, else row 11b.",
+        "PREVENT risk >= 3%; or 30-year risk >= 10%; or LDL-C 160-189. Otherwise "
+        "NOT_INDICATED: row 7 if LDL-C < 70, else row 11b.",
         DISCUSS,
         (_src("4.2.5", "7", "2b", "C-LD", 2681,
               "In adults 20 to 39 years of age with diabetes of long duration (≥10 years of "
@@ -262,14 +262,21 @@ ROWS: tuple[Row, ...] = (
               "intermediate-risk estimates by the PREVENT-ASCVD equations, and treatment "
               "should be guided by the primary prevention recommendations as in Section "
               "4.2.3.7, “Primary Prevention in Adults 30 to 79 Years of Age With LDL-C Levels "
-              "70 to 189 mg/dL (1.8-4.9 mmol/L).”", role="conflict")),
+              "70 to 189 mg/dL (1.8-4.9 mmol/L).”", role="conflict"),
+         _fig("Figure 6", "Low 10-y Risk (<3%) branch", "2a", 2669, _FIG6_LOW)),
         ("Follows Figure 9: at ages 30-39 the PREVENT branch (10-year risk >= 3% or 30-year "
          "risk >= 10%) is COR 2a at any risk level, so DISCUSS; there is no GAP path through "
          "rows 8-9. Supportive text 7 and the synopsis point to the primary-prevention "
          "algorithm (Figure 6), which would give GAP at >= 5%; where the guideline reads two "
          "ways the oracle takes DISCUSS, as for ages 76-79.",
-         "Figure 9's NO branches lead to healthy behavior counseling (COR 1), not a statin "
-         "start: NOT_INDICATED (row 7 or row 11b).",
+         "LDL-C 160-189 at low risk (10-year risk < 3%, 30-year risk < 10%, no row-5 "
+         "feature): Figure 9 leads to healthy behavior counseling, while Figure 6's low-risk "
+         "branch, where supportive text 7 and the synopsis send these patients, gives a "
+         "moderate-intensity statin (COR 2a, as row 11a). The two readings differ, so DISCUSS "
+         "by the same rule.",
+         "Otherwise (no feature, 10-year risk < 3%, 30-year risk < 10%, LDL-C < 160) Figure "
+         "9's NO branches lead to healthy behavior counseling (COR 1), not a statin start: "
+         "NOT_INDICATED (row 7 or row 11b).",
          "Neither the row-5 features nor Figure 9's PREVENT branch has an LDL-C condition; "
          "they apply at any LDL-C below 190 (row 2 first).",
          "eGFR < 60 is encoded as a CKD stage >= 3 diagnosis code (PREVENT uses the eGFR "
@@ -280,9 +287,6 @@ ROWS: tuple[Row, ...] = (
          "Age 30 is included ('≥30' in Figure 9 and the synopsis)."),
         scope="Age 30-39, active diabetes, no ASCVD, LDL-C < 190 (rows 1-2 first).",
         data_limits=("Ankle-brachial index and type 1 diabetes do not occur in the data.",),
-        confirm=("Ages 30-39 with diabetes, LDL-C 160-189, 10-year risk < 3% and 30-year risk "
-                 "< 10%: NOT_INDICATED by Figure 9, while Figure 6 (row 11a) would give "
-                 "DISCUSS. One such patient in the dev set (10k); not sampled.",),
         not_sampled="Diabetes outside 40-75 is not sampled (base patients or twins)."),
     Row("6", "Older adults",
         "Age 76-79, no ASCVD, no diabetes, LDL-C < 190 mg/dL (primary prevention).", DISCUSS,
@@ -403,11 +407,11 @@ ROWS: tuple[Row, ...] = (
         ("NOT_INDICATED: the NO branch of Figure 6's low-risk box leads to health behavior "
          "counseling (COR 1), with no recommendation to start a statin. At ages 60-75 the "
          "30-year risk is not used, so only LDL-C decides the branch.",
-         "Diabetes at 30-39 reaching this row: Figure 9's NO branches (healthy behavior "
-         "counseling, COR 1)."),
+         "Diabetes at 30-39 reaching this row (LDL-C 70-159): Figure 9's NO branches "
+         "(healthy behavior counseling, COR 1)."),
         scope="Age 30-75, LDL-C 70-159, 10-year risk < 3%, 30-year risk < 10% at ages 30-59, "
               "no ASCVD, no diabetes at 40-75, no CKD stage 3-4 at 40-75; plus diabetes at "
-              "30-39 (LDL-C 70-189) with no row-5 feature, 10-year risk < 3% and 30-year risk "
+              "30-39 (LDL-C 70-159) with no row-5 feature, 10-year risk < 3% and 30-year risk "
               "< 10%.",
         not_sampled="S5 (with row 7)."),
 )
@@ -890,13 +894,16 @@ def _row_codes(x: OracleInputs, tc, hdl, ldl, sbp, smk, egfr, ignore_row0: bool,
         return out
     tr("5")
     if x.diabetes and a <= 39:
-        # Row 5 (Figure 9, ages 30-39): DISCUSS with a row-5 feature, or with 10-year
-        # risk >= 3% or 30-year risk >= 10%, at any LDL-C < 190. Otherwise healthy
-        # behavior counseling: NOT_INDICATED through row 7 or row 11b.
+        # Row 5 (ages 30-39): DISCUSS with a row-5 feature (rec 7), or with 10-year risk
+        # >= 3% or 30-year risk >= 10% (Figure 9) at any LDL-C < 190, or with LDL-C
+        # 160-189 (Figure 6 low-risk branch, COR 2a; Figure 9 reads NO there: two
+        # readings, so DISCUSS). Otherwise healthy behavior counseling: NOT_INDICATED
+        # through row 7 or row 11b. LDL-C >= 190 went to row 2 above.
         if x.row5_feature:
             put(np.True_, "5")
             return out
-        if put((risk(10) >= RISK_BORDERLINE) | (risk(30) >= RISK_30Y_ELEVATED), "5"):
+        if put((ldl >= 160) | (risk(10) >= RISK_BORDERLINE)
+               | (risk(30) >= RISK_30Y_ELEVATED), "5"):
             return out
         if put(ldl < 70, "7"):
             return out

@@ -75,8 +75,8 @@ ESRD, dialysis or kidney transplant are excluded from this set of patients.
 - PREVENT 10% or more is GAP (row 8), like 5% to < 10% (row 9).
 - Ages 76-79 in primary prevention are DISCUSS (row 6). Rows 1 and 2 have no age limit.
 - Diabetes at ages 30-39 (row 5): DISCUSS with a row-5 feature, a 10-year risk of 3% or \
-more, or a 30-year risk of 10% or more; otherwise NOT_INDICATED (row 7 or row 11b). There \
-is no GAP through rows 8 and 9 at these ages.
+more, a 30-year risk of 10% or more, or LDL-C 160-189; otherwise NOT_INDICATED (row 7 or \
+row 11b). There is no GAP through rows 8 and 9 at these ages.
 - Row 11a: LDL-C 160-189 counts at any age 30-75; the 30-year risk only at ages 30-59.
 - LDL-C and risk thresholds apply to the recorded value and the unrounded risk.
 - Diabetes excludes prediabetes. Ischemic heart disease (414545008) counts as clinical ASCVD.

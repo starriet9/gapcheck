@@ -102,7 +102,7 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
 
 ### Row 5 · Diabetes, 30-39 → **DISCUSS**
 
-- Rule: Active diabetes and age 30-39. DISCUSS if any of: type 2 diabetes >= 10 years, albuminuria or proteinuria, CKD stage >= 3, retinopathy, neuropathy; or 10-year PREVENT risk >= 3%; or 30-year risk >= 10%. Otherwise NOT_INDICATED: row 7 if LDL-C < 70, else row 11b.
+- Rule: Active diabetes and age 30-39. DISCUSS if any of: type 2 diabetes >= 10 years, albuminuria or proteinuria, CKD stage >= 3, retinopathy, neuropathy; or 10-year PREVENT risk >= 3%; or 30-year risk >= 10%; or LDL-C 160-189. Otherwise NOT_INDICATED: row 7 if LDL-C < 70, else row 11b.
 - Effective scope: Age 30-39, active diabetes, no ASCVD, LDL-C < 190 (rows 1-2 first).
 - Sources:
   - Sec. 4.2.5, rec 7 · COR 2b · LOE C-LD · journal p. 2681 (PDF p. 58)
@@ -113,14 +113,16 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
     > In those individuals >30 years of age, calculation of 10- and 30-year risk by PREVENT-ASCVD equations should be used to guide treatment decisions according to the primary prevention algorithm (Figure 6, Section 4.2.3.7, “Primary Prevention in Adults 30 to 79 Years of Age With LDL-C Levels 70 to 189 mg/dL [1.8-4.9 mmol/L]”).
   - Sec. 4.2.5, synopsis · journal p. 2681 (PDF p. 58) · reads differently; see [encoding]
     > Some young adults ≥30 years of age with diabetes may achieve borderline or intermediate-risk estimates by the PREVENT-ASCVD equations, and treatment should be guided by the primary prevention recommendations as in Section 4.2.3.7, “Primary Prevention in Adults 30 to 79 Years of Age With LDL-C Levels 70 to 189 mg/dL (1.8-4.9 mmol/L).”
+  - Figure 6, Low 10-y Risk (<3%) branch · COR 2a · journal p. 2669 (PDF p. 46) · figure summary, not a verbatim quote
+    > 'Low 10-y Risk (<3%)' → 'LDL-C 160–189 mg/dL or 30-y ASCVD risk ≥10%?' → YES → 'Start moderate-intensity statin' (COR 2a); NO → 'Health behavior counseling' (COR 1). The figure covers adults 30–79 y with LDL-C 70–189 mg/dL; no other age limit on this branch.
 - [encoding] Follows Figure 9: at ages 30-39 the PREVENT branch (10-year risk >= 3% or 30-year risk >= 10%) is COR 2a at any risk level, so DISCUSS; there is no GAP path through rows 8-9. Supportive text 7 and the synopsis point to the primary-prevention algorithm (Figure 6), which would give GAP at >= 5%; where the guideline reads two ways the oracle takes DISCUSS, as for ages 76-79.
-- [encoding] Figure 9's NO branches lead to healthy behavior counseling (COR 1), not a statin start: NOT_INDICATED (row 7 or row 11b).
+- [encoding] LDL-C 160-189 at low risk (10-year risk < 3%, 30-year risk < 10%, no row-5 feature): Figure 9 leads to healthy behavior counseling, while Figure 6's low-risk branch, where supportive text 7 and the synopsis send these patients, gives a moderate-intensity statin (COR 2a, as row 11a). The two readings differ, so DISCUSS by the same rule.
+- [encoding] Otherwise (no feature, 10-year risk < 3%, 30-year risk < 10%, LDL-C < 160) Figure 9's NO branches lead to healthy behavior counseling (COR 1), not a statin start: NOT_INDICATED (row 7 or row 11b).
 - [encoding] Neither the row-5 features nor Figure 9's PREVENT branch has an LDL-C condition; they apply at any LDL-C below 190 (row 2 first).
 - [encoding] eGFR < 60 is encoded as a CKD stage >= 3 diagnosis code (PREVENT uses the eGFR value).
 - [encoding] Type 2 diabetes duration: from the earliest type 2 diabetes code start, in days / 365.25. Diabetes due to cystic fibrosis (427089005) counts as diabetes but not toward the type 2 duration.
 - [encoding] Age 30 is included ('≥30' in Figure 9 and the synopsis).
 - [data] Ankle-brachial index and type 1 diabetes do not occur in the data.
-- [confirm] Ages 30-39 with diabetes, LDL-C 160-189, 10-year risk < 3% and 30-year risk < 10%: NOT_INDICATED by Figure 9, while Figure 6 (row 11a) would give DISCUSS. One such patient in the dev set (10k); not sampled.
 - Sampling: Diabetes outside 40-75 is not sampled (base patients or twins).
 
 ### Row 6 · Older adults → **DISCUSS**
@@ -208,7 +210,7 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
 ### Row 11b · PREVENT < 3%, otherwise → **NOT_INDICATED**
 
 - Rule: All other patients at 10-year risk < 3% (and diabetes at 30-39 that row 5 did not match).
-- Effective scope: Age 30-75, LDL-C 70-159, 10-year risk < 3%, 30-year risk < 10% at ages 30-59, no ASCVD, no diabetes at 40-75, no CKD stage 3-4 at 40-75; plus diabetes at 30-39 (LDL-C 70-189) with no row-5 feature, 10-year risk < 3% and 30-year risk < 10%.
+- Effective scope: Age 30-75, LDL-C 70-159, 10-year risk < 3%, 30-year risk < 10% at ages 30-59, no ASCVD, no diabetes at 40-75, no CKD stage 3-4 at 40-75; plus diabetes at 30-39 (LDL-C 70-159) with no row-5 feature, 10-year risk < 3% and 30-year risk < 10%.
 - Sources:
   - Sec. 4.2.3.7, rec 2 · COR 1 · LOE A · journal p. 2667 (PDF p. 44)
     > In adults aged 30 to 59 years, at low (<3%) 10-year estimated risk for ASCVD who have an LDL-C <160 mg/dL (4.1 mmol/L) and a 30-year risk estimate of <10%, counseling on health behaviors is recommended to reduce LDL-C and risk for ASCVD.
@@ -219,7 +221,7 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
   - Figure 9, 20–39 y of age branch · COR 1 · journal p. 2683 (PDF p. 60) · figure summary, not a verbatim quote
     > 'For adults ≥30 y of age, PREVENT ASCVD 10-y risk ≥3% or 30-y risk ≥10%' → YES → 'Start moderate-intensity statin' (COR 2a); NO → 'Healthy behavior counseling' (COR 1). 'Diabetes-specific risk enhancers* present?' → YES → 'Start moderate-intensity statin' (COR 2b); NO → 'Healthy behavior counseling' (COR 1).
 - [encoding] NOT_INDICATED: the NO branch of Figure 6's low-risk box leads to health behavior counseling (COR 1), with no recommendation to start a statin. At ages 60-75 the 30-year risk is not used, so only LDL-C decides the branch.
-- [encoding] Diabetes at 30-39 reaching this row: Figure 9's NO branches (healthy behavior counseling, COR 1).
+- [encoding] Diabetes at 30-39 reaching this row (LDL-C 70-159): Figure 9's NO branches (healthy behavior counseling, COR 1).
 - Sampling: S5 (with row 7).
 
 ## Documented reasons (SPEC 3.3)

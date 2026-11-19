@@ -212,11 +212,30 @@ def test_diabetes_30_39_risk_applies_at_any_ldl():
              bp=True, smoker=True)
     r = lab(f)
     assert r.risk10 >= 0.03 and (r.status, r.row) == (DISCUSS, "5")
-    # LDL-C 160-189 with low 10- and 30-year risk: Figure 9 NO branch (row 11b).
-    p = dict(age=30, sex="F", tc=250.0, hdl=80.0, ldl=165.0, sbp=100.0, diabetes=True)
-    r = lab(make(**p))
-    if r.risk30 < 0.10:
-        assert (r.status, r.row) == (NOT_INDICATED, "11b")
+
+
+@pytest.mark.parametrize("ldl,status,row", [(159.0, NOT_INDICATED, "11b"), (160.0, DISCUSS, "5"),
+                                            (189.0, DISCUSS, "5"), (190.0, GAP, "2")])
+def test_diabetes_30_39_ldl_160_189_low_risk_is_discuss(ldl, status, row):
+    """LDL-C 160-189 at low risk (10-year < 3%, 30-year < 10%, no feature): Figure 9 reads
+    NO (counseling), Figure 6's low-risk branch reads COR 2a; two readings give DISCUSS."""
+    p = dict(age=30, sex="F", tc=ldl + 85.0, hdl=80.0, sbp=100.0, diabetes=True)
+    r = lab(make(**p, ldl=ldl))
+    if row != "2":
+        assert r.risk10 < 0.03 and r.risk30 < 0.10
+    assert (r.status, r.row) == (status, row)
+
+
+def test_diabetes_30_39_ldl_band_makes_lipid_and_smoking_deciding_as_usual():
+    """CANNOT_DETERMINE handling is the same as in the other rows: without a lipid panel the
+    LDL-C band decides (row 2 GAP, row 5 DISCUSS, row 11b NOT_INDICATED); with LDL-C 160-189
+    a missing smoking status no longer decides, since the LDL-C band gives DISCUSS alone."""
+    p = dict(age=30, sex="F", tc=250.0, hdl=80.0, sbp=100.0, diabetes=True)
+    r = lab(make(**p, ldl=165.0, lipid=False))
+    assert (r.status, r.missing) == (CANNOT_DETERMINE, ("lipid_panel",))
+    r = lab(make(**p, ldl=165.0, smoker=None))
+    assert (r.status, r.row, r.missing) == (DISCUSS, "5", ())
+    assert "smoking" not in r.deciding
 
 
 def test_diabetes_30_39_missing_smoking_deciding():
