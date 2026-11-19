@@ -7,6 +7,7 @@ import pytest
 
 import casedb
 from gapcheck import baselines, oracle, verifier
+from gapcheck import codes as C
 from gapcheck import schema as S
 from gapcheck.systems import notes_of
 from gapcheck.tools import CaseEnv
@@ -145,6 +146,76 @@ def test_two_call_rule_for_missing_smoking():
     # an ABSENT smoking claim covers check 2, but a single assumed value still fails check 3
     absent = S.item("smoking", S.ABSENT, "smoking", None)
     assert _checks(verifier.verify({**out, "evidence": ev + [absent, one]}, env)) == {3}
+    env.close()
+
+
+def test_two_call_rule_rows_8_and_9_share_a_band():
+    """Regression (oracle_complete dry run): with smoking missing, a 10-year risk of 7.5%
+    (smoker 0, row 9) and 10.7% (smoker 1, row 8) is GAP either way, so the pair covers
+    smoking. The old bands split at 10% and forced CANNOT_DETERMINE on correct C2b
+    answers. Pairs across 5% or 3% still fail."""
+    from gapcheck.tools import compute_prevent
+    rows = casedb.default_rows()
+    rows["observations"] = [dict(o, VALUE="168") if o["row_id"] == "obs_sbplast" else o
+                            for o in rows["observations"] if o["row_id"] != "obs_smk"]
+    env = CaseEnv(casedb.connect(rows))
+    f = env.facts()
+    assert f.smoking is None and float(f.sbp.value) == 168
+    r = oracle.label(f, reasons=())
+    assert r.status == oracle.GAP and r.row is None and set(r.row_set) == {"8", "9"}
+    base = baselines.r0(f)
+    ev = [it for it in base["evidence"] if it["claim"] not in ("risk_10y", "risk_30y")]
+    ev.append(S.item("ckd", S.ABSENT, "ckd_codes", None))
+    args = {"sex": "male", "age": 55, "tc": 220.0, "hdl": 45.0, "sbp": 168.0, "bp_treated": 1,
+            "statin": 0, "diabetes": 0, "smoker": 0, "egfr": 88.0}
+    r0 = compute_prevent(args)["risk_10y"]
+    r1 = compute_prevent({**args, "smoker": 1})["risk_10y"]
+    assert 0.05 <= r0 < 0.10 <= r1
+    pair = [S.item("risk_10y", S.COMPUTED, S.PREVENT_TOOL, r0, inputs=args),
+            S.item("risk_10y", S.COMPUTED, S.PREVENT_TOOL, r1, inputs={**args, "smoker": 1})]
+    for bg in ("8", "9"):
+        out = {**base, "status": oracle.GAP, "benefit_group": bg, "risk_10y": None,
+               "missing": ["smoking"], "evidence": ev + pair}
+        rep = verifier.verify(out, env)
+        assert rep.ok, rep.failures
+    assert verifier.REQUIRED_INPUTS["8"] == verifier.REQUIRED_INPUTS["9"]
+    # null row with a definite status: check 2, "missing row"
+    rep = verifier.verify({**out, "benefit_group": None}, env)
+    assert [(fl.check, fl.ref) for fl in rep.failures] == [(2, None)]
+    assert "missing row" in rep.failures[0].detail
+    env.close()
+    # bands: 10% does not split, 3% and 5% do
+    assert verifier._band(0.08) == verifier._band(0.12)
+    assert len({verifier._band(x) for x in (0.02, 0.04, 0.06)}) == 3
+
+
+def test_definite_status_needs_a_row(env, good):
+    """Regression: a GAP (or any definite status) with benefit_group null used to skip
+    check 2 entirely."""
+    out = {**copy.deepcopy(good), "status": oracle.GAP, "benefit_group": None}
+    rep = verifier.verify(out, env)
+    assert _checks(rep) == {2} and "missing row" in rep.failures[0].detail
+    assert "check 2" in verifier.feedback(rep)
+    # CANNOT_DETERMINE with null is fine
+    cd = {**copy.deepcopy(good), "status": oracle.CANNOT_DETERMINE, "benefit_group": None}
+    assert verifier.verify(cd, env).ok
+
+
+def test_on_therapy_needs_row0_with_documented_statin():
+    rows = casedb.default_rows()
+    rows["medications"] = [dict(m, STOP=None) if m["CODE"] in C.STATINS else m
+                           for m in rows["medications"]]
+    env = CaseEnv(casedb.connect(rows))
+    f = env.facts()
+    assert f.on_statin
+    good = baselines.r0(f)
+    assert good["status"] == oracle.ON_THERAPY and good["benefit_group"] == "0"
+    assert verifier.verify(good, env).ok
+    assert _checks(verifier.verify({**good, "benefit_group": None}, env)) == {2}
+    ev = [S.item("statins", S.ABSENT, "statins", None) if it["claim"] == "statins" else it
+          for it in good["evidence"]]
+    rep = verifier.verify({**good, "evidence": ev}, env)
+    assert 2 in _checks(rep)  # row 0 needs a DOCUMENTED statin (ABSENT also fails check 4)
     env.close()
 
 

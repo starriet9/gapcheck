@@ -74,19 +74,43 @@ ESRD, dialysis or kidney transplant are excluded from this set of patients.
 - Statins are matched by ingredient, including ezetimibe/simvastatin."""
 
 EVIDENCE_RULES = """\
-Every answer's evidence is checked by code:
-1. Every DOCUMENTED source exists, is the right kind of row for its claim, and its value \
-matches; a note quote must be an exact substring of that note.
-2. For the row in `benefit_group`, every input in that row's list below has a DOCUMENTED, \
-COMPUTED or ABSENT claim (risk_10y must be COMPUTED). A missing smoking status may instead \
-be covered by two COMPUTED risk_10y items, smoker 0 and smoker 1 with all other inputs \
-equal, whose risks fall in the same band (< 3%, 3 to < 5%, 5 to < 10%, >= 10%).
+Every answer's evidence is checked by code. If a check fails you are told only the check \
+number and the index of the claim, and you get one chance to repair the answer.
+1. Every DOCUMENTED source exists, is the right kind of row for its claim (for example a \
+statins claim cites statin prescription rows, an egfr claim cites eGFR rows in \
+mL/min/{1.73_m2}), and its value matches; a note quote must be an exact substring of \
+that note.
+2. Every status except CANNOT_DETERMINE needs a row in `benefit_group`; a definite status \
+with benefit_group null fails this check. ON_THERAPY needs row 0 and a DOCUMENTED claim \
+citing the active statin rows. For the row in `benefit_group`, every claim name in that row's line of the table \
+"Required claims per benefit_group" has at least one claim (DOCUMENTED, COMPUTED or ABSENT; \
+risk_10y must be COMPUTED). A missing smoking status can instead be covered by the two-call \
+rule below.
 3. Every COMPUTED risk matches PREVENT recomputed from its `inputs` within 0.1 percentage \
-point, and each input is backed by a claim in the answer: age, sex, lipid panel, SBP, eGFR \
-and smoking by a DOCUMENTED claim with that value; statin, BP treatment and diabetes by a \
-DOCUMENTED claim (1) or an ABSENT claim (0).
+point, and each input is backed by a claim in the answer: age, sex, lipid panel (tc, hdl), \
+SBP, eGFR and smoking by a DOCUMENTED claim with that value; statin, BP treatment and \
+diabetes = 1 by a DOCUMENTED claim (statins, bp_drugs, diabetes), = 0 by an ABSENT claim \
+(statins, bp_drugs, diabetes_codes).
 4. Every input in `missing` and every ABSENT claim is confirmed by re-running the query of \
-its named list."""
+its named list (the list must be empty).
+
+Two-call rule (missing smoking status). When the row you give needs PREVENT (rows \
+{prevent_rows}) and no smoking status is on record, there is no smoker value to cite. Then:
+- put "smoking" in `missing`;
+- call prevent_risk twice with identical inputs except smoker: once with smoker = 0 and once \
+with smoker = 1;
+- add both results to `evidence` as two COMPUTED risk_10y items, each with its own \
+`inputs`.
+The pair covers smoking for check 2 and the smoker input for check 3 if both 10-year risks \
+fall in the same band: below 3%, 3% to below 5%, or 5% and above (rows 8 and 9 are both GAP, \
+so 10% does not split a band). If the status is the same for both values but the row is \
+not (rows 8 and 9, which need the same claims), give either row 8 or row 9; do not use \
+null. If the risks fall in different bands, smoking may \
+decide the status; check the decision table with both risks before answering."""
+
+
+def _rows_with(name: str) -> list[str]:
+    return [r for r, v in REQUIRED_INPUTS.items() if name in v]
 
 
 def _rows_table() -> str:
@@ -143,13 +167,13 @@ def _code_lists() -> str:
 
 def _schema() -> str:
     lists = "\n".join(f"  - {k}: {v}" for k, v in S.ABSENT_LISTS.items())
-    req = "\n".join(f"- Row {r}: {', '.join(v)}" for r, v in REQUIRED_INPUTS.items())
+    req = "\n".join(f"| {r} | {', '.join(v)} |" for r, v in REQUIRED_INPUTS.items())
     return f"""\
 Reply with one JSON object with exactly these keys:
 
 - status: one of {", ".join(oracle.STATUSES)}
-- benefit_group: the decision-table row you apply (a row id string), or null (use null with \
-CANNOT_DETERMINE)
+- benefit_group: the decision-table row you apply (a row id string). Use null only with \
+CANNOT_DETERMINE; every other status needs a row (ON_THERAPY: row 0)
 - risk_10y: PREVENT 10-year risk as a fraction (0.072 = 7.2%), or null if not computed
 - missing: list of absent open-world inputs, from {", ".join(oracle.OPEN_INPUTS)}
 - evidence: list of items {{"claim", "support", "source", "value"}}, plus "quote" for notes, \
@@ -168,8 +192,26 @@ prevent_risk arguments ({", ".join(S.PREVENT_ARGS)}).
 {lists}
 - support INFERRED: source null; only for facts outside the inputs required below.
 
-Required inputs per benefit_group (claims needed; "reason" means a reason claim or an \
-ABSENT reasons_365d claim):
+Required claims per benefit_group (evidence check 2). For the row you give in \
+benefit_group, the evidence must hold at least one claim with each name on that row's \
+line. Each name is covered like this:
+- age, sex: DOCUMENTED, source ["{S.DEMOGRAPHICS}"].
+- statins, ascvd, diabetes, ckd, row5_features, bp_drugs (closed-world): DOCUMENTED with \
+the matching record rows, or, if there are none, ABSENT with the list statins, \
+ascvd_codes, diabetes_codes, ckd_codes, row5_feature_codes or bp_drugs. Row 0 needs the \
+active statin rows; every other row needs a statins claim too (ABSENT statins, since an \
+active statin makes it row 0).
+- lipid_panel: DOCUMENTED with the TC, HDL-C and LDL-C row ids of one panel and value \
+{{"tc", "hdl", "ldl"}}, or ABSENT lipid_panel.
+- sbp, egfr, smoking: DOCUMENTED with the row id and its value, or ABSENT sbp, egfr or \
+smoking.
+- risk_10y: a COMPUTED claim (a prevent_risk result); ABSENT or INFERRED does not count.
+- reason (GAP rows: {", ".join(_rows_with("reason"))}): a DOCUMENTED reason claim (a record row id, or a \
+note id with the exact quote) if a reason is documented, else ABSENT reasons_365d. Use it \
+for GAP and for DOCUMENTED_REASON.
+
+| Row | Required claims |
+|---|---|
 {req}"""
 
 
@@ -217,7 +259,7 @@ GAP is a prompt for review, not a finding of an error in care.
 
 ## Evidence checks
 
-{EVIDENCE_RULES}
+{EVIDENCE_RULES.replace("{prevent_rows}", ", ".join(_rows_with("risk_10y")))}
 """
 
 

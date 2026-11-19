@@ -13,7 +13,12 @@ Checks:
    row's static list (`REQUIRED_INPUTS`) has a DOCUMENTED, COMPUTED or ABSENT
    claim. A required binary input that is missing (smoking status) may
    instead be covered by two prevent_risk results (smoker 0 and 1, all other
-   inputs equal) in the same risk band (`RISK_BANDS`).
+   inputs equal) whose 10-year risks fall in the same label band
+   (`LABEL_BANDS`: < 3%, 3 to < 5%, >= 5%). Every status other than
+   CANNOT_DETERMINE needs a benefit_group ("missing row" otherwise);
+   ON_THERAPY needs row 0, and row 0 a DOCUMENTED statin claim. Rows 8 and 9
+   share one required-input list, so either may be named when the risk spans
+   both (for example smoking missing).
 3. Every COMPUTED risk is recomputed from its cited inputs and matches
    within 0.1 percentage point, and each input is backed by a claim in the
    answer: age, sex, lipid panel, SBP, eGFR and smoking by a DOCUMENTED claim
@@ -40,11 +45,17 @@ from . import codes as C
 from . import schema as S
 from .tools import CLAIM_CODES, REASON_CATEGORY_OF_CODE, CaseEnv, ToolError, compute_prevent
 
+# Status names (plain strings; the oracle module is not imported).
+CANNOT_DETERMINE, ON_THERAPY = "CANNOT_DETERMINE", "ON_THERAPY"
 RISK_TOLERANCE = 0.001   # 0.1 percentage point, risks are fractions
 VALUE_TOLERANCE = 0.05   # recorded values have one decimal
 INPUT_TOLERANCE = 0.5    # a PREVENT input may be the cited value rounded
-# 10-year risk bands used by the decision table (cuts 3%, 5%, 10%).
-RISK_BANDS = (0.03, 0.05, 0.10)
+# Two-call rule (check 2): 10-year risk cuts at which the main-analysis label
+# changes (3%: rows 10 and 11a/11b; 5%: rows 9 and 10). 10% is not one: rows 8
+# and 9 are both GAP, so two results at 8% and 12% give the same label. A
+# static list of cut points, like REQUIRED_INPUTS; the decision table itself is
+# never evaluated. The 30-year risk (rows 11a/11b) is not compared.
+LABEL_BANDS = (0.03, 0.05)
 
 # Static required-input table (SPEC 6.2 check 2): what a claim of each row
 # must cover. Row 0 first, so every other row needs the statin list; then the
@@ -152,7 +163,7 @@ def _sex(v) -> str | None:
 
 
 def _band(r: float) -> int:
-    return sum(r >= c for c in RISK_BANDS)
+    return sum(r >= c for c in LABEL_BANDS)
 
 
 # ---------------------------------------------------------------- check 1
@@ -361,6 +372,13 @@ def verify(out: dict, env: CaseEnv) -> Report:
             fail(4, f"missing[{k}]", f"{name} is on record")
 
     bg = out["benefit_group"]
+    st = out["status"]
+    if bg is None and st != CANNOT_DETERMINE:
+        fail(2, None, "missing row: a definite status needs a benefit_group")
+    elif st == ON_THERAPY and bg != "0":
+        fail(2, None, "ON_THERAPY needs benefit_group 0")
+    if bg == "0" and not any(it["support"] == S.DOCUMENTED for it in by.get("statins", [])):
+        fail(2, None, "row 0 needs a DOCUMENTED active-statin claim")
     if bg is not None:
         if bg not in REQUIRED_INPUTS:
             fail(2, None, f"benefit_group {bg} has no required-input list")

@@ -21,10 +21,6 @@ Conditions (who gets one, per base patient):
 - C4 distractor sentence (GAP and NOT_INDICATED patients). Must not change.
 - C5 threshold twins (S2, S4, S5 not on a statin, and near-threshold
   sources), up to one pair per type:
-  ldl   base + one twin: the latest LDL-C moved up to 195 (TC moved by the
-        same amount), for latest LDL-C within LDL_PAIR_WINDOW below 190 and
-        only if no LDL-C >= 190 is on record at any time (so the twin never
-        mixes the threshold with the latest-versus-ever convention);
   risk  base + one twin: latest SBP or TC (with LDL-C by the same amount)
         moved so the 10-year risk lands in [3.5%, 4.5%], crossing 5% (S4)
         or 3% (S5);
@@ -33,7 +29,14 @@ Conditions (who gets one, per base patient):
   near  near-threshold sources (off statin, row 9, 10 or 11b, 10-year risk
         within 1.5 points of 5% or 3%; not base cases themselves): two
         twins, SBP or TC moved so risk sits 0.5-1.0 point below and above
-        the cut.
+        the cut;
+  ldl   LDL-C threshold sources (off statin, primary prevention, latest
+        LDL-C 160 to < 185, no LDL-C >= 190 at any time, label not GAP; not
+        base cases themselves): two twins, the latest panel's LDL-C moved
+        up to 185 and to 195 (TC moved by the same amount, each move at
+        most 35 mg/dL). The 195 twin is GAP by row 2; the 185 twin keeps a
+        non-GAP label (rows 10 or 11a). Both twins are edited, so neither
+        member is recognizable as the unedited record by a round value.
   Pairs are used only if their labels differ; every C5 twin is at least
   0.5 point from each risk cut it uses and 5 mg/dL from each LDL-C cut.
 
@@ -93,13 +96,15 @@ LDL_MARGIN = 5.0             # mg/dL from every LDL-C cut
 LDL_CUTS = (70.0, 160.0, 190.0)
 RISK_CUTS = (oracle.RISK_BORDERLINE, oracle.RISK_INTERMEDIATE, oracle.RISK_HIGH)
 RISK_TARGET = (0.035, 0.045)  # 3-5% band, 0.5 point from both cuts
-LDL_TWIN = 195.0             # upward only (SPEC 5.2)
-LDL_PAIR_WINDOW = 35.0       # latest LDL-C within this below 190
+LDL_TWINS = (185.0, 195.0)   # LDL-C threshold twins, both moved upward (SPEC 5.2)
+LDL_SOURCE_RANGE = (160.0, 185.0)  # source latest LDL-C, [lo, hi): both twins move up
+LDL_MAX_MOVE = 35.0          # mg/dL, largest LDL-C (and TC) move of a twin
 MAX_SBP_MOVE = 30            # mm Hg
 MAX_TC_MOVE = 50             # mg/dL
 SMOKING_WINDOW_YEARS = 3
 PREVENT_LABEL_ROWS = ("8", "9", "11b")
 NEAR_STRATUM = "NT"  # near-threshold C5 source (not a base case)
+LDL_STRATUM = "LT"   # LDL-C threshold C5 source (not a base case)
 
 
 # ---------------------------------------------------------------- phrases
@@ -474,32 +479,56 @@ def _c5_ok(tw: Twin) -> bool:
                 and not silence_zone(tw.facts, tw.result))
 
 
-def c5_ldl(base: Base, seed: int) -> list[Twin]:
-    """Base + one twin: latest LDL-C moved up to 195, TC by the same amount.
-
-    Only for patients with no LDL-C >= 190 at any time (SPEC 5.2), so the
-    twin's 195 is its only value >= 190.
-    """
-    f = base.facts
+def ldl_source_ok(f: PatientFacts, res: oracle.OracleResult) -> bool:
+    """LDL-C threshold source: off statin, no ASCVD, latest LDL-C 160 to < 185 (untied
+    panel), no LDL-C >= 190 at any time, label neither GAP nor CANNOT_DETERMINE."""
     lp = f.lipid_panel
-    if not _c5_eligible(base) or lp is None or lp.tied or f.ldl_ever_ge190:
-        return []
+    if f.on_statin or f.has_ascvd or lp is None or lp.tied or f.ldl_ever_ge190:
+        return False
+    if res.status in (oracle.GAP, oracle.CANNOT_DETERMINE) or res.row in ("3", "3b"):
+        return False
+    return LDL_SOURCE_RANGE[0] <= float(lp.ldl.value) < LDL_SOURCE_RANGE[1]
+
+
+def _ldl_twin(base: Base, to: float) -> Twin | None:
+    lp = base.facts.lipid_panel
     ldl, tc = float(lp.ldl.value), float(lp.tc.value)
-    if not 190.0 - LDL_PAIR_WINDOW <= ldl < 190.0:
-        return []
-    d = LDL_TWIN - ldl
-    if not 130.0 <= tc + d <= 320.0:
-        return []
-    tw = Twin(base.patient, "C5", f"ldl{int(LDL_TWIN)}",
-              detail={"type": "ldl", "ldl_from": ldl, "ldl_to": LDL_TWIN, "tc_from": tc,
-                      "tc_to": round(tc + d, 1)})
-    _replace_rows(base, tw, "observations", {lp.ldl.row_id: {"VALUE": _fmt(LDL_TWIN)},
+    d = to - ldl
+    if not 0 < d <= LDL_MAX_MOVE or not 130.0 <= tc + d <= 320.0:
+        return None
+    tw = Twin(base.patient, "C5", f"ldl{int(to)}",
+              detail={"type": "ldl", "ldl_from": ldl, "ldl_to": to, "tc_from": tc,
+                      "tc_to": round(tc + d, 1), "source_row": base.result.row,
+                      "source_status": base.result.status})
+    _replace_rows(base, tw, "observations", {lp.ldl.row_id: {"VALUE": _fmt(to)},
                                              lp.tc.row_id: {"VALUE": _fmt(tc + d)}})
-    evaluate_twin(base, tw, partner_status=base.result.status)
-    if not _c5_ok(tw):
+    return tw
+
+
+def c5_ldl(base: Base, seed: int) -> list[Twin]:
+    """Two twins of an LDL-C threshold source: latest LDL-C moved up to 185 and to 195,
+    TC by the same amount. The 185 twin must not be GAP; the 195 twin is row 2.
+
+    Only for sources with no LDL-C >= 190 at any time (SPEC 5.2), so the 195
+    twin's value is its only LDL-C >= 190.
+    """
+    if base.statin or not ldl_source_ok(base.facts, base.result):
         return []
-    tw.pair, tw.partner = f"{base.patient}:ldl", "C0/clean"
-    return [tw]
+    lo, hi = (_ldl_twin(base, v) for v in LDL_TWINS)
+    if lo is None or hi is None:
+        return []
+    evaluate_twin(base, lo)
+    evaluate_twin(base, hi, partner_status=lo.result.status)
+    evaluate_twin(base, lo, partner_status=hi.result.status)
+    if lo.result.status in (oracle.GAP, oracle.CANNOT_DETERMINE) or hi.result.row != "2":
+        return []
+    if not (_c5_ok(lo) and _c5_ok(hi)):
+        return []
+    pair = f"{base.patient}:ldl"
+    for x, y in ((lo, hi), (hi, lo)):
+        x.pair, x.partner = pair, y.key
+        x.detail["risk10_to"] = x.result.risk10
+    return [lo, hi]
 
 
 def _risk_candidates(base: Base, kind: str, target=RISK_TARGET) -> list[tuple[float, dict]]:
@@ -683,6 +712,9 @@ def build_twins(bases: list[Base], seed: int) -> tuple[list[Twin], dict]:
         if b.stratum == NEAR_STRATUM:
             mine = c5_near(b, seed, b.near_cut)
             cond = None
+        elif b.stratum == LDL_STRATUM:
+            mine = c5_ldl(b, seed)
+            cond = None
         else:
             mine = [c0(b)] + c1(b, seed) + c2a(b, seed) + c2b(b, seed)
             cond = {oracle.GAP: "C3a", oracle.NOT_INDICATED: "C3b"}.get(b.result.status)
@@ -693,8 +725,8 @@ def build_twins(bases: list[Base], seed: int) -> tuple[list[Twin], dict]:
             kind = balanced_choice(c4_counts, DISTRACTOR_KINDS,
                                    rng_for(seed, b.patient, "C4", "kind"))
             mine += c4(b, seed, kind)
-        if b.stratum != NEAR_STRATUM:
-            mine += c5_ldl(b, seed) + c5_risk(b, seed) + c5_smoking(b, seed)
+        if b.stratum not in (NEAR_STRATUM, LDL_STRATUM):
+            mine += c5_risk(b, seed) + c5_smoking(b, seed)
         for tw in mine:
             if tw.check and tw.p1_stable:
                 twins.append(tw)

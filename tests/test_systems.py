@@ -206,3 +206,32 @@ def test_reference_agent_on_case_set(case_set):
         assert a1["output"] == systems.run_rule("R1", env)["output"]
         assert a2["schema_valid"]
         env.close()
+
+
+def test_oracle_complete_passes_verifier_on_case_set(case_set):
+    """Verifier fairness: the oracle's label with complete, correct evidence passes on
+    every case with no forced fallback, and scores 100%."""
+    from gapcheck.mock_agents import OracleCompleteAgent
+    cl = cases.read_cases(case_set)
+    for c in cl:
+        env = CaseEnv.from_case(case_set, c["case_id"])
+        a1, a2 = systems.run_agent(env, MockBackend(OracleCompleteAgent()), ST)
+        assert a2["schema_valid"] and not a2["forced_fallback"], (c, a2["verifier"])
+        assert len(a2["verifier"]) == 1 and a2["verifier"][0]["ok"], (c, a2["verifier"])
+        assert score.correct(c, a2) and score.correct(c, a1), c
+        calls = [t for t in a2["trace"] if t["type"] == "tool"]
+        assert all(t["name"] == "prevent_risk" and "error" not in t["result"] for t in calls)
+        comp = [it for it in a2["output"]["evidence"]
+                if it["support"] == S.COMPUTED and it["claim"] == "risk_10y"]
+        assert len(comp) == len(calls)
+        if c["condition"] == "C2b" and a2["output"]["benefit_group"]:
+            assert len(calls) == 2 and "smoking" in a2["output"]["missing"]
+        env.close()
+
+
+def test_oracle_complete_needs_a_case():
+    from gapcheck.mock_agents import OracleCompleteAgent
+    env = CaseEnv(casedb.connect())
+    with pytest.raises(RuntimeError):
+        OracleCompleteAgent().bind(env)
+    env.close()

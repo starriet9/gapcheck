@@ -217,11 +217,16 @@ class CaseEnv:
         self.ix = self.index_date.isoformat()
         self.calls: list[dict] = []
         self._facts = None
+        # (case_dir, case_id) when built from a case set. Only test doubles
+        # (mock_agents) read it; no tool and not the verifier.
+        self.case_ref: tuple[str, str] | None = None
 
     @classmethod
     def from_case(cls, case_dir: str | Path, case_id: str, **kw) -> "CaseEnv":
         from . import cases
-        return cls(cases.materialize(case_dir, case_id), **kw)
+        env = cls(cases.materialize(case_dir, case_id), **kw)
+        env.case_ref = (str(case_dir), case_id)
+        return env
 
     def close(self) -> None:
         self.con.close()

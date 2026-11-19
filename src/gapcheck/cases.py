@@ -218,6 +218,52 @@ def sample_near(con, S, F, taken: set, n: int, seed: int) -> tuple[list, list, d
     return picks, bases, twins, short
 
 
+def ldl_target(n: int) -> int:
+    """LDL-C threshold C5 sources (two twins each): n // 2."""
+    return n // 2
+
+
+def ldl_candidates(S: dict, F: dict, taken: set, seed: int) -> list[str]:
+    """LDL-C threshold C5 sources, ranked: `edits.ldl_source_ok` (off statin, no ASCVD,
+    latest LDL-C 160 to < 185, no LDL-C >= 190 ever, label not GAP), not a base patient
+    or near-threshold source, and no sampling exclusion (the P1 rule is checked on the
+    twins instead)."""
+    s = patches.sub_seed(seed, "sample")
+    out = []
+    for p, f in F.items():
+        if p in taken or [e for e in S[p].exclusions if e != "p1_egfr_dependent"]:
+            continue
+        if E.ldl_source_ok(f, oracle.label(f)):
+            out.append(p)
+    return sorted(out, key=lambda p: _rank(s, E.LDL_STRATUM, p))
+
+
+def sample_ldl(con, S, F, taken: set, n: int, seed: int) -> tuple[list, list, dict, dict]:
+    """LDL-C threshold sources that yield a valid C5 pair, in rank order, up to
+    `ldl_target(n)`. Returns (picks, bases, twins by patient, shortfalls)."""
+    edit_seed = patches.sub_seed(seed, "edits")
+    cand = ldl_candidates(S, F, taken, seed)
+    k = ldl_target(n)
+    picks, bases, twins, short = [], [], {}, {}
+    got, pos, batch = 0, 0, max(3 * k, 10)
+    while got < k and pos < len(cand):
+        chunk = [{"patient": p, "stratum": E.LDL_STRATUM, "statin": False, "s4_bin": None,
+                  "ascvd_type": None, "rank": None} for p in cand[pos:pos + batch]]
+        pos += batch
+        for pk, b in zip(chunk, load_bases(con, chunk, F)):
+            if got == k:
+                break
+            tw = E.c5_ldl(b, edit_seed)
+            if tw and all(t.check and t.p1_stable for t in tw):
+                picks.append(pk)
+                bases.append(b)
+                twins[b.patient] = tw
+                got += 1
+    if got < k:
+        short[E.LDL_STRATUM] = k - got
+    return picks, bases, twins, short
+
+
 def plan(con, n: int, seed: int) -> dict:
     """Sample base patients and build every twin (no phrases). For counting and building."""
     S, F = strata_and_facts(con)
@@ -228,8 +274,12 @@ def plan(con, n: int, seed: int) -> dict:
                                                  n, seed)
     short.update(nshort)
     twins += [t for b in nbases for t in ntwins[b.patient]]
-    return {"picks": picks + npicks, "shortfalls": short, "bases": bases + nbases,
-            "twins": twins, "rejected": rejected}
+    taken = {p["patient"] for p in picks + npicks}
+    lpicks, lbases, ltwins, lshort = sample_ldl(con, S, F, taken, n, seed)
+    short.update(lshort)
+    twins += [t for b in lbases for t in ltwins[b.patient]]
+    return {"picks": picks + npicks + lpicks, "shortfalls": short,
+            "bases": bases + nbases + lbases, "twins": twins, "rejected": rejected}
 
 
 def counts(p: dict) -> dict:

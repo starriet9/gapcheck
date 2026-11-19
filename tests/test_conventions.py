@@ -22,10 +22,30 @@ def test_contents():
         assert f"- {s}: " in t
     for name in S.ABSENT_LISTS:
         assert f"  - {name}: " in t
-    for row in REQUIRED_INPUTS:
-        assert f"- Row {row}: " in t
+    for row, names in REQUIRED_INPUTS.items():
+        assert f"| {row} | {', '.join(names)} |" in t  # the verifier's table, verbatim
+    # every claim name of the table is explained in plain words
+    for name in {n for v in REQUIRED_INPUTS.values() for n in v}:
+        assert name in t[t.index("Each name is covered like this"):t.index("| Row | Required")]
     for code in list(C.STATINS) + list(C.ASCVD_CONDITIONS) + list(C.BP_DRUGS) + [C.LDL.code]:
         assert code in t
     assert "Deferral" in t and "365 days" in t and "Closed-world" in t
     assert "1 (counseling, no statin)" in t  # row 11b's COR 1 is not a statin recommendation
     assert "/home/" not in t
+
+
+def test_two_call_rule_stated():
+    t = conventions.render()
+    rule = t[t.index("Two-call rule"):]
+    assert '"smoking" in `missing`' in rule
+    assert "smoker = 0" in rule and "smoker = 1" in rule
+    assert "two COMPUTED risk_10y items" in rule
+    assert "below 3%, 3% to below 5%, or 5% and above" in rule
+    # rows that need PREVENT, as in the verifier's table
+    prevent_rows = [r for r, v in REQUIRED_INPUTS.items() if "risk_10y" in v]
+    assert f"rows {', '.join(prevent_rows)}" in rule
+    assert "{{" not in t and "{prevent_rows}" not in t
+    assert "give either row 8 or row 9; do not use null" in " ".join(rule.split())
+    flat = " ".join(t.split())
+    assert "Use null only with CANNOT_DETERMINE" in flat
+    assert "a definite status with benefit_group null fails this check" in flat
