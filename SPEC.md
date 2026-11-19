@@ -125,7 +125,7 @@ The oracle returns CANNOT_DETERMINE, naming every such X, when a deciding X is a
 
 **Record ids.** Every row gets an id from a hash of its content and its occurrence number among rows with identical content, so a deletion changes no other row's id, leaves no visible gap, and patched rows do not sit at the end. A mapping links base and twin ids for the dashboard toggle.
 
-**Sets.** Dev: fixed seeds, including the day-0 pilots (10k, seed 20261119; 2.5k, seed 20261118), which shaped design decisions and are therefore development data. Dev base patients come from a 10,000-person set (seed 20261120) generated with the final settings, including the UTC time zone. The day-0 pilots were generated in the machine's local zone (Asia/Seoul) and cannot be reproduced byte for byte with the pinned zone. Test: 20,000 living adults (`-p 20000`) from the derived seed (sec. 8); at 10,000 the S4 ≥ 10% bin has only about 21 eligible patients, too few for an even split.
+**Sets.** Dev: fixed seeds, including the day-0 pilots (10k, seed 20261119; 2.5k, seed 20261118), which shaped design decisions and are therefore development data. Dev base patients come from a 10,000-person set (seed 20261120) generated with the final settings, including the UTC time zone. The day-0 pilots were generated in the machine's local zone (Asia/Seoul) and cannot be reproduced byte for byte with the pinned zone. Test: 20,000 living adults per batch (`-p 20000`) from the derived seed (sec. 8), with further batches up to the cap in `PROTOCOL.md` sec. 2; on the 10,000-adult dev set the S4 ≥ 10% cells have 4 treated and 2 untreated eligible patients, too few for 10 each (counts and expected shortfalls: `PROTOCOL.md` secs. 2 and 4).
 
 ### 4.1 Known Synthea limits (measured at day 0, 9,862 adults aged 30–79) and patches
 
@@ -182,7 +182,7 @@ Phrase library: 20 dev phrasings and 30 test phrasings per planted fact type (ea
 
 Scope rule: if the schedule slips, C2b is the first condition dropped (recorded in `PROTOCOL.md` before the tag, not after); the limit then reads "C2 covers only inputs made irrelevant by an earlier row". C3b is kept.
 
-Expected size: about 200 base patients and about 780 test cases (simulated at 40 per stratum: C0 198, C1 78, C2a 120, C2b 39, C3a 78, C3b 40, C4 118, C5 110). C2b and C1-by-smoking are small; their intervals will be wide and are reported as such. Exact counts per condition are fixed in `PROTOCOL.md` after the dev set is built.
+Expected size: about 200 base patients and about 805 test cases if every cell is filled; 756 when simulated on the 10,000-adult dev set (counts per condition: `PROTOCOL.md` sec. 4). C2b and C1-by-smoking are small; their intervals will be wide and are reported as such. Exact counts are fixed by the tagged code and the test seed and entered in `RUNS.md` before any model call.
 
 ## 6. Systems
 
@@ -198,7 +198,7 @@ Every system receives the same conventions page: the decision table of sec. 3.1 
 
 R0 and R1 are correct on C0, C1, C2 and C5 by construction, because they contain the oracle. This is stated wherever their numbers appear.
 
-**Model.** One open-weights model with native tool calling, pinned by revision hash, served on one rented 48 GB GPU. Two candidates are compared on the dev set; the choice and the reason go into `PROTOCOL.md`. Pre-specified fallback: if neither candidate produces schema-valid output on ≥ 95% of dev cases, use one hosted model pinned to a dated snapshot (synthetic data only). Run 1 at temperature 0; runs 2 and 3 at a fixed non-zero temperature with recorded seeds, for stability.
+**Model.** One open-weights model with native tool calling, pinned by revision and file hash, served on one rented GPU (96 GB or 48 GB, by candidate). The candidates, their order and the gates that choose between them (schema-valid output on ≥ 95% of dev cases is one; accuracy is not a criterion) are in `PROTOCOL.md` sec. 6. Pre-specified fallback: if no candidate passes, use one hosted model pinned to a dated snapshot (synthetic data only). Run 1 at temperature 0; runs 2 and 3 at a fixed non-zero temperature with recorded seeds, for stability.
 
 ### 6.1 Output schema (every system)
 
@@ -239,15 +239,15 @@ On failure the system is told only the number of the failed check and the index 
 2. Sensitivity and specificity for GAP.
 3. C1 fabricated-certainty rate (a definite status although the deciding input is absent). C2a and C2b over-abstention rates.
 4. C5 pair consistency (both members correct).
-5. C3a miss rate; C3b and C4 answer-change rates; C3a citation overlap.
+5. C3a miss rate; answer-change rates in C2a, C2b, C3b and C4, each and pooled (an invalid or missing output on either case counts as changed; `PROTOCOL.md` sec. 8); C3a citation overlap.
 6. Unsupported-claim rate: share of DOCUMENTED and ABSENT claims failing verifier checks 1 or 4.
-7. Run-to-run stability: share of cases with identical status across the three runs of L1 and A2.
-8. Tool calls, tokens and seconds per case; forced fallbacks per condition.
+7. Run-to-run stability: share of cases with identical status across the three runs of L1, A1 and A2.
+8. Tool calls, tokens and seconds per case; schema-invalid outputs; forced fallbacks per condition; tool-call parser failures (`PROTOCOL.md` sec. 6).
 9. Sensitivity analyses S-A and S-C.
 
 **Hypotheses** (reported either way):
 - H1: A2 is more accurate than L1 on the primary outcome.
-- H2: on C3a, C3b and C4 combined, A2 is more accurate than R1.
+- H2: on C3a, C3b and C4 (accuracy macro-averaged over the three, paired; `PROTOCOL.md` sec. 1), A2 is more accurate than R1.
 - H3: A2 has a lower C1 fabricated-certainty rate than A1, and its C2a and C2b over-abstention rates are not higher by more than 5 percentage points.
 
 **Precision.** The study is sized for estimation, not for a formal test. The expected interval width of the primary paired difference is simulated on dev results and stated in `PROTOCOL.md`. For scale: a condition with 80 cases gives a single-proportion half-width of about ±7 points at 0.90 and ±11 at 0.50; with 80 C1 cases, H3 can detect a difference of about 20% against 5%.
@@ -258,8 +258,8 @@ On failure the system is told only the number of the failed check and the index 
 
 - `PROTOCOL.md`: question, oracle table with quotes, code lists, cohort and exclusions, conditions with counts, systems, conventions page, prompts, model choice, outcomes, hypotheses, sensitivity analyses, analysis code path, stopping rule.
 - The protocol commit is pushed to the public repository and published as a GitHub Release (server-side timestamp).
-- **Test seed** = `int(sha256(protocol_commit_sha + beacon_value)[:8], 16)`. `beacon_value` is the first pulse of a public randomness beacon at or after 00:00 UTC on the day after the release is published. `PROTOCOL.md` names the beacon and this rule. The test set is not determined until then, so the author cannot try seeds.
-- `PROTOCOL.md` also fixes: the Synthea jar sha256, the JDK version, every command-line argument, the sampling rule for base patients, and sub-seeds for P1, P2, edits and phrase assignment (sha256 of the test seed and a label). If a stratum is short, further batches are generated with seed + 1, seed + 2, ... and the same settings.
+- **Test seed** = `int(sha256(protocol_commit_sha + beacon_value)[:8], 16)`. `beacon_value` is the first pulse of a public randomness beacon at or after 00:00 UTC on the day after the release is published. `PROTOCOL.md` sec. 13 names the beacon (NIST Randomness Beacon 2.0, with drand `quicknet` as fallback) and this rule. The test set is not determined until then, so the author cannot try seeds.
+- `PROTOCOL.md` also fixes: the Synthea jar sha256, the JDK version, every command-line argument, the sampling rule for base patients, and sub-seeds for P1, P2, edits and phrase assignment (sha256 of the test seed and a label). If a stratum is short, further batches are generated with seed + 1, seed + 2, ... and the same settings, up to the cap in `PROTOCOL.md` sec. 2.
 - The test set is built by the tagged commit, unchanged. Its sha256 goes into `RUNS.md` before any model is run. A code change that alters the test set is a deviation, reported with both results.
 - Order of work, visible in the commit history: dev phrasings; prompts and R1 frozen; test phrasings written; tag. Test phrasings are not used in any run before the tag.
 - The test set is run once per system. Reruns only after a crash, logged in `RUNS.md` (commit, date, what failed). Every departure from the protocol goes in `DEVIATIONS.md`.
@@ -280,7 +280,7 @@ On failure the system is told only the number of the failed check and the index 
 ## 10. Compute and cost
 
 - Synthea, DuckDB, patches, oracle, R0/R1: local CPU.
-- LLM systems: one 48 GB GPU, Secure Cloud tier, about 8–15 GPU-hours (about $5–16 at $0.59–1.09/h). Cap $25.
+- LLM systems: one rented GPU, chosen with the model under `PROTOCOL.md` sec. 6 (RTX PRO 6000 96 GB for candidate 1, L40S 48 GB for candidate 2); the cost cap for run 1 is set there (gate G4).
 - Optional hosted-model arm: 200-case subsample, capped, priced before use.
 
 ## 11. Limits (fixed text for README, dashboard and write-up)
