@@ -43,6 +43,10 @@ CASES := data/cases/$(CASE_SET)
 MOCK_BACKEND ?= configs/mock_reference.json
 MOCK_RUN ?= repro_mock_reference
 MOCK_DIR := data/runs/$(MOCK_RUN)
+# Simulation end date of scripts/generate_synthea.sh (REFERENCE_DATE). Synthea also
+# writes a few yearly QALY/DALY/QOLS rows dated after it, and which ones depends on
+# the wall-clock time of generation; `verify` compares observations up to this date.
+END_DATE := 2026-11-18
 
 # Real model runs (optional): make run-llm BACKEND=configs/<yours>.json RUN_ID=<id>
 BACKEND ?=
@@ -50,9 +54,9 @@ RUN_ID ?=
 LLM_SYSTEMS ?= R0,R1,L1,A1,A2
 RUN ?= $(MOCK_DIR)
 
-# Figure 1 (SPEC 9) from a scored run.
+# Figure 1 (SPEC 9) from a scored run; written next to the run unless FIGURE_OUT is given.
 FIGURE_SCRIPT ?= scripts/figure1.py
-FIGURE_ARGS ?=
+FIGURE_OUT ?= $(RUN)/figures
 
 PYTEST_ARGS ?= -q
 
@@ -71,8 +75,8 @@ help:
 	@echo "mock-run      R0, R1 and the mock L1/A1/A2 on the case set ($(MOCK_DIR))"
 	@echo "score         score a run: make score RUN=data/runs/<id>"
 	@echo "run-llm       real model run: make run-llm BACKEND=configs/<file>.json RUN_ID=<id>"
-	@echo "figure        Figure 1 from a scored run ($(FIGURE_SCRIPT))"
-	@echo "reproduce     synthea -> db -> gate -> cases -> mock-run -> score"
+	@echo "figure        Figure 1 from a scored run: make figure RUN=data/runs/<id>"
+	@echo "reproduce     synthea -> db -> gate -> cases -> mock-run (scored) -> figure"
 	@echo "verify        compare reproduced files with docs/REPRODUCE.sha256 and git"
 	@echo "leak-check    scan tracked files and every commit for private strings"
 	@echo "export-public history-preserving public export: make export-public OUT=<dir>"
@@ -147,17 +151,26 @@ run-llm:
 
 figure:
 	@test -f $(FIGURE_SCRIPT) || { echo "$(FIGURE_SCRIPT) not found" >&2; exit 2; }
-	$(PY) $(FIGURE_SCRIPT) $(FIGURE_ARGS)
+	$(PY) $(FIGURE_SCRIPT) --score $(RUN)/score.json --out-dir $(FIGURE_OUT)
 
 reproduce: mock-run
+	@if [ -f $(FIGURE_SCRIPT) ]; then $(MAKE) --no-print-directory figure RUN=$(MOCK_DIR); \
+	 else echo "skip figure: $(FIGURE_SCRIPT) is not in this checkout"; fi
 	@echo "done: $(POP_DIR), $(CASES), $(MOCK_DIR); next: make verify"
 
-# Byte-level checks of a reproduction (docs/REPRODUCE.md): generator CSVs and
-# case-set files against docs/REPRODUCE.sha256, and the tracked gate report
-# against git.
+# Checks of a reproduction with the default settings (docs/REPRODUCE.md):
+# generator CSVs, ledgers, case-set files and the mock run's accuracy sections
+# against docs/REPRODUCE.sha256; observations up to END_DATE against
+# docs/REPRODUCE.observations.sha256; the gate report against the committed
+# one, without its run-time section.
 verify:
+	$(PY) -c 'import json, sys; s = json.load(open(sys.argv[1])); json.dump({k: s[k] for k in ("accuracy_main", "accuracy_S-A", "accuracy_S-C")}, open(sys.argv[2], "w"), sort_keys=True, indent=1)' \
+	  $(MOCK_DIR)/score.json $(MOCK_DIR)/accuracy_sections.json
 	sha256sum -c --quiet docs/REPRODUCE.sha256
-	git diff --exit-code -- reports/
+	LC_ALL=C awk -F, 'NR == 1 || substr($$1, 1, 10) <= "$(END_DATE)"' \
+	  $(POP_DIR)/output/csv/observations.csv | sha256sum -c --quiet docs/REPRODUCE.observations.sha256
+	diff <(git show HEAD:reports/gate_$(GATE_NAME).md | sed '/^## Run time/,$$d') \
+	     <(sed '/^## Run time/,$$d' reports/gate_$(GATE_NAME).md)
 	@echo "verify: all listed files match"
 
 # ---------------------------------------------------------------- publication
