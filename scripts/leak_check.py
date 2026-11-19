@@ -28,7 +28,15 @@ word "application" within two lines of a listed name or a title such as
 "Dr."). Without the terms file only the generic checks run, and the script
 says so and exits with status 2 unless --no-terms is given.
 
-Exit status: 0 no findings, 1 findings, 2 usage error or terms file missing.
+A finding a person has reviewed and accepted can be acknowledged in the same
+file with "ack <rule> <path regex> <match regex>" (fields without spaces; the
+path is the file path, "message", "author", "committer" or "path <file>",
+matched in full). Acknowledged findings are still printed, marked "ack", and
+do not count toward the exit status. Commit hashes change in an export, so
+acknowledgements never name a commit.
+
+Exit status: 0 no unacknowledged findings, 1 findings, 2 usage error or terms
+file missing.
 """
 from __future__ import annotations
 
@@ -46,7 +54,7 @@ ALLOWED_EMAILS = {
 }
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}")
 HOME_PATH = re.compile(r"/(?:home|Users)/[A-Za-z0-9._-]+")
-HANGUL = re.compile(r"[ᄀ-ᇿ㄰-㆏ꥠ-꥿가-힯ힰ-퟿]+")
+HANGUL = re.compile("[\u1100-\u11ff\u3130-\u318f\ua960-\ua97f\uac00-\ud7af\ud7b0-\ud7ff]+")
 PRIVATE_PATH = re.compile(
     r"^(?:private/|data/|tools/(?:jdk|dl|synthea|uv-cache|uv-python|gradle-home|micromamba|"
     r"r-env|r-home)/|\.claude/|\.venv/)|^(?:CLAUDE\.md|KICKOFF\.md|env\.local\.sh)$")
@@ -64,11 +72,12 @@ class Finding:
     line: int | None
     match: str
     text: str
+    ack: bool = False
 
     def label(self) -> str:
         loc = self.part + (f":{self.line}" if self.line else "")
         head = f"commit {self.commit[:10]} {loc}" if self.commit else f"file {loc}"
-        return f"{head}  [{self.rule}] {self.match!r}  | {self.text}"
+        return f"{'ack ' if self.ack else ''}{head}  [{self.rule}] {self.match!r}  | {self.text}"
 
 
 @dataclass
@@ -77,10 +86,15 @@ class Terms:
     names: list[re.Pattern]
     allow: set[str]
     loaded: bool
+    acks: list[tuple[str, re.Pattern, re.Pattern]] = None
+
+    def acknowledged(self, f: Finding) -> bool:
+        return any(rule == f.rule and p.fullmatch(f.part) and m.fullmatch(f.match)
+                   for rule, p, m in self.acks or [])
 
 
 def load_terms(path: Path | None) -> Terms:
-    t = Terms([], [], set(ALLOWED_EMAILS), False)
+    t = Terms([], [], set(ALLOWED_EMAILS), False, [])
     if path is None or not path.is_file():
         return t
     for n, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
@@ -95,6 +109,9 @@ def load_terms(path: Path | None) -> Terms:
             t.names.append(re.compile(pat, re.I))
         elif kind == "allow-email":
             t.allow.add(pat.lower())
+        elif kind == "ack":
+            rule, path_re, match_re = pat.split()
+            t.acks.append((rule, re.compile(path_re), re.compile(match_re)))
         else:
             sys.exit(f"{path}:{n}: unknown kind {kind!r}")
     t.loaded = True
@@ -237,7 +254,8 @@ def main() -> int:
     ap.add_argument("--terms", type=Path, help="private terms file "
                     "(default: <repo>/private/leak_terms.txt)")
     ap.add_argument("--refs", nargs="+", default=["--branches", "--tags"],
-                    help="revisions to scan (default: all branches and tags)")
+                    help="revisions to scan, as for git rev-list (default: all branches "
+                    "and tags; write options as --refs=--all)")
     ap.add_argument("--untracked", action="store_true",
                     help="also scan files that are neither tracked nor ignored")
     ap.add_argument("--no-terms", action="store_true",
@@ -255,21 +273,24 @@ def main() -> int:
     files = scan_files(repo, terms, a.untracked)
     commits, n_commits = scan_commits(repo, a.refs, terms)
     findings = files + commits
-    for f in findings:
-        print(f.label())
     by_rule: dict[str, int] = {}
     for f in findings:
-        by_rule[f"{f.where}:{f.rule}"] = by_rule.get(f"{f.where}:{f.rule}", 0) + 1
+        f.ack = terms.acknowledged(f)
+        print(f.label())
+        if not f.ack:
+            by_rule[f"{f.where}:{f.rule}"] = by_rule.get(f"{f.where}:{f.rule}", 0) + 1
+    open_ = [f for f in findings if not f.ack]
     summary = {"repo_head": git(repo, "rev-parse", "HEAD").decode().strip(),
                "commits_scanned": n_commits,
                "tracked_files": len([p for p in git(repo, "ls-files", "-z").split(b"\0") if p]),
-               "terms_loaded": terms.loaded, "findings": len(findings), "by_rule": by_rule}
+               "terms_loaded": terms.loaded, "findings": len(open_),
+               "acknowledged": len(findings) - len(open_), "by_rule": by_rule}
     print(json.dumps(summary, sort_keys=True), file=sys.stderr)
     if a.json:
         a.json.write_text(json.dumps({"summary": summary,
                                       "findings": [asdict(f) for f in findings]},
                                      indent=1, ensure_ascii=False) + "\n")
-    return 1 if findings else 0
+    return 1 if open_ else 0
 
 
 if __name__ == "__main__":
