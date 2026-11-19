@@ -1,7 +1,7 @@
 """Run systems on a case set and write one JSONL per system (SPEC 6, 7).
 
 Usage:
-  python scripts/run_systems.py --cases data/cases/dev_s20261120_n10 \
+  python scripts/run_systems.py --cases data/cases/dev_s20261120_utc_n10 \
       --systems R0,R1,L1,A1,A2 --backend configs/vllm.json --run-id dev_r1 \
       [--out data/runs] [--limit N] [--case-ids id1,id2] [--score]
 
