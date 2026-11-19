@@ -1,7 +1,13 @@
-"""Scoring: correctness rule, macro-average, paired cluster bootstrap, secondary outcomes."""
+"""Scoring: correctness rule, macro-average, paired cluster bootstrap, secondary outcomes,
+hypotheses, headline numbers and the fixed sentences."""
+from pathlib import Path
+
 import numpy as np
+import pytest
 
 from gapcheck import score
+
+ROOT = Path(__file__).resolve().parents[1]
 
 COND = ["C0", "C1", "C2a", "C2b", "C3a", "C3b", "C4", "C5"]
 
@@ -73,8 +79,277 @@ def test_secondary():
     out = score.secondary(d, recs, None, d.weights(100, 2))
     assert out["c1_fabricated_certainty"]["k"] == 1 and out["c1_fabricated_certainty"]["n"] == 8
     assert out["c2a_over_abstention"]["k"] == 1
-    assert out["c3b_answer_change"]["k"] == 1
+    assert out["answer_change"]["C3b"]["k"] == 1
+    assert out["answer_change"]["C2a"]["k"] == 1      # CANNOT_DETERMINE against its own GAP
+    assert out["answer_change"]["pooled"] == {**out["answer_change"]["pooled"], "k": 2, "n": 32}
     assert out["c3a_miss"]["k"] == 0
     assert out["gap_sensitivity"]["n"] == sum(c["expected_status"] == "GAP" for c in cl)
     runs = [recs, {**recs, "2-C0": _rec("DISCUSS")}]
     assert score.stability(runs, [c["case_id"] for c in cl])["k"] == len(cl) - 1
+
+
+# ---------------------------------------------------------------- answer change
+def test_answer_change_counts_invalid_or_missing_as_changed():
+    ok, bad = _rec("GAP"), {"schema_valid": False, "output": None}
+    assert not score.answer_changed(ok, _rec("GAP"))
+    assert score.answer_changed(_rec("DISCUSS"), ok)
+    assert score.answer_changed(bad, bad)            # two invalid outputs: changed
+    assert score.answer_changed(bad, ok) and score.answer_changed(ok, bad)
+    assert score.answer_changed(None, ok) and score.answer_changed(ok, None)
+    assert score.answer_changed(None, None)
+
+
+def test_pooled_answer_change_in_secondary():
+    cl = _cases()
+    d = score.Design(cl)
+    recs = {c["case_id"]: _rec(c["expected_status"], ["lipid_panel"] if c["condition"] == "C1"
+                               else []) for c in cl}
+    bad = {"schema_valid": False, "output": None}
+    recs["2-C0"] = bad          # patient 2: every must-not-change case now counts as changed
+    recs["2-C2b"] = bad         # ... including the one that is invalid too
+    del recs["3-C4"]            # a missing output is a change
+    recs["5-C3a"] = bad         # C3a is not a must-not-change condition
+    ac = score.secondary(d, recs, None, d.weights(200, 4))["answer_change"]
+    assert {k: ac[k]["k"] for k in score.MUST_NOT_CHANGE} == {"C2a": 1, "C2b": 1, "C3b": 1,
+                                                               "C4": 2}
+    assert ac["pooled"]["k"] == 5 and ac["pooled"]["n"] == 32
+    assert ac["pooled"]["rate"] == 5 / 32
+    lo, hi = ac["pooled"]["ci"]
+    assert 0 <= lo <= 5 / 32 <= hi <= 1
+
+
+# ---------------------------------------------------------------- bootstrap
+def _design_random(n_per=(3, 4, 2), seed=0):
+    """Clusters in three strata, each with a random subset of conditions."""
+    rng = np.random.default_rng(seed)
+    out = []
+    for si, n in enumerate(n_per):
+        for p in range(n):
+            for k in COND:
+                if k != "C0" and rng.random() < 0.4:
+                    continue
+                out.append({"case_id": f"s{si}p{p}-{k}", "base_patient": f"s{si}p{p}",
+                            "stratum": f"S{si + 1}", "base_statin": False, "condition": k,
+                            "variant": "x", "expected_status": "GAP"})
+    return out
+
+
+def _explicit_macro(cases, ok, mult):
+    """Macro accuracy of a resample given cluster multiplicities, in plain Python."""
+    num, den = {}, {}
+    for c, o in zip(cases, ok):
+        m = mult.get(c["base_patient"], 0)
+        num[c["condition"]] = num.get(c["condition"], 0) + m * o
+        den[c["condition"]] = den.get(c["condition"], 0) + m
+    accs = [num[k] / den[k] for k in COND if den.get(k)]
+    return sum(accs) / len(accs)
+
+
+def test_bootstrap_matches_explicit_resampling():
+    """The vectorized paired bootstrap equals resampling the case list cluster by
+    cluster and recomputing the macro-average from scratch."""
+    cl = _design_random()
+    d = score.Design(cl)
+    rng = np.random.default_rng(7)
+    ok_a = rng.random(len(cl)) < 0.8
+    ok_b = rng.random(len(cl)) < 0.5
+    W = d.weights(300, 11)
+    inv = {i: p for p, i in d.cl_index.items()}
+    diffs = []
+    for r in range(W.shape[0]):
+        mult = {inv[i]: W[r, i] for i in range(W.shape[1])}
+        # within stratum, each cell keeps its own size
+        for key, idx in d.strata.items():
+            assert sum(mult[inv[i]] for i in idx) == len(idx)
+        diffs.append(_explicit_macro(cl, ok_a, mult) - _explicit_macro(cl, ok_b, mult))
+    t = score.accuracy_table(d, {"A2": ok_a, "L1": ok_b}, n_boot=300, seed=11)
+    lo, hi = t["differences"]["A2-L1"]["ci"]
+    assert lo == pytest.approx(np.percentile(diffs, 2.5))
+    assert hi == pytest.approx(np.percentile(diffs, 97.5))
+    full = {p: 1 for p in d.cl_index}
+    assert t["differences"]["A2-L1"]["est"] == pytest.approx(
+        _explicit_macro(cl, ok_a, full) - _explicit_macro(cl, ok_b, full))
+
+
+def test_bootstrap_width_matches_binomial_scale():
+    """One stratum, 400 one-case clusters, half correct: the 95% interval is about
+    +-1.96 * sqrt(.25 / 400) = +-4.9 points."""
+    cl = [{"case_id": f"c{i}", "base_patient": f"p{i}", "stratum": "S5", "base_statin": False,
+           "condition": "C0", "variant": "clean", "expected_status": "GAP"} for i in range(400)]
+    d = score.Design(cl)
+    ok = np.arange(400) % 2 == 0
+    t = score.accuracy_table(d, {"L1": ok}, n_boot=4000, seed=5)
+    lo, hi = t["systems"]["L1"]["macro"]["ci"]
+    assert 0.04 < (hi - lo) / 2 < 0.058
+    assert t["systems"]["L1"]["by_condition"]["C0"]["k"] == 200
+
+
+def test_paired_rate_difference():
+    cl = _cases()
+    d = score.Design(cl)
+    W = d.weights(300, 9)
+    mask = np.array([c["condition"] == "C1" for c in cl])
+    a = np.zeros(len(cl), dtype=bool)
+    b = mask.copy()                     # b: definite on every C1 case
+    r = score._boot_diff_prop(d, mask, a, b, W)
+    assert r["n"] == 8 and r["est"] == -1.0 and r["ci"] == [-1.0, -1.0]
+    same = score._boot_diff_prop(d, mask, b, b, W)
+    assert same["est"] == 0.0 and same["ci"] == [0.0, 0.0]
+    assert score._boot_diff_prop(d, np.zeros(len(cl), bool), a, b, W)["est"] is None
+
+
+# ---------------------------------------------------------------- hypotheses
+def test_verdicts():
+    assert score.verdict([0.01, 0.2]) == "supported"
+    assert score.verdict([-0.2, -0.01]) == "contradicted"
+    assert score.verdict([0.0, 0.2]) == "unresolved"            # touches 0: includes it
+    assert score.verdict([-0.2, -0.01], direction=-1) == "supported"
+    assert score.verdict([0.01, 0.2], direction=-1) == "contradicted"
+    assert score.verdict([None, None]) == "unresolved"
+    assert score.margin_verdict([[-0.1, 0.05], [0.0, 0.03]]) == "met"   # at most 5 points
+    assert score.margin_verdict([[-0.1, 0.05], [0.051, 0.2]]) == "not met"
+    assert score.margin_verdict([[-0.1, 0.06], [0.0, 0.03]]) == "unresolved"
+    assert score.h3_verdict("supported", "met") == "supported"
+    assert score.h3_verdict("supported", "unresolved") == "unresolved"
+    assert score.h3_verdict("unresolved", "met") == "unresolved"
+    assert score.h3_verdict("contradicted", "met") == "contradicted"
+    assert score.h3_verdict("supported", "not met") == "contradicted"
+
+
+def _run(cl, wrong=None, abstain_c2=None, definite_c1=None):
+    """Records that are right except: `wrong` {system: set of conditions answered GAP-wrong},
+    `abstain_c2` {system: patients abstaining on C2a}, `definite_c1` {system: patients
+    answering GAP on C1}."""
+    run = {}
+    for s in ("R1", "L1", "A1", "A2"):
+        recs = {}
+        for c in cl:
+            p = int(c["base_patient"][1:])
+            st = c["expected_status"]
+            miss = ["lipid_panel"] if c["condition"] == "C1" else []
+            if c["condition"] in (wrong or {}).get(s, ()):
+                st = "DISCUSS"
+            if c["condition"] == "C2a" and p in (abstain_c2 or {}).get(s, ()):
+                st = "CANNOT_DETERMINE"
+            if c["condition"] == "C1" and p in (definite_c1 or {}).get(s, ()):
+                st = "GAP"
+            recs[c["case_id"]] = _rec(st, miss)
+        run[s] = recs
+    return run
+
+
+def test_hypotheses_headline_and_sentences():
+    cl = _cases()
+    d = score.Design(cl)
+    run = _run(cl, wrong={"L1": {"C3a", "C4", "C5"}, "R1": {"C3a"}},
+               abstain_c2={"A2": {0}}, definite_c1={"A1": set(range(8)), "L1": {1, 2}})
+    s = score.score_design(d, run, n_boot=400, seed=3)
+    h = s["hypotheses"]
+    # A2: 63/64 (one C2a abstention); L1: 0 on C3a, C4, C5 and 6/8 on C1, so 38/64
+    assert h["H1"]["est"] == pytest.approx(25 / 64) and h["H1"]["verdict"] == "supported"
+    assert h["H2"]["est"] == pytest.approx(1 / 3) and h["H2"]["conditions"] == ["C3a", "C3b", "C4"]
+    assert h["H2"]["A2"]["est"] == 1.0 and h["H2"]["R1"]["est"] == pytest.approx(2 / 3)
+    assert h["H3"]["part1"]["est"] == -1.0 and h["H3"]["part1"]["verdict"] == "supported"
+    assert h["H3"]["part2"]["C2a"]["est"] == pytest.approx(1 / 8)
+    assert h["H3"]["part2"]["verdict"] in ("unresolved", "not met")
+    hd = s["headline"]
+    assert hd["primary"]["verdict"] == "supported"
+    assert hd["primary"]["difference"]["est"] == pytest.approx(25 / 64)
+    assert hd["answered_anyway"]["A1"]["k"] == 8 and hd["answered_anyway"]["L1"]["k"] == 2
+    assert hd["answered_anyway"]["A2"] == {"k": 0, "n": 8, "rate": 0.0, "ci": [0.0, 0.0]}
+    # L1 got C4 wrong against a right C0: every C4 case changed; A2 abstained on one C2a
+    assert hd["changed_when_must_not"]["L1"]["k"] == 8
+    assert hd["changed_when_must_not"]["A2"]["k"] == 1
+    assert hd["changed_when_must_not"]["A2"]["n"] == 32
+    assert s["weakest_A2"]["condition"] == "C2a" and s["weakest_A2"]["k"] == 7
+    se = s["sentences"]
+    assert se["primary"].startswith("On the primary outcome, the agent with the verifier")
+    assert "98.4% against 59.4%, a difference of 39.1 percentage points" in se["primary"]
+    assert "{" not in se["primary"] and "{" not in se["weakest"]
+    assert se["weakest"].startswith("A2's lowest condition was C2a: 7 of 8 correct (87.5%")
+    assert "differed by 33.3 points" in se["weakest"] and "H2 is " in se["weakest"]
+    assert se["ceiling"] is None and se["schema_invalid"] == []
+    r = score.results({**s, "schema": score.RESULTS_SCHEMA, "case_set": "x", "run": "y",
+                       "n_cases": len(cl)})
+    assert list(r) == list(score.RESULT_KEYS)
+
+
+def test_ceiling_invalid_and_flat_sentences():
+    cl = _cases()
+    d = score.Design(cl)
+    run = _run(cl)
+    bad = {"schema_valid": False, "output": None}
+    for c in cl[:3]:                    # 3 of 64 = 4.7%: no sentence
+        run["L1"][c["case_id"]] = bad
+    s = score.score_design(d, run, n_boot=200, seed=1)
+    assert s["flags"]["ceiling"] and s["sentences"]["ceiling"] == score.SENTENCE_CEILING
+    assert s["sentences"]["schema_invalid"] == []
+    run["L1"][cl[3]["case_id"]] = bad   # 4 of 64 = 6.25%
+    del run["L1"][cl[4]["case_id"]]     # a missing output is no valid answer either
+    s = score.score_design(d, run, n_boot=200, seed=1)
+    assert s["flags"]["no_valid_output"]["L1"]["k"] == 5
+    assert s["sentences"]["schema_invalid"] == [
+        "5 of 64 L1 outputs were not valid answers and were counted as wrong, so part of the "
+        "difference is output format, not judgment."]
+    assert s["headline"]["primary"]["verdict"] in ("unresolved", "supported")
+    run2 = _run(cl)
+    s2 = score.score_design(d, run2, n_boot=200, seed=1)
+    assert s2["headline"]["primary"]["verdict"] == "unresolved"
+    assert s2["sentences"]["primary"].startswith("On the primary outcome, A2 and L1 were not "
+                                                 "separated: 100.0% against 100.0%")
+
+
+def test_partial_run_has_no_headline_values():
+    cl = _cases()
+    d = score.Design(cl)
+    run = {k: v for k, v in _run(cl).items() if k in ("A1", "A2")}
+    s = score.score_design(d, run, n_boot=50, seed=1)
+    assert s["headline"]["primary"] is None and s["hypotheses"]["H1"] is None
+    assert s["hypotheses"]["H2"] is None and s["hypotheses"]["H3"] is not None
+    assert s["sentences"]["primary"] is None and s["sentences"]["weakest"] is None
+    assert set(s["headline"]["answered_anyway"]) == {"A1", "A2"}
+
+
+def test_fixed_sentences_are_verbatim_from_the_protocol():
+    text = (ROOT / "PROTOCOL.md").read_text()
+    for t in (score.SENTENCE_ABOVE, score.SENTENCE_FLAT, score.SENTENCE_REVERSED,
+              score.SENTENCE_CEILING, score.SENTENCE_INVALID, score.SENTENCE_WEAKEST):
+        assert f'"{t}"' in text, t[:60]
+    for k in ("MUST_NOT_CHANGE", "NOTE_CONDITIONS"):
+        assert all(c in text for c in getattr(score, k))
+
+
+def test_fill_and_number_format():
+    assert score.fmt_pct(0.1234) == "12.3"
+    assert score.fmt_pct(-0.0123) == "\u22121.2"
+    assert score.fmt_pct(-0.0004) == "0.0" and score.fmt_pct(None) == "n/a"
+    assert score.fill("{a} to {b}; {c | d}", [1, "x", "y"]) == "1 to x; y"
+    with pytest.raises(ValueError):
+        score.fill("{a} {b}", [1])
+
+
+def test_rank_conditions_ties_in_protocol_order():
+    bc = {k: {"est": 1.0} for k in COND}
+    bc.update({"C4": {"est": 0.5}, "C1": {"est": 0.5}, "C2b": {"est": None}, "C0": {"est": 0.9}})
+    assert score.rank_conditions(bc)[:3] == ["C1", "C4", "C0"]
+    assert "C2b" not in score.rank_conditions(bc)
+
+
+# ---------------------------------------------------------------- parser failures
+def test_parser_failures_from_trace():
+    rec = {"trace": [
+        {"type": "model", "text": "", "tool_calls": [], "stop_reason": "tool_calls"},
+        {"type": "model", "text": "<tool_call>{bad", "tool_calls": [], "stop_reason": "stop"},
+        {"type": "model", "text": "", "stop_reason": "tool_calls", "tool_calls": [
+            {"name": "read_note", "arguments": {}},
+            {"name": "get_demographics", "arguments": {}},     # no required parameters
+            {"name": "get_observations", "arguments": {"_unparsed": "{code:"}},
+            {"name": "get_observations", "arguments": {"code": "2093-3"}}]},
+        {"type": "tool", "name": "read_note", "args": {}, "result": {}},
+        {"type": "model", "text": "{}", "tool_calls": [], "stop_reason": "stop"}]}
+    assert score.parser_failures(rec) == {"signal_without_call": 2,
+                                          "empty_required_arguments": 1,
+                                          "unparsed_arguments": 1}
+    assert score.parser_failures(None) == {"signal_without_call": 0,
+                                           "empty_required_arguments": 0,
+                                           "unparsed_arguments": 0}
