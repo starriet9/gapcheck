@@ -18,3 +18,6 @@ tools/synthea/
 tools/micromamba/
 tools/r-env/
 tools/r-home/
+
+# Local machine settings (account selection)
+env.local.sh
