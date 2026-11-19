@@ -21,8 +21,10 @@ Conditions (who gets one, per base patient):
 - C4 distractor sentence (GAP and NOT_INDICATED patients). Must not change.
 - C5 threshold twins (S2, S4, S5 not on a statin, and near-threshold
   sources), up to one pair per type:
-  ldl   two twins with the latest LDL-C set to 185 and 195 (TC moved by the
-        same amount), for latest LDL-C within LDL_PAIR_WINDOW of 190;
+  ldl   base + one twin: the latest LDL-C moved up to 195 (TC moved by the
+        same amount), for latest LDL-C within LDL_PAIR_WINDOW below 190 and
+        only if no LDL-C >= 190 is on record at any time (so the twin never
+        mixes the threshold with the latest-versus-ever convention);
   risk  base + one twin: latest SBP or TC (with LDL-C by the same amount)
         moved so the 10-year risk lands in [3.5%, 4.5%], crossing 5% (S4)
         or 3% (S5);
@@ -91,8 +93,8 @@ LDL_MARGIN = 5.0             # mg/dL from every LDL-C cut
 LDL_CUTS = (70.0, 160.0, 190.0)
 RISK_CUTS = (oracle.RISK_BORDERLINE, oracle.RISK_INTERMEDIATE, oracle.RISK_HIGH)
 RISK_TARGET = (0.035, 0.045)  # 3-5% band, 0.5 point from both cuts
-LDL_PAIR = (185.0, 195.0)
-LDL_PAIR_WINDOW = 35.0       # latest LDL-C within 190 +/- this
+LDL_TWIN = 195.0             # upward only (SPEC 5.2)
+LDL_PAIR_WINDOW = 35.0       # latest LDL-C within this below 190
 MAX_SBP_MOVE = 30            # mm Hg
 MAX_TC_MOVE = 50             # mg/dL
 SMOKING_WINDOW_YEARS = 3
@@ -473,35 +475,31 @@ def _c5_ok(tw: Twin) -> bool:
 
 
 def c5_ldl(base: Base, seed: int) -> list[Twin]:
+    """Base + one twin: latest LDL-C moved up to 195, TC by the same amount.
+
+    Only for patients with no LDL-C >= 190 at any time (SPEC 5.2), so the
+    twin's 195 is its only value >= 190.
+    """
     f = base.facts
     lp = f.lipid_panel
-    if not _c5_eligible(base) or lp is None or lp.tied:
+    if not _c5_eligible(base) or lp is None or lp.tied or f.ldl_ever_ge190:
         return []
     ldl, tc = float(lp.ldl.value), float(lp.tc.value)
-    if abs(ldl - 190.0) > LDL_PAIR_WINDOW:
+    if not 190.0 - LDL_PAIR_WINDOW <= ldl < 190.0:
         return []
-    twins = []
-    for target in LDL_PAIR:
-        d = target - ldl
-        if not 130.0 <= tc + d <= 320.0:
-            return []
-        tw = Twin(base.patient, "C5", f"ldl{int(target)}",
-                  detail={"type": "ldl", "ldl_from": ldl, "ldl_to": target, "tc_from": tc,
-                          "tc_to": round(tc + d, 1),
-                          "ldl_ge190_elsewhere": len(f.ldl_ge190_earlier)})
-        _replace_rows(base, tw, "observations", {lp.ldl.row_id: {"VALUE": _fmt(target)},
-                                                 lp.tc.row_id: {"VALUE": _fmt(tc + d)}})
-        twins.append(tw)
-    lo, hi = twins
-    evaluate_twin(base, lo)
-    evaluate_twin(base, hi, partner_status=lo.result.status)
-    evaluate_twin(base, lo, partner_status=hi.result.status)
-    if not (_c5_ok(lo) and _c5_ok(hi)):
+    d = LDL_TWIN - ldl
+    if not 130.0 <= tc + d <= 320.0:
         return []
-    pair = f"{base.patient}:ldl"
-    lo.pair = hi.pair = pair
-    lo.partner, hi.partner = hi.key, lo.key
-    return [lo, hi]
+    tw = Twin(base.patient, "C5", f"ldl{int(LDL_TWIN)}",
+              detail={"type": "ldl", "ldl_from": ldl, "ldl_to": LDL_TWIN, "tc_from": tc,
+                      "tc_to": round(tc + d, 1)})
+    _replace_rows(base, tw, "observations", {lp.ldl.row_id: {"VALUE": _fmt(LDL_TWIN)},
+                                             lp.tc.row_id: {"VALUE": _fmt(tc + d)}})
+    evaluate_twin(base, tw, partner_status=base.result.status)
+    if not _c5_ok(tw):
+        return []
+    tw.pair, tw.partner = f"{base.patient}:ldl", "C0/clean"
+    return [tw]
 
 
 def _risk_candidates(base: Base, kind: str, target=RISK_TARGET) -> list[tuple[float, dict]]:

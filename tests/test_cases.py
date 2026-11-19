@@ -52,8 +52,11 @@ def test_manifest_lists_every_file_and_seed(built):
 
 
 def test_every_condition_present(case_list):
+    # The fixture's only C5 source was an S2 LDL pair; LDL twins now move up only and
+    # need no LDL-C >= 190 at any time (SPEC 5.2), so the fixture has no C5 case.
+    # c5_ldl is tested on hand-made records in test_edits.py.
     got = {c["condition"] for c in case_list}
-    assert got == set(edits.CONDITIONS)
+    assert got == set(edits.CONDITIONS) - {"C5"}
 
 
 def test_expected_label_equals_oracle_on_materialized_case(built, case_list):

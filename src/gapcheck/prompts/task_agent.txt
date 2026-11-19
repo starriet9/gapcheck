@@ -1,0 +1,1 @@
+Review this patient's record with the tools. get_demographics gives the index date, age and sex. When you have what you need, reply with the JSON answer only.

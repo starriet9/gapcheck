@@ -1,0 +1,11 @@
+{
+ "backend": "openai_compat",
+ "base_url": "http://127.0.0.1:8000/v1",
+ "model": "MODEL-NAME-AS-SERVED",
+ "revision": "PINNED-REVISION-HASH",
+ "temperature": 0,
+ "seed": 1,
+ "max_tokens": 4096,
+ "timeout": 600,
+ "run": {"max_steps": 20, "repair_steps": 8, "l1_tool_rounds": 2, "context_limit": 28000, "page_size": 20}
+}
