@@ -57,6 +57,28 @@ def test_s3_55822004_and_pregnancy():
     assert s.blocking() == ("structured_reason_365d",)
 
 
+def test_diabetes_evidence_without_diagnosis_not_sampled_in_any_stratum():
+    """A diabetic complication or a glucose-lowering drug with no diabetes code (a Synthea
+    artifact) removes the patient from every stratum; the oracle still reads no diabetes.
+    With a diabetes code the same evidence changes nothing."""
+    kidney = (("conditions", "127013003"),)
+    insulin = (("medications", "106892"),)
+    for f, cand in ((make(**P5, sbp=170.0, dm_evidence=kidney), "S4"),
+                    (make(**LOW, dm_evidence=insulin), "S5"),
+                    (make(age=50, ascvd=("MI",), dm_evidence=kidney + insulin), "S1"),
+                    (make(ldl=200.0, tc=290.0, ldl_earlier_ge190=(195.0,),
+                          dm_evidence=(("medications", "860975"),)), "S2")):
+        s = st(f)
+        assert s.candidate == cand and s.stratum is None, cand
+        assert s.blocking() == ("diabetes_evidence_without_diagnosis",), cand
+        assert not f.has_diabetes and oracle.indication(f).row != "3"
+    s = st(make(age=50, diabetes=True, dm_evidence=kidney + insulin))
+    assert s.stratum == "S3" and "diabetes_evidence_without_diagnosis" not in s.exclusions
+    # The lists hold complications and drugs only: not prediabetes, not diabetes itself.
+    from gapcheck import codes as C
+    assert set(C.DIABETIC_COMPLICATIONS).isdisjoint(set(C.DIABETES) | set(C.PREDIABETES))
+
+
 def test_structured_reason_within_365_days_not_sampled():
     for cat in ("palliative", "pregnancy"):
         s = st(make(age=45, sex="F", diabetes=True, structured=((cat, 200),)))

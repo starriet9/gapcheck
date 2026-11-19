@@ -463,6 +463,41 @@ ALBUMINURIA = _index([
 ])
 
 # --------------------------------------------------------------------------
+# Diabetes evidence without a diabetes code (sampling exclusion
+# `diabetes_evidence_without_diagnosis` in strata.py, SPEC 5.1; the oracle
+# reads diabetes from DIABETES only and is not changed). A patient is not
+# sampled if any of these is on record on or before index (active or not)
+# while no DIABETES code is on record on or before index. The rule is defined
+# by record content: a reader of such a record sees a diabetic complication or
+# a glucose-lowering drug in a patient with no diabetes diagnosis.
+# This is a Synthea v4.0.0 artifact: the CKD module codes hypertension-driven
+# nephropathy as diabetic kidney disease (127013003); details in a separate
+# upstream report. About 8% of the dev cohort (826 of 9,883) is affected.
+# Found by: source grep of the v4.0.0 modules for "diabet", insulin and
+# glucose-lowering ingredients; data. Diabetes-specific procedures (diabetic
+# retinal eye exam 722161008, pan retinal photocoagulation for diabetes
+# 413180006) are not listed: in the dev data no patient has one without also
+# having a listed code or a diabetes code.
+# --------------------------------------------------------------------------
+DIABETIC_COMPLICATIONS = _index(
+    [KIDNEY_RELATED_CONDITIONS["127013003"]] + list(ALBUMINURIA.values())
+    + list(NEUROPATHY.values()) + list(RETINOPATHY.values()))
+GLUCOSE_LOWERING_DRUGS = _index([
+    Code("106892", "insulin isophane  human 70 UNT/ML / insulin  regular  human 30 UNT/ML "
+         "Injectable Suspension [Humulin]", "insulin",
+         note="metabolic_syndrome/medications.json; commas of the RxNorm name are removed "
+              "in the CSV"),
+    Code("865098", "Insulin Lispro 100 UNT/ML Injectable Solution [Humalog]", "insulin"),
+    Code("311034", "insulin  regular  human 100 UNT/ML Injectable Solution", "insulin",
+         note="perioperative insulin of the CABG module; counted, since the record shows an "
+              "insulin prescription (adds no dev patient)"),
+    Code("860975", "24 HR Metformin hydrochloride 500 MG Extended Release Oral Tablet",
+         "metformin"),
+    Code("897122", "3 ML liraglutide 6 MG/ML Pen Injector", "GLP-1 receptor agonist"),
+    Code("1373463", "canagliflozin 100 MG Oral Tablet", "SGLT2 inhibitor", note="source only"),
+])
+
+# --------------------------------------------------------------------------
 # Observations (LOINC).
 # Found by: source (wellness_encounters.json and lab modules); data.
 # --------------------------------------------------------------------------
@@ -537,9 +572,12 @@ CODE_LISTS: dict[str, dict[str, Code]] = {
     "retinopathy": RETINOPATHY,
     "neuropathy": NEUROPATHY,
     "albuminuria": ALBUMINURIA,
+    "diabetic_complications": DIABETIC_COMPLICATIONS,
+    "glucose_lowering_drugs": GLUCOSE_LOWERING_DRUGS,
 }
 # Table each list is matched against.
 LIST_TABLE = {
+    "glucose_lowering_drugs": "medications",
     "ascvd_procedures": "procedures", "esrd_procedures": "procedures",
     "kidney_related_procedures": "procedures",
     "palliative_procedures": "procedures", "palliative_encounters": "encounters",

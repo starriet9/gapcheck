@@ -34,6 +34,10 @@ EXCLUSIONS: dict[str, tuple[tuple[str, ...], str]] = {
     "structured_reason_365d": (STRATA, "a structured reason within 365 days of index "
                                        "(pregnancy, hospice or palliative care, statin "
                                        "allergy) or pregnancy active at index"),
+    "diabetes_evidence_without_diagnosis": (
+        STRATA, "diabetes evidence without a diabetes code: a diabetic-complication diagnosis "
+                "or a glucose-lowering drug on or before index and no diabetes code on or "
+                "before index (generator artifact)"),
     "dx_55822004": (PRIMARY, "diagnosis 55822004 (S2-S5)"),
     "primary_prevention_76_79": (PRIMARY, "primary prevention at age 76-79"),
     "diabetes_outside_40_75": (PRIMARY, "diabetes outside age 40-75"),
@@ -149,6 +153,10 @@ def assign(f) -> StrataRow:
         ex.append("row3b_ckd")
     if f.pregnancy or has_structured_reason(f):
         ex.append("structured_reason_365d")
+    if f.diabetes_evidence_without_diagnosis:
+        # The record contradicts itself on diabetes (codes.DIABETIC_COMPLICATIONS,
+        # codes.GLUCOSE_LOWERING_DRUGS); the oracle reads only diabetes codes.
+        ex.append("diabetes_evidence_without_diagnosis")
     if f.hyperlipidemia_55822004:
         ex.append("dx_55822004")
     if not f.has_ascvd and f.age >= 76:

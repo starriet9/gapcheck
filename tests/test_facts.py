@@ -47,6 +47,41 @@ def test_ckd3_patient(F):
     assert [r.display for r in f.statins] == ["Simvastatin 10 MG Oral Tablet"]
     assert {r.group for r in f.bp_drugs} == {"CCB", "ACE inhibitor", "thiazide"}
     assert f.ldl == 110.7 and f.ldl_ever_ge190 and not f.s2_rule
+    # Diabetic complications with no diabetes code (a Synthea artifact): not sampled.
+    assert {"127013003", "90781000119102", "157141000119108"} <= {
+        r.code for r in f.diabetes_evidence}
+    assert not f.diabetes_coded and f.diabetes_evidence_without_diagnosis
+
+
+def test_diabetes_evidence_window_and_diagnosis(patched, F):
+    f = F[DIABETES]
+    assert f.diabetes_coded and not f.diabetes_evidence_without_diagnosis
+    # Evidence counts only if it starts on or before index; a diabetes code that has
+    # ended still counts as a diagnosis (not "without diagnosis").
+    r = rec(patched, P1_ONLY)
+    c = r.conditions.iloc[[0]].copy()
+    c["row_id"], c["CODE"] = "cond_x", "127013003"
+    c["DESCRIPTION"] = "Disorder of kidney due to diabetes mellitus (disorder)"
+    c["START"], c["STOP"] = "2026-11-11", None  # the day after index
+    f = facts.facts_at_index(r.replace(conditions=pd.concat([r.conditions, c])))
+    assert f.diabetes_evidence == () and not f.diabetes_evidence_without_diagnosis
+    c["START"] = "2026-11-10"  # on the index date
+    f = facts.facts_at_index(r.replace(conditions=pd.concat([r.conditions, c])))
+    assert [x.row_id for x in f.diabetes_evidence] == ["cond_x"]
+    assert f.diabetes_evidence_without_diagnosis
+    d = c.copy()
+    d["row_id"], d["CODE"], d["DESCRIPTION"] = "cond_y", "44054006", "Diabetes mellitus type 2 (disorder)"
+    d["START"], d["STOP"] = "2010-01-01", "2012-01-01"
+    f = facts.facts_at_index(r.replace(conditions=pd.concat([r.conditions, c, d])))
+    assert f.diabetes_coded and not f.has_diabetes and not f.diabetes_evidence_without_diagnosis
+    m = r.medications.iloc[[0]].copy() if len(r.medications) else None
+    if m is not None:
+        m["row_id"], m["CODE"] = "med_x", "860975"
+        m["DESCRIPTION"] = "24 HR Metformin hydrochloride 500 MG Extended Release Oral Tablet"
+        m["START"], m["STOP"] = "2020-01-01T00:00:00Z", "2021-01-01T00:00:00Z"  # ended
+        f = facts.facts_at_index(r.replace(medications=pd.concat([r.medications, m])))
+        assert [x.row_id for x in f.diabetes_evidence] == ["med_x"]
+        assert f.diabetes_evidence_without_diagnosis
 
 
 def test_diabetes_patient(F):

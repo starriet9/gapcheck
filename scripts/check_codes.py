@@ -33,6 +33,9 @@ PATTERNS = {
     "retinopathy": r"retinopath|blindness|macular",
     "neuropathy": r"neuropath",
     "albuminuria": r"albumin|proteinuria",
+    "diabetic_complications": r"diabet",
+    "glucose_lowering_drugs": r"insulin|metformin|glipiz|glyburide|glimepir|glutide|gliflozin|"
+                              r"gliptin|glitazone|acarbose|glinide",
 }
 
 
@@ -64,9 +67,9 @@ def check(csv_dir: str) -> int:
             listed = set(lst)
             if name == "bp_drugs":
                 listed |= set(C.BP_DRUGS_NOT_COUNTED)
-            if name == "diabetes":
-                listed |= set(C.PREDIABETES) | set(C.RETINOPATHY) | set(C.NEUROPATHY) \
-                    | set(C.KIDNEY_RELATED_CONDITIONS)
+            if name in ("diabetes", "diabetic_complications"):
+                listed |= set(C.DIABETES) | set(C.PREDIABETES) | set(C.RETINOPATHY) \
+                    | set(C.NEUROPATHY) | set(C.KIDNEY_RELATED_CONDITIONS)
             rows = con.execute(
                 f"select CODE, any_value(DESCRIPTION), count(distinct PATIENT) n from {table} "
                 f"where regexp_matches(DESCRIPTION, ?, 'i') group by 1 order by n desc",

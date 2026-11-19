@@ -21,6 +21,11 @@ Rules:
   three are present.
 - eGFR: only the mL/min/{1.73_m2} series (the other one is removed by P0).
 - Diabetes onset: earliest START of any diabetes code on or before index.
+- Diabetes evidence (`diabetes_evidence`, for the sampling rule
+  `diabetes_evidence_without_diagnosis`): diabetic-complication conditions
+  and glucose-lowering prescriptions starting on or before index, active or
+  not; `diabetes_coded` says whether any diabetes code starts on or before
+  index (active or not).
 - Structured reasons (SPEC 3.3), `reason_entries`: pregnancy conditions
   (category "pregnancy") and hospice or palliative-care encounters,
   procedures or conditions (category "palliative", including the ICD-10-CM
@@ -230,6 +235,8 @@ class PatientFacts:
     allergies: tuple[AllergyRow, ...]
     missing: tuple[str, ...]
     reason_entries: tuple[ReasonEntry, ...] = ()
+    diabetes_evidence: tuple[CodedRow, ...] = ()  # complications, glucose-lowering drugs
+    diabetes_coded: bool = False  # any diabetes code on or before index (active or not)
 
     # convenience flags
     @property
@@ -272,6 +279,12 @@ class PatientFacts:
     def s2_rule(self) -> bool:
         """Latest LDL-C >= 190 and at least one earlier LDL-C >= 190 (SPEC 4.1)."""
         return self.ldl is not None and self.ldl >= 190 and bool(self.ldl_ge190_earlier)
+
+    @property
+    def diabetes_evidence_without_diagnosis(self) -> bool:
+        """A diabetic complication or a glucose-lowering drug on or before index, and no
+        diabetes code on or before index (a generator artifact; not sampled, SPEC 5.1)."""
+        return bool(self.diabetes_evidence) and not self.diabetes_coded
 
     @property
     def excluded(self) -> bool:
@@ -511,6 +524,11 @@ def facts_at_index(rec: PatientRecord) -> PatientFacts:
         allergies=allergies,
         missing=missing,
         reason_entries=_reason_entries(rec, ix),
+        diabetes_evidence=tuple(sorted(
+            _coded(cond, "conditions", C.DIABETIC_COMPLICATIONS, ix, active=False)
+            + _coded(med, "medications", C.GLUCOSE_LOWERING_DRUGS, ix, active=False),
+            key=lambda x: (x.start, x.row_id))),
+        diabetes_coded=bool(dm_any),
     )
 
 

@@ -36,12 +36,14 @@ def make(age=50, sex="M", ldl=120.0, tc=200.0, hdl=50.0, sbp=130.0, smoker=False
          retinopathy=False, neuropathy=False, albuminuria=False, pregnancy=False,
          vet=False, allergies=(), lipid=True, smoking_value=None,
          ldl_ever_max=None, ldl_earlier_ge190=(), ties=(), structured=(),
-         index=INDEX) -> PatientFacts:
+         dm_evidence=(), index=INDEX) -> PatientFacts:
     """A PatientFacts built from plain values. None means the open-world input is absent.
 
     ties: names among ("lipid_panel", "sbp", "smoking", "egfr") whose latest
     timestamp holds two distinct values.
     structured: (category, days before index) pairs of structured reason entries.
+    dm_evidence: (table, code) pairs of diabetes evidence rows (codes.DIABETIC_COMPLICATIONS,
+    codes.GLUCOSE_LOWERING_DRUGS) on record before index.
     """
     t = lambda k: 2 if k in ties else 1
     panel = None
@@ -103,4 +105,6 @@ def make(age=50, sex="M", ldl=120.0, tc=200.0, hdl=50.0, sbp=130.0, smoker=False
         missing=tuple(k for k, v in present.items() if v is None),
         reason_entries=tuple(ReasonEntry(cat, "procedures", _rid("proc"), "x", "", index -
                                          timedelta(days=days)) for cat, days in structured),
+        diabetes_evidence=tuple(coded(t, c) for t, c in dm_evidence),
+        diabetes_coded=bool(dm),
     )
