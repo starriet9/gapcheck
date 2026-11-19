@@ -87,7 +87,7 @@ A documentation taxonomy, not a judgment that the reason is clinically valid. Ca
 - decompensated cirrhosis or acute liver failure (stable chronic liver disease is not a reason: sec. 5.1 rec 3, COR 2a);
 - hospice, palliative care or limited life expectancy (sec. 4.2.3.7 rec 11; sec. 4.2.8.3 rec 3).
 
-A reason needs an explicit refusal, intolerance, contraindication or care goal. Deferral ("will revisit next visit") is not a reason. A reason counts if it is dated within 365 days before the index date, in a note or a structured allergy or intolerance entry; it needs no structured corroboration. A reason changes GAP to DOCUMENTED_REASON only. The card still shows the patient: "gap with a documented reason, review", with the reason's date and source.
+A reason needs an explicit refusal, intolerance, contraindication or care goal. Deferral ("will revisit next visit") is not a reason. A reason counts if it is dated within 365 days before the index date, in a note or in a structured entry: an allergy or intolerance record, a pregnancy condition, or a hospice or palliative-care encounter, procedure or referral (code list in `codes.py`; procedures that only use the word "palliative" for symptom relief, such as palliative dental treatment, do not count). A note reason needs no structured corroboration. A reason changes GAP to DOCUMENTED_REASON only. The card still shows the patient: "gap with a documented reason, review", with the reason's date and source.
 
 ### 3.4 Inputs, deciding inputs and CANNOT_DETERMINE
 
@@ -150,7 +150,7 @@ generate → P0 → P1 → indication group (first matching row among 1–11, ig
 
 Within S1–S4, half on a statin and half not (native in S1; P2 in S2–S4). S4 is split evenly between 5 to < 10% and ≥ 10%. DISCUSS-zone patients appear only as C5 twins.
 
-**Not sampled** (each count reported): any PREVENT input out of range where PREVENT is needed (no clamping); native eGFR > 150 where PREVENT is needed; S2 patients who also meet row 3 (their lipid panel is not deciding, so C1 and C5 cannot change their label); primary prevention at 76–79; diabetes outside 40–75; row 3b (CKD); LDL-C < 70 with 10-year risk ≥ 5%; ages 60–79 with risk < 3% and LDL-C 160–189 (labels resting on guideline silence); pregnancy active at index (sec. 4.2.8.4 rec 1 tells such patients to stop a statin); HIV; ESRD, dialysis, transplant; diagnosis 55822004; P1 patients whose label depends on eGFR.
+**Not sampled** (each count reported): any PREVENT input out of range where PREVENT is needed (no clamping); native eGFR > 150 where PREVENT is needed; S2 patients who also meet row 3 (their lipid panel is not deciding, so C1 and C5 cannot change their label); primary prevention at 76–79; diabetes outside 40–75; row 3b (CKD); LDL-C < 70 with 10-year risk ≥ 5%; ages 60–79 with risk < 3% and LDL-C 160–189 (labels resting on guideline silence); any structured reason within 365 days of index, including pregnancy (sec. 4.2.8.4 rec 1 tells pregnant patients to stop a statin) and hospice or palliative care, so every base label is set by the stratum rule and C3 alone adds reasons; HIV; ESRD, dialysis, transplant; diagnosis 55822004; P1 patients whose label depends on eGFR.
 
 **Day-0 gate** (result in `reports/gate_<set>.md`, aggregate counts only): every stratum ≥ 50 eligible patients after the exclusions, and S1–S4 ≥ 15 on and ≥ 15 off a statin. At 10,000 adults as generated, S1 and S3–S5 pass and S2 fails on statin users; P2 is the fix.
 
