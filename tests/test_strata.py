@@ -52,7 +52,18 @@ def test_s3_to_s5_no_ldl_ge190_ever():
 def test_s3_55822004_and_pregnancy():
     assert st(make(age=50, diabetes=True, vet=True)).blocking() == ("dx_55822004",)
     s = st(make(age=45, sex="F", diabetes=True, pregnancy=True))
-    assert s.blocking() == ("pregnancy_active",)
+    assert s.blocking() == ("structured_reason_365d",)
+
+
+def test_structured_reason_within_365_days_not_sampled():
+    for cat in ("palliative", "pregnancy"):
+        s = st(make(age=45, sex="F", diabetes=True, structured=((cat, 200),)))
+        assert s.candidate == "S3" and s.blocking() == ("structured_reason_365d",)
+    s = st(make(age=60, sex="M", diabetes=True, structured=(("pregnancy", 10),)))  # any age/sex
+    assert s.blocking() == ("structured_reason_365d",)
+    s = st(make(age=50, ascvd=("MI",), structured=(("palliative", 30),)))
+    assert s.candidate == "S1" and s.stratum is None
+    assert st(make(age=50, diabetes=True, structured=(("palliative", 400),))).stratum == "S3"
 
 
 def test_s4_bins_and_p1_egfr_rule():
@@ -124,11 +135,19 @@ def test_prevent_input_out_of_range_where_needed():
     assert s.stratum == "S3"
 
 
-def test_native_egfr_above_150_any_stratum():
+def test_native_egfr_above_150_only_where_prevent_needed():
     s = st(make(age=50, diabetes=True, egfr=155.0))
-    assert s.blocking() == ("native_egfr_gt150",)
+    assert s.stratum == "S3"
     s = st(make(age=50, ascvd=("MI",), egfr=155.0))
-    assert s.blocking() == ("native_egfr_gt150",)
+    assert s.stratum == "S1"
+    hi = dict(age=70, sex="M", tc=260.0, hdl=40.0, ldl=170.0, sbp=150.0)  # >= 5% at any eGFR
+    s = st(make(**hi, egfr=155.0))
+    assert s.candidate == "S4" and "native_egfr_gt150" in s.blocking()
+
+
+def test_s2_meeting_row3_not_sampled():
+    s = st(make(age=50, diabetes=True, ldl=200.0, tc=290.0, ldl_earlier_ge190=(195.0,)))
+    assert s.candidate == "S2" and s.blocking() == ("s2_meets_row3",)
 
 
 def test_ties_only_in_deciding_inputs():

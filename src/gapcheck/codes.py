@@ -394,7 +394,28 @@ KIDNEY_RELATED_PROCEDURES = _index(
 HIV = _index([Code("86406008", "Human immunodeficiency virus infection (disorder)")])
 
 # --------------------------------------------------------------------------
-# Pregnancy active at index (not sampled; reason category for ages 30-49).
+# Hospice and palliative care: structured reasons of category "palliative"
+# (SPEC 3.3) when dated 0-365 days before index.
+# Found by: data (grep of DESCRIPTION for hospice, palliat, end of life,
+# terminal, comfort in every table). Not counted: D9110 "palliative
+# treatment of dental pain" (symptom relief that only uses the word).
+# --------------------------------------------------------------------------
+PALLIATIVE_ENCOUNTERS = _index([
+    Code("305336008", "Admission to hospice (procedure)", note="encounter class hospice"),
+])
+PALLIATIVE_PROCEDURES = _index([
+    Code("385763009", "Hospice care (regime/therapy)"),
+    Code("306237005", "Referral to palliative care service (procedure)"),
+])
+PALLIATIVE_CONDITIONS = _index([
+    Code("Z51.5", "Encounter for palliative care", note="ICD-10-CM"),
+])
+PALLIATIVE_NOT_COUNTED = ("D9110",)
+
+# --------------------------------------------------------------------------
+# Pregnancy: active at index, or any pregnancy condition dated 0-365 days
+# before index (not sampled; structured reason "pregnancy", counted by the
+# oracle only for women aged 30-49).
 # Found by: source (pregnancy.json: every pregnancy starts with 72892002,
 # which ends at delivery, abortion or miscarriage); data.
 # --------------------------------------------------------------------------
@@ -497,6 +518,9 @@ CODE_LISTS: dict[str, dict[str, Code]] = {
     "kidney_related_procedures": KIDNEY_RELATED_PROCEDURES,
     "hiv": HIV,
     "pregnancy": PREGNANCY,
+    "palliative_encounters": PALLIATIVE_ENCOUNTERS,
+    "palliative_procedures": PALLIATIVE_PROCEDURES,
+    "palliative_conditions": PALLIATIVE_CONDITIONS,
     "hyperlipidemia_veteran": HYPERLIPIDEMIA_VETERAN,
     "retinopathy": RETINOPATHY,
     "neuropathy": NEUROPATHY,
@@ -506,6 +530,7 @@ CODE_LISTS: dict[str, dict[str, Code]] = {
 LIST_TABLE = {
     "ascvd_procedures": "procedures", "esrd_procedures": "procedures",
     "kidney_related_procedures": "procedures",
+    "palliative_procedures": "procedures", "palliative_encounters": "encounters",
     "statins": "medications", "bp_drugs": "medications", "bp_drugs_not_counted": "medications",
 }
 OBSERVATION_CODES = {"tc": TC, "hdl": HDL, "ldl": LDL, "tg": TG, "sbp": SBP, "dbp": DBP,

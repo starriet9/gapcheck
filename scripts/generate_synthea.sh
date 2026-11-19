@@ -2,7 +2,7 @@
 # Generate one Synthea v4.0.0 population with the settings of SPEC sec. 4.
 #
 # Usage: scripts/generate_synthea.sh <seed> <n_alive> <out_dir>
-#   <out_dir> is relative to the repo root (for example data/dev/s20261120_p2500).
+#   <out_dir> is relative to the repo root (for example data/dev/s20261120_p10000).
 #
 # Environment (optional):
 #   THREADS   generator thread pool size (default 1; more threads change row

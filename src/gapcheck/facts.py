@@ -21,6 +21,11 @@ Rules:
   three are present.
 - eGFR: only the mL/min/{1.73_m2} series (the other one is removed by P0).
 - Diabetes onset: earliest START of any diabetes code on or before index.
+- Structured reasons (SPEC 3.3), `reason_entries`: pregnancy conditions
+  (category "pregnancy") and hospice or palliative-care encounters,
+  procedures or conditions (category "palliative") dated 0-365 days before
+  index. The date is START if it falls in that window, else STOP if STOP
+  falls in it. (Statin allergy rows are in `allergies`.)
 """
 from __future__ import annotations
 
@@ -51,11 +56,12 @@ class PatientRecord:
     medications: pd.DataFrame
     procedures: pd.DataFrame
     allergies: pd.DataFrame
+    encounters: pd.DataFrame | None = None  # used only for structured reasons
 
     def replace(self, **tables: pd.DataFrame) -> "PatientRecord":
         """Copy with some tables replaced (for edited twins)."""
         d = {k: getattr(self, k) for k in ("patient", "index_date", "birthdate", "sex",
-                                           *RECORD_TABLES)}
+                                           *RECORD_TABLES, "encounters")}
         d.update(tables)
         return PatientRecord(**d)
 
@@ -72,16 +78,19 @@ def load_record(con: duckdb.DuckDBPyConnection, patient: str) -> PatientRecord:
     """Every row of one patient from a loaded database."""
     p, ix, bd, sex = _cohort_row(con, patient)
     t = {name: con.execute(f"select * from {name} where PATIENT = ? order by row_id",
-                           [patient]).df() for name in RECORD_TABLES}
+                           [patient]).df() for name in RECORD_TABLES + ("encounters",)}
     return PatientRecord(p, ix, bd, sex, **t)
 
 
 def _relevant_filters() -> dict[str, str]:
     obs = sorted({c.code for c in C.OBSERVATION_CODES.values()})
-    proc = sorted(set(C.ASCVD_PROCEDURES) | set(C.KIDNEY_RELATED_PROCEDURES))
+    proc = sorted(set(C.ASCVD_PROCEDURES) | set(C.KIDNEY_RELATED_PROCEDURES)
+                  | set(C.PALLIATIVE_PROCEDURES))
+    enc = sorted(C.PALLIATIVE_ENCOUNTERS)
     return {
         "observations": "CODE in (" + ", ".join(f"'{c}'" for c in obs) + ")",
         "procedures": "CODE in (" + ", ".join(f"'{c}'" for c in proc) + ")",
+        "encounters": "CODE in (" + ", ".join(f"'{c}'" for c in enc) + ")",
     }
 
 
@@ -98,7 +107,7 @@ def iter_records(con: duckdb.DuckDBPyConnection, patients: list[str] | None = No
     con.register("_want", coh[["PATIENT"]])
     filt = _relevant_filters()
     groups = {}
-    for name in RECORD_TABLES:
+    for name in RECORD_TABLES + ("encounters",):
         where = filt.get(name, "true")
         df = con.execute(f"select * from {name} where PATIENT in (select PATIENT from _want) "
                          f"and {where} order by PATIENT, row_id").df()
@@ -106,7 +115,8 @@ def iter_records(con: duckdb.DuckDBPyConnection, patients: list[str] | None = No
         groups[name + "_empty"] = df.iloc[0:0]
     con.unregister("_want")
     for r in coh.itertuples(index=False):
-        t = {n: groups[n].get(r.PATIENT, groups[n + "_empty"]) for n in RECORD_TABLES}
+        t = {n: groups[n].get(r.PATIENT, groups[n + "_empty"])
+             for n in RECORD_TABLES + ("encounters",)}
         yield PatientRecord(r.PATIENT, _to_date(r.index_date), _to_date(r.birthdate), r.sex, **t)
 
 
@@ -171,6 +181,17 @@ class AllergyRow:
 
 
 @dataclass(frozen=True)
+class ReasonEntry:
+    """A structured entry that documents a reason (SPEC 3.3)."""
+    category: str      # oracle reason category: "pregnancy" or "palliative"
+    table: str
+    row_id: str
+    code: str
+    display: str
+    date: date         # START, or STOP if only STOP is within the window
+
+
+@dataclass(frozen=True)
 class PatientFacts:
     patient: str
     index_date: date
@@ -204,6 +225,7 @@ class PatientFacts:
     bp_drugs: tuple[CodedRow, ...]
     allergies: tuple[AllergyRow, ...]
     missing: tuple[str, ...]
+    reason_entries: tuple[ReasonEntry, ...] = ()
 
     # convenience flags
     @property
@@ -369,6 +391,34 @@ def _years(start: date | None, index: date) -> float | None:
     return None if start is None else (index - start).days / 365.25
 
 
+REASON_WINDOW_DAYS = 365  # same window as oracle.REASON_WINDOW_DAYS
+
+
+def _reason_entries(rec: PatientRecord, ix: date) -> tuple[ReasonEntry, ...]:
+    lists = [("conditions", C.PREGNANCY, "pregnancy"),
+             ("conditions", C.PALLIATIVE_CONDITIONS, "palliative"),
+             ("procedures", C.PALLIATIVE_PROCEDURES, "palliative"),
+             ("encounters", C.PALLIATIVE_ENCOUNTERS, "palliative")]
+    out = []
+    for table, lst, cat in lists:
+        df = getattr(rec, table)
+        if df is None or df.empty:
+            continue
+        d = df[df.CODE.isin(set(lst))]
+        if d.empty:
+            continue
+        d = _with_dates(d, stop="STOP" if "STOP" in d.columns else None)
+        for r in d.itertuples(index=False):
+            when = None
+            for x in (r.x_start, getattr(r, "x_stop", None)):
+                if x is not None and 0 <= (ix - x).days <= REASON_WINDOW_DAYS:
+                    when = x
+                    break
+            if when is not None:
+                out.append(ReasonEntry(cat, table, r.row_id, r.CODE, r.DESCRIPTION, when))
+    return tuple(sorted(out, key=lambda e: (e.date, e.row_id)))
+
+
 # ---------------------------------------------------------------- main
 def facts_at_index(rec: PatientRecord) -> PatientFacts:
     ix = rec.index_date
@@ -438,6 +488,7 @@ def facts_at_index(rec: PatientRecord) -> PatientFacts:
         bp_drugs=_coded(med, "medications", C.BP_DRUGS, ix, active=True),
         allergies=allergies,
         missing=missing,
+        reason_entries=_reason_entries(rec, ix),
     )
 
 

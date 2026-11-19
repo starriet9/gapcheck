@@ -38,7 +38,7 @@ PATTERNS = {
 
 def check(csv_dir: str) -> int:
     con = duckdb.connect()
-    for t in ("conditions", "procedures", "medications", "observations"):
+    for t in ("conditions", "procedures", "medications", "observations", "encounters"):
         con.execute(f"create view {t} as select * from read_csv('{csv_dir}/{t}.csv', "
                     "header=true, all_varchar=true)")
     bad = 0

@@ -384,6 +384,56 @@ def test_structured_statin_allergy_is_a_reason():
     assert lab(other).status == GAP
 
 
+@pytest.mark.parametrize("cat,sex,age,days,status", [
+    ("palliative", "M", 60, 0, DOCUMENTED_REASON), ("palliative", "M", 60, 365, DOCUMENTED_REASON),
+    ("palliative", "M", 60, 366, GAP), ("pregnancy", "F", 35, 100, DOCUMENTED_REASON),
+    ("pregnancy", "F", 52, 100, GAP), ("pregnancy", "F", 35, 400, GAP)])
+def test_structured_pregnancy_and_palliative_reasons(cat, sex, age, days, status):
+    f = make(age=age, sex=sex, ascvd=("MI",), structured=((cat, days),))
+    r = lab(f)
+    assert r.status == status
+    if status == DOCUMENTED_REASON:
+        assert r.reason.category == cat and r.reason.source == f.reason_entries[0].row_id
+
+
+def test_structured_reason_changes_only_gap():
+    f = make(**LOW | {"ldl": 60.0, "tc": 140.0}, structured=(("palliative", 10),))
+    assert lab(f).status == NOT_INDICATED
+    assert lab(make(statin=True, structured=(("palliative", 10),))).status == ON_THERAPY
+
+
+def _tab(rows, cols):
+    return pd.DataFrame([dict(zip(cols, r)) for r in rows], columns=cols)
+
+
+def test_reason_entries_from_record():
+    """Code list and dates of structured reasons; palliative dental care does not count."""
+    ix = INDEX
+    d = lambda n: (ix - timedelta(days=n)).isoformat() + "T10:00:00Z"
+    cond = _tab([("cond_a", d(500), d(200), "72892002", "Normal pregnancy (finding)"),
+                 ("cond_b", d(900), d(600), "72892002", "Normal pregnancy (finding)"),
+                 ("cond_c", d(30), None, "Z51.5", "Encounter for palliative care")],
+                ["row_id", "START", "STOP", "CODE", "DESCRIPTION"])
+    proc = _tab([("proc_a", d(20), d(20), "D9110", "palliative treatment of dental pain - per visit"),
+                 ("proc_b", d(40), d(40), "385763009", "Hospice care (regime/therapy)"),
+                 ("proc_c", d(10), d(10), "306237005", "Referral to palliative care service (procedure)")],
+                ["row_id", "START", "STOP", "CODE", "DESCRIPTION"])
+    enc = _tab([("enc_a", d(5), d(5), "305336008", "Admission to hospice (procedure)"),
+                ("enc_b", d(3), d(3), "185349003", "Encounter for check up")],
+               ["row_id", "START", "STOP", "CODE", "DESCRIPTION"])
+    empty = pd.DataFrame(columns=["row_id", "START", "STOP", "CODE", "DESCRIPTION"])
+    obs = pd.DataFrame(columns=["row_id", "patch", "DATE", "CODE", "VALUE", "UNITS"])
+    rec = facts.PatientRecord("p", ix, date(1980, 1, 1), "F", cond, obs, empty, proc, empty,
+                              encounters=enc)
+    got = {(e.row_id, e.category, e.date) for e in facts.facts_at_index(rec).reason_entries}
+    assert got == {("cond_a", "pregnancy", ix - timedelta(days=200)),  # STOP in window
+                   ("cond_c", "palliative", ix - timedelta(days=30)),
+                   ("proc_b", "palliative", ix - timedelta(days=40)),
+                   ("proc_c", "palliative", ix - timedelta(days=10)),
+                   ("enc_a", "palliative", ix - timedelta(days=5))}
+    assert "D9110" in C.PALLIATIVE_NOT_COUNTED and "D9110" not in C.PALLIATIVE_PROCEDURES
+
+
 def test_reason_category_checked():
     with pytest.raises(ValueError):
         Reason("will revisit next visit", INDEX, "note_1")

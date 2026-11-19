@@ -343,9 +343,14 @@ class Reason:
 
 
 def reasons_from_facts(f) -> tuple[Reason, ...]:
-    """Structured allergy or intolerance rows that mention a statin."""
-    return tuple(Reason("statin_intolerance", a.start, a.row_id)
-                 for a in f.allergies if a.statin_related)
+    """Structured reasons (SPEC 3.3): allergy or intolerance rows that mention a
+    statin; pregnancy conditions; hospice or palliative-care encounters,
+    procedures or conditions (`facts.reason_entries`, dated 0-365 days
+    before index; the window is applied again in `applicable_reasons`)."""
+    out = [Reason("statin_intolerance", a.start, a.row_id)
+           for a in f.allergies if a.statin_related]
+    out += [Reason(e.category, e.date, e.row_id) for e in getattr(f, "reason_entries", ())]
+    return tuple(out)
 
 
 def applicable_reasons(reasons, index_date: date, sex: str, age: int) -> tuple[Reason, ...]:

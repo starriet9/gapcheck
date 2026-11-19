@@ -4,7 +4,8 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from gapcheck import codes as C
-from gapcheck.facts import AllergyRow, CodedRow, LipidPanel, Obs, PatientFacts, Smoking
+from gapcheck.facts import (AllergyRow, CodedRow, LipidPanel, Obs, PatientFacts, ReasonEntry,
+                            Smoking)
 
 INDEX = date(2026, 11, 1)
 _n = [0]
@@ -33,11 +34,13 @@ def make(age=50, sex="M", ldl=120.0, tc=200.0, hdl=50.0, sbp=130.0, smoker=False
          statin=False, statin_stop: date | None = None, bp=False, hiv=False, esrd=False,
          retinopathy=False, neuropathy=False, albuminuria=False, pregnancy=False,
          vet=False, allergies=(), lipid=True, smoking_value=None,
-         ldl_ever_max=None, ldl_earlier_ge190=(), ties=(), index=INDEX) -> PatientFacts:
+         ldl_ever_max=None, ldl_earlier_ge190=(), ties=(), structured=(),
+         index=INDEX) -> PatientFacts:
     """A PatientFacts built from plain values. None means the open-world input is absent.
 
     ties: names among ("lipid_panel", "sbp", "smoking", "egfr") whose latest
     timestamp holds two distinct values.
+    structured: (category, days before index) pairs of structured reason entries.
     """
     t = lambda k: 2 if k in ties else 1
     panel = None
@@ -92,4 +95,6 @@ def make(age=50, sex="M", ldl=120.0, tc=200.0, hdl=50.0, sbp=130.0, smoker=False
         statins=st if statin and (statin_stop is None or statin_stop > index) else (),
         bp_drugs=bpd, allergies=alg,
         missing=tuple(k for k, v in present.items() if v is None),
+        reason_entries=tuple(ReasonEntry(cat, "procedures", _rid("proc"), "x", "", index -
+                                         timedelta(days=days)) for cat, days in structured),
     )

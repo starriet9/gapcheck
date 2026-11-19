@@ -169,13 +169,13 @@ Each edited twin has a ledger row: base patient, condition, the rows deleted or 
 | C4 distractor in a note | Negation ("denies muscle aches"), a relative's statin, "statin discussed, will revisit next visit" (reported on its own line), "fatty liver, liver tests stable" | GAP and NOT_INDICATED patients | Unchanged | Keyword-triggered errors |
 | C5 threshold twin | One value moved across a cut: LDL-C of the latest panel 185 ↔ 195 (TC moved by the same amount); SBP or TC moved so risk crosses 5% or 3%; or every smoking row in the 3 years before index set to "Smokes tobacco daily" | S2, S4, S5 and near-threshold patients | The new oracle label | Computing versus guessing |
 
-C5 rules: a pair (base and one twin, or two twins) is used only if the two labels differ. Each twin is at least 0.5 percentage point from a risk cut and at least 5 mg/dL from an LDL-C cut. LDL-C is never exactly 190.
+C5 rules: a pair (base and one twin, or two twins) is used only if the two labels differ. Each twin is at least 0.5 percentage point from a risk cut and at least 5 mg/dL from an LDL-C cut. LDL-C is never exactly 190. Near-threshold sources: untreated primary-prevention patients (rows 9, 10, 11b) whose 10-year risk is within 1.5 points of 5% or 3% give two twins, one on each side of the cut, by moving SBP (at most ±30 mm Hg) or TC (at most ±50 mg/dL); the source itself is not a case. LDL-C twins move the latest panel upward only (to 195), and only in patients with no LDL-C ≥ 190 at any time, so a twin never mixes the threshold with the latest-versus-ever convention.
 
-Phrase library: about 40 phrasings per planted fact type. Dev and test use disjoint phrasings. Each test phrasing is used at most once. The library is reviewed by a clinician on a sample and then frozen.
+Phrase library: 20 dev phrasings and 30 test phrasings per planted fact type (each test phrasing is used at most once, and the test scale needs about 30 per distractor type). Dev and test use disjoint phrasings. The library is reviewed by a clinician on a sample and then frozen.
 
 Scope rule: if the schedule slips, C2b is the first condition dropped (recorded in `PROTOCOL.md` before the tag, not after); the limit then reads "C2 covers only inputs made irrelevant by an earlier row". C3b is kept.
 
-Expected size: about 200 base patients and about 600 test cases. Exact counts per condition are fixed in `PROTOCOL.md` after the dev set is built.
+Expected size: about 200 base patients and about 780 test cases (simulated at 40 per stratum: C0 198, C1 78, C2a 120, C2b 39, C3a 78, C3b 40, C4 118, C5 110). C2b and C1-by-smoking are small; their intervals will be wide and are reported as such. Exact counts per condition are fixed in `PROTOCOL.md` after the dev set is built.
 
 ## 6. Systems
 

@@ -31,7 +31,9 @@ EXCLUSIONS: dict[str, tuple[tuple[str, ...], str]] = {
     "esrd_dialysis_transplant": (STRATA, "ESRD, dialysis or kidney transplant (row X)"),
     "cannot_determine": (STRATA, "indication group is CANNOT_DETERMINE"),
     "row3b_ckd": (STRATA, "row 3b (CKD stage 3-4, 40-75)"),
-    "pregnancy_active": (STRATA, "pregnancy active at index"),
+    "structured_reason_365d": (STRATA, "a structured reason within 365 days of index "
+                                       "(pregnancy, hospice or palliative care, statin "
+                                       "allergy) or pregnancy active at index"),
     "dx_55822004": (PRIMARY, "diagnosis 55822004 (S2-S5)"),
     "primary_prevention_76_79": (PRIMARY, "primary prevention at age 76-79"),
     "diabetes_outside_40_75": (PRIMARY, "diabetes outside age 40-75"),
@@ -39,11 +41,12 @@ EXCLUSIONS: dict[str, tuple[tuple[str, ...], str]] = {
     "age60_79_risk_lt3_ldl160_189": (PRIMARY, "age 60-79, risk < 3%, LDL-C 160-189"),
     "prevent_input_missing_or_out_of_range": (
         PRIMARY, "a PREVENT input missing or out of range where PREVENT is needed"),
-    "native_egfr_gt150": (STRATA, "native (generator) eGFR > 150"),
+    "native_egfr_gt150": (PRIMARY, "native (generator) eGFR > 150 where PREVENT is needed"),
     "p1_egfr_dependent": (STRATA, "latest eGFR is a P1 value and the indication row "
                                   "is not the same for every eGFR 60-140"),
     "tie_in_deciding_input": (STRATA, "two values at the latest timestamp of a deciding input"),
     "s2_no_earlier_ldl_ge190": (("S2",), "S2: no LDL-C >= 190 before the latest panel"),
+    "s2_meets_row3": (("S2",), "S2: also meets row 3 (diabetes, 40-75; lipid panel not deciding)"),
     "ldl_ever_ge190": (("S3", "S4", "S5"), "S3-S5: LDL-C >= 190 at some time"),
 }
 
@@ -77,6 +80,12 @@ class StrataRow:
         if self.candidate is None:
             return self.exclusions
         return tuple(e for e in self.exclusions if self.candidate in EXCLUSIONS[e][0])
+
+
+def has_structured_reason(f) -> bool:
+    """Any structured reason dated 0-365 days before index, whatever age and sex."""
+    return any(0 <= (f.index_date - r.date).days <= oracle.REASON_WINDOW_DAYS
+               for r in oracle.reasons_from_facts(f))
 
 
 def ascvd_type(f) -> str | None:
@@ -123,8 +132,8 @@ def assign(f) -> StrataRow:
         ex.append("cannot_determine")
     if row == "3b":
         ex.append("row3b_ckd")
-    if f.pregnancy:
-        ex.append("pregnancy_active")
+    if f.pregnancy or has_structured_reason(f):
+        ex.append("structured_reason_365d")
     if f.hyperlipidemia_55822004:
         ex.append("dx_55822004")
     if not f.has_ascvd and f.age >= 76:
@@ -161,7 +170,8 @@ def assign(f) -> StrataRow:
     if (row in PREVENT_ROWS or (row is None and set(ind.row_set) & PREVENT_ROWS)) \
             and not prevent_ok:
         ex.append("prevent_input_missing_or_out_of_range")
-    if f.egfr is not None and not f.egfr_imputed and float(f.egfr.value) > 150:
+    needs_prevent = row in PREVENT_ROWS or (row is None and bool(set(ind.row_set) & PREVENT_ROWS))
+    if needs_prevent and f.egfr is not None and not f.egfr_imputed and float(f.egfr.value) > 150:
         ex.append("native_egfr_gt150")
 
     tied = {"lipid_panel": f.lipid_panel is not None and f.lipid_panel.tied,
@@ -172,6 +182,8 @@ def assign(f) -> StrataRow:
         ex.append("tie_in_deciding_input")
     if cand == "S2" and not f.s2_rule:
         ex.append("s2_no_earlier_ldl_ge190")
+    if cand == "S2" and f.has_diabetes and 40 <= f.age <= 75:
+        ex.append("s2_meets_row3")
     if f.ldl_ever_ge190 and row != "2":
         ex.append("ldl_ever_ge190")
 
