@@ -1,0 +1,1026 @@
+{
+ "version": "dev-1",
+ "split": "dev",
+ "types": {
+  "reason_intolerance": [
+   {
+    "id": "reason_intolerance-dev-01",
+    "text": "Statin intolerance: myalgias on atorvastatin and again on rosuvastatin.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-02",
+    "text": "Hx of SAMS with simvastatin, symptoms resolved after d/c.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-03",
+    "text": "pt had bad leg cramps on Lipitor last yr, stopped it herself, does not want to retry",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-04",
+    "text": "She developed proximal muscle weakness while on pravastatin, which was discontinued.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-05",
+    "text": "Intolerant of statins (myalgia with two different agents).",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-06",
+    "text": "Previously tried low dose rosuvastatin but stopped it because of muscle pain.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-07",
+    "text": "Statins not tolerated in the past - generalized aches and fatigue.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-08",
+    "text": "CK elevation with muscle pain on atorvastatin in the past, statin listed as an intolerance.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-09",
+    "text": "Pt states every statin he has tried made his muscles ache, so he stopped them.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-10",
+    "text": "Has documented rhabdomyolysis on simvastatin; statins are contraindicated going forward.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-11",
+    "text": "Stopped simvastatin due to side effects and will not restart it.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-12",
+    "text": "muscle aches on atorva last yr, pt won't rechallenge",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-13",
+    "text": "Statin-associated muscle symptoms on two prior agents, not a candidate for rechallenge.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-14",
+    "text": "Reports joint and muscle pain that started on Crestor and went away when he stoped it.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-15",
+    "text": "Lovastatin caused severe cramping per pt, will avoid statins.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-16",
+    "text": "Allergies/intolerances reviewed: statins (myalgias).",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-17",
+    "text": "Tried pitavastatin as a last option and again had thigh pain, so it was stopped.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-18",
+    "text": "Hx statin myopathy.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-19",
+    "text": "She is intolerent to statins, got muscle weakness on both simva and prava.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "reason_intolerance-dev-20",
+    "text": "Patient unable to tolerate statin therapy due to myalgias and prefers non-statin options.",
+    "category": "statin_intolerance"
+   }
+  ],
+  "reason_declined": [
+   {
+    "id": "reason_declined-dev-01",
+    "text": "Pt declines statin therapy after discussion of risks and benefits.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-02",
+    "text": "Offered atorvastatin, patient refused.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-03",
+    "text": "Discussed starting a statin; she does not want to take one.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-04",
+    "text": "He is firmly opposed to taking statins and prefers diet and exercise.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-05",
+    "text": "Recommended rosuvastatin, pt declined, wants to focus on lifestyle.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-06",
+    "text": "Statin recommended again today and declined again.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-07",
+    "text": "pt not interested in cholesterol meds, declined statin",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-08",
+    "text": "Patient refuses all statin medications because of things she has read online.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-09",
+    "text": "Shared decision making done and pt elects not to start a statin.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-10",
+    "text": "Declined statin, prefers to try red yeast rice instead.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-11",
+    "text": "She has decided against statin therapy and we will respect her choice.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-12",
+    "text": "Pt adamantly refuses to start Lipitor.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-13",
+    "text": "Statin offered for primary prevention, pt said no thanks.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-14",
+    "text": "Does not wish to be on a statin, aware of the recommendation.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-15",
+    "text": "Pt declind statin again despite counseling.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-16",
+    "text": "Patient doesn't want to take a cholesterol pill, including statins.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-17",
+    "text": "Not willing to start statin therapy.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-18",
+    "text": "After a long discussion he refused rosuvastatin and any other statin.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-19",
+    "text": "Pt reluctant re statins and ultimately declined.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "reason_declined-dev-20",
+    "text": "Statin: declined by patient.",
+    "category": "patient_declined"
+   }
+  ],
+  "reason_pregnancy": [
+   {
+    "id": "reason_pregnancy-dev-01",
+    "text": "Currently pregnant, statin not started.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-02",
+    "text": "Pt is pregnant (first trimester), statins contraindicated.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-03",
+    "text": "She is trying to conceive, so we will hold off on statin therapy.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-04",
+    "text": "Planning pregnancy in the next year; avoid statins.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-05",
+    "text": "Positive pregnancy test today, no statin.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-06",
+    "text": "Pt actively trying to get pregnant, statin to wait until after pregnancy and breastfeeding.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-07",
+    "text": "IUP confirmed on ultrasound, no lipid-lowering meds during this pregnancy.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-08",
+    "text": "She plans to become pregnant soon and does not want a statin.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-09",
+    "text": "G2P1, currently pregnant, follows with OB.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-10",
+    "text": "Pregnant, so lipid therapy is on hold.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-11",
+    "text": "pt and partner are trying for a baby, so no statin for now",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-12",
+    "text": "Pregnancy planned, wants to start IVF; statins not appropriate.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-13",
+    "text": "Estimated gestational age about ten weeks, statin therapy not indicated.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-14",
+    "text": "Pt is expecting her second child, due in the spring.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-15",
+    "text": "She is attempting conception and was advised to avoid statins.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-16",
+    "text": "Pregnant at this visit per pt report, confirmed by home test.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-17",
+    "text": "Pt hopes to conceive within the year and prefers to avoid a statin.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-18",
+    "text": "currently pregant, prenatal vitamins only",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-19",
+    "text": "Discussed lipids; since she is planning a pregnancy, statin is not recommended.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "reason_pregnancy-dev-20",
+    "text": "Early pregnancy, statins held.",
+    "category": "pregnancy"
+   }
+  ],
+  "reason_liver": [
+   {
+    "id": "reason_liver-dev-01",
+    "text": "Decompensated cirrhosis with ascites, statin contraindicated.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-02",
+    "text": "Hx alcoholic cirrhosis, decompensated, followed by hepatology.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-03",
+    "text": "Recent admission for acute liver failure; no statin.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-04",
+    "text": "Cirrhosis complicated by variceal bleed and hepatic encephalopathy.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-05",
+    "text": "Child-Pugh C cirrhosis, statins avoided.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-06",
+    "text": "Pt with end-stage liver disease on the transplant list.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-07",
+    "text": "Acute hepatic failure from acetaminophen overdose earlier this year.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-08",
+    "text": "Decomp cirrhosis (ascites requiring paracentesis).",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-09",
+    "text": "NASH cirrhosis, now decompensated with recurrent ascites.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-10",
+    "text": "Liver failure, statins contraindicated per hepatology.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-11",
+    "text": "Fulminant hepatitis last spring, still recovering, hepatology advises no statin.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-12",
+    "text": "Hepatic decompensation with jaundice noted on last admission.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-13",
+    "text": "pt has decompensated liver disease, not a statin candidate",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-14",
+    "text": "ESLD, followed for transplant evaluation.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-15",
+    "text": "Cirrhosis with refractory ascites requiring frequent taps.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-16",
+    "text": "Decompensated EtOH cirrhosis, on lactulose and rifaximin.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-17",
+    "text": "Acute liver injury progressing to liver failure required an ICU stay.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-18",
+    "text": "Cirhosis, decompensated (ascites, varices).",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-19",
+    "text": "Known decompensated cirrhosis; hepatology recommends against statins.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "reason_liver-dev-20",
+    "text": "Hepatorenal syndrome from cirrhosis this year.",
+    "category": "liver_failure"
+   }
+  ],
+  "reason_palliative": [
+   {
+    "id": "reason_palliative-dev-01",
+    "text": "Enrolled in hospice.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-02",
+    "text": "Pt now on home hospice; focus on comfort, no new meds.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-03",
+    "text": "Goals of care discussed: comfort-focused care, no statin.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-04",
+    "text": "Metastatic pancreatic cancer, life expectancy of months; preventive meds stopped.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-05",
+    "text": "Palliative care following, deprescribing preventive medications.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-06",
+    "text": "Limited life expectancy due to advanced heart failure, statin not appropriate.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-07",
+    "text": "Prognosis less than a year per oncology, pt prefers no preventive meds.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-08",
+    "text": "Pt transitioned to comfort care.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-09",
+    "text": "DNR/DNI, hospice referral placed, statin not indicated.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-10",
+    "text": "Terminal diagnosis, focus is on quality of life.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-11",
+    "text": "palliative only, family wants no new medicines",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-12",
+    "text": "Advanced dementia with limited life expectancy; deprescribing statins and other preventive drugs.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-13",
+    "text": "Pt with end-stage COPD now in hospice care.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-14",
+    "text": "Hospice eligible, pt chose comfort measures only.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-15",
+    "text": "Estimated life expectancy under six months.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-16",
+    "text": "Seen by palliative medicine, plan to minimize pill burden and avoid preventive meds.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-17",
+    "text": "Life expectancy is short given widely metastatic disease, so no statin.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-18",
+    "text": "Pt wishes comfort-oriented care only, hospice discussed and accepted.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-19",
+    "text": "Home hospice since last month for ALS.",
+    "category": "palliative"
+   },
+   {
+    "id": "reason_palliative-dev-20",
+    "text": "Pallative care consult done, focus is symptom control.",
+    "category": "palliative"
+   }
+  ],
+  "distractor_negation": [
+   {
+    "id": "distractor_negation-dev-01",
+    "text": "Denies muscle aches or weakness.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_negation-dev-02",
+    "text": "No history of statin intolerance.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_negation-dev-03",
+    "text": "Pt denies myalgias, cramps or dark urine.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_negation-dev-04",
+    "text": "No muscle pain or cramping with prior statin trial.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_negation-dev-05",
+    "text": "Not pregnant and not planning pregnancy.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "distractor_negation-dev-06",
+    "text": "No evidence of cirrhosis or liver failure on prior imaging.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_negation-dev-07",
+    "text": "Pt not opposed to starting a statin if recommended.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_negation-dev-08",
+    "text": "No hospice or palliative care involvement.",
+    "category": "palliative"
+   },
+   {
+    "id": "distractor_negation-dev-09",
+    "text": "Not on hospice.",
+    "category": "palliative"
+   },
+   {
+    "id": "distractor_negation-dev-10",
+    "text": "ROS negative for muscle weakness and myalgia.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_negation-dev-11",
+    "text": "No myopathy on exam, strength normal throughout.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_negation-dev-12",
+    "text": "Denies muscle soreness, no rhabdo hx.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_negation-dev-13",
+    "text": "No known drug allergies or intolerances.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_negation-dev-14",
+    "text": "No ascites or encephalopathy.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_negation-dev-15",
+    "text": "Not currently pregnant per pt.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "distractor_negation-dev-16",
+    "text": "No prior adverse reaction to statins documented.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_negation-dev-17",
+    "text": "pt denys any muscle aches",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_negation-dev-18",
+    "text": "Took pravastatin briefly years ago without muscle aches.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_negation-dev-19",
+    "text": "No signs of liver decompensation.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_negation-dev-20",
+    "text": "Full code, no palliative care needs at this time.",
+    "category": "palliative"
+   }
+  ],
+  "distractor_relative": [
+   {
+    "id": "distractor_relative-dev-01",
+    "text": "Mother had myalgias on simvastatin.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_relative-dev-02",
+    "text": "Father stopped his statin because of muscle cramps.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_relative-dev-03",
+    "text": "FHx: brother with rhabdomyolysis on atorvastatin.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_relative-dev-04",
+    "text": "Her sister refused statins and later had an MI.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_relative-dev-05",
+    "text": "Daughter is pregnant with pt's first grandchild.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "distractor_relative-dev-06",
+    "text": "Wife is in hospice for metastatic breast cancer; pt is her caregiver.",
+    "category": "palliative"
+   },
+   {
+    "id": "distractor_relative-dev-07",
+    "text": "Father died of decompensated cirrhosis.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_relative-dev-08",
+    "text": "Family hx of statin intolerance (mother and aunt).",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_relative-dev-09",
+    "text": "His brother declined statin therapy; pt asks whether he should take one.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_relative-dev-10",
+    "text": "Mom developed liver failure in her sixties.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_relative-dev-11",
+    "text": "Sister currently pregnant, pt helping with childcare.",
+    "category": "pregnancy"
+   },
+   {
+    "id": "distractor_relative-dev-12",
+    "text": "Pt's husband recently enrolled in hospice.",
+    "category": "palliative"
+   },
+   {
+    "id": "distractor_relative-dev-13",
+    "text": "Fam hx notable for muscle problems on statins in several relatives.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_relative-dev-14",
+    "text": "Uncle had severe muscle pain with Lipitor.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_relative-dev-15",
+    "text": "Father had a bad reaction to Crestor and quit it.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_relative-dev-16",
+    "text": "Grandmother had cirrhosis with ascites.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_relative-dev-17",
+    "text": "Mother is receiving palliative care for dementia.",
+    "category": "palliative"
+   },
+   {
+    "id": "distractor_relative-dev-18",
+    "text": "Per pt, his dad could not tolerate any statin.",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_relative-dev-19",
+    "text": "brother w/ hx of SAMS on prava",
+    "category": "statin_intolerance"
+   },
+   {
+    "id": "distractor_relative-dev-20",
+    "text": "Pt's mother refused cholesterol medicines her whole life.",
+    "category": "patient_declined"
+   }
+  ],
+  "distractor_deferral": [
+   {
+    "id": "distractor_deferral-dev-01",
+    "text": "Discussed statin, pt will think about it, revisit next visit.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-02",
+    "text": "Statin therapy discussed; patient wants to review information at home before deciding.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-03",
+    "text": "Pt undecided about starting atorvastatin, will readdress at follow-up.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-04",
+    "text": "Deferred statin discussion to next appointment due to time.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-05",
+    "text": "Will revisit lipid management at annual visit.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-06",
+    "text": "Pt has questions about statin side effects, handout given, will discuss again next time.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-07",
+    "text": "Statin not started today; will discuss at next visit.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-08",
+    "text": "Considering a statin, pt wants to talk it over with family first.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-09",
+    "text": "Lipids reviewed, statin decision postponed until next visit.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-10",
+    "text": "Discussed ASCVD risk, pt open to a statin but wants to wait until after the holidays to decide.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-11",
+    "text": "Pt not ready to decide on statin today, f/u in three months.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-12",
+    "text": "Plan: revisit statin at next PCP visit.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-13",
+    "text": "Brief discussion of cholesterol meds, to be continued at f/u.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-14",
+    "text": "Pt will consider a statin and let us know.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-15",
+    "text": "Pt asked for time to think about starting rosuvastatin.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-16",
+    "text": "Statin conversation started, more time needed, readdress soon.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-17",
+    "text": "Will revisit statin therapy once acute issues settle.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-18",
+    "text": "Discussed pros and cons of statins, pt is thinking it over.",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-19",
+    "text": "pt unsure about statin, wants to discus with pharmacist first",
+    "category": "patient_declined"
+   },
+   {
+    "id": "distractor_deferral-dev-20",
+    "text": "Statin decision deferred to cardiology appt next month.",
+    "category": "patient_declined"
+   }
+  ],
+  "distractor_stable_liver": [
+   {
+    "id": "distractor_stable_liver-dev-01",
+    "text": "NAFLD, LFTs stable.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-02",
+    "text": "Fatty liver on ultrasound, liver tests stable.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-03",
+    "text": "Hx hepatitis C, treated and cured, no cirrhosis.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-04",
+    "text": "Compensated cirrhosis without ascites, followed by GI.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-05",
+    "text": "MASLD, LFTs normal on last check, continue weight loss efforts.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-06",
+    "text": "Mild hepatic steatosis, statins are safe per hepatology.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-07",
+    "text": "Chronic hep B, inactive carrier, liver enzymes stable.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-08",
+    "text": "Mildly elevated transaminases, stable for years, likely fatty liver.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-09",
+    "text": "Steatohepatitis without fibrosis on biopsy.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-10",
+    "text": "Liver function tests within normal limits.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-11",
+    "text": "Hx of alcohol use disorder in remission, LFTs normal, no known liver disease.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-12",
+    "text": "Known NASH, stable, sees hepatology yearly.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-13",
+    "text": "Gilbert syndrome, otherwise normal liver.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-14",
+    "text": "Fatty liver disease, not a contraindication to statin therapy.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-15",
+    "text": "Stable chronic liver disease, monitoring LFTs.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-16",
+    "text": "Hepatic steatosis noted incidentally on CT, LFTs ok.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-17",
+    "text": "Hemochromatosis managed with phlebotomy, liver tests stable.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-18",
+    "text": "Primary biliary cholangitis on ursodiol, stable.",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-19",
+    "text": "NAFLD w/ mild fibrosis, liver enzymes unchanged",
+    "category": "liver_failure"
+   },
+   {
+    "id": "distractor_stable_liver-dev-20",
+    "text": "Alcohol-related fatty liver, abstinent now, labs stable.",
+    "category": "liver_failure"
+   }
+  ],
+  "smoking_current": [
+   {
+    "id": "smoking_current-dev-01",
+    "text": "Current smoker, about a pack a day.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-02",
+    "text": "Smokes half a pack per day, not ready to quit.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-03",
+    "text": "pt still smoking, ~10 cig/day",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-04",
+    "text": "Active tobacco use: cigarettes daily.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-05",
+    "text": "He continues to smoke despite counseling.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-06",
+    "text": "Tobacco: current every day smoker.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-07",
+    "text": "Smoking cessation counseling given, pt currently smokes.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-08",
+    "text": "She smokes a few cigarettes a day, mostly at work.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-09",
+    "text": "Restarted smoking a couple of months ago and smokes most days.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-10",
+    "text": "Pt is a current smoker interested in quitting; nicotine patch offered.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-11",
+    "text": "Daily smoker for many years.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-12",
+    "text": "Smokes about one ppd.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-13",
+    "text": "Currently smoking cigarettes, trying to cut down.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-14",
+    "text": "Tobacco screen positive, smokes every morning before work.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-15",
+    "text": "Pt reports he smokes when stressed, most days of the week.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-16",
+    "text": "Continues to smok a pack a day",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-17",
+    "text": "Active smoker, declines cessation resources at this time.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-18",
+    "text": "Smoking status: current some day smoker.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-19",
+    "text": "Pt smokes cigarettes and vapes daily.",
+    "category": "smoking"
+   },
+   {
+    "id": "smoking_current-dev-20",
+    "text": "He has smoked since his teens and still smokes daily.",
+    "category": "smoking"
+   }
+  ]
+ }
+}
