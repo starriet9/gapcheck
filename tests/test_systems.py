@@ -353,13 +353,15 @@ def test_tool_call_after_limit_is_answered_and_reasked_truthfully(env):
 
 def test_task_prompts_state_the_harness_limits(env):
     """The round budget a model reads is the limit the harness enforces (A1: max_steps, L1:
-    l1_tool_rounds), and the prompts carry the stop rule, the COMPUTED rule and the
-    over-abstention rule (local-model smoke run)."""
+    l1_tool_rounds), and the prompts carry the stop rule (with parallel calls and a stop
+    condition for the agent), the COMPUTED rule and the over-abstention rule (local-model
+    smoke runs)."""
     for n in (3, 20):
         b = MockBackend(lambda m, t: Response(json.dumps(ABSTAIN)))
         systems.run_agent(env, b, systems.Settings(max_steps=n), verify=False)
         task = b.calls[0]["messages"][1]["content"]
-        assert f"at most {n} rounds of tool calls" in task and "stop searching" in task
+        assert f"at most {n} rounds of tool calls" in task and "stop searching" in task.lower()
+        assert "several tool calls" in task and "confirmed absent" in task
         b = MockBackend(lambda m, t: Response(json.dumps(ABSTAIN)))
         systems.run_l1(env, b, systems.Settings(l1_tool_rounds=n))
         assert f"at most {n} rounds of calls" in b.calls[0]["messages"][1]["content"]
