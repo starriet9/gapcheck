@@ -386,13 +386,18 @@ def secondary(design: Design, recs: dict[str, dict], case_dir: str | Path | None
                         hit[k] = True
         out["c3a_citation_overlap"] = _boot_prop(design, cond == "C3a", hit, W)
     # unsupported claims (checks 1 or 4 on the final answer, from the run's audit)
-    bad = tot = 0
-    for c in cs:
+    bad, tot = np.zeros(len(cs)), np.zeros(len(cs))
+    for k, c in enumerate(cs):
         a = (recs.get(c["case_id"]) or {}).get("audit")
         if a:
-            bad += a["unsupported"][0]
-            tot += a["unsupported"][1]
-    out["unsupported_claims"] = _prop(bad, tot)
+            bad[k], tot[k] = a["unsupported"][0], a["unsupported"][1]
+    b_cl, t_cl = np.zeros(design.n.shape[0]), np.zeros(design.n.shape[0])
+    np.add.at(b_cl, design.case_cl, bad)
+    np.add.at(t_cl, design.case_cl, tot)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        boot = (W @ b_cl) / (W @ t_cl)
+    out["unsupported_claims"] = {**_prop(int(bad.sum()), int(tot.sum())),
+                                 "ci": _ci(boot) if tot.sum() else [None, None]}
     # cost and fallbacks
     rs = [recs[c["case_id"]] for c in cs if c["case_id"] in recs]
     for key in ("tool_calls", "model_calls", "seconds"):
@@ -418,11 +423,20 @@ def secondary(design: Design, recs: dict[str, dict], case_dir: str | Path | None
     return out
 
 
-def stability(runs: list[dict[str, dict]], case_ids: list[str]) -> dict:
-    """Share of cases with the same status in every run (SPEC 7, outcome 7)."""
-    same = sum(1 for cid in case_ids
-               if len({status_of(r.get(cid)) for r in runs}) == 1)
-    return _prop(same, len(case_ids))
+def stability(runs: list[dict[str, dict]], case_ids: list[str], design: Design | None = None,
+              W: np.ndarray | None = None) -> dict:
+    """Share of cases with the same status in every run (PROTOCOL 8, outcome 7); with a
+    design and weights, also its cluster-bootstrap interval."""
+    same = np.array([len({status_of(r.get(cid)) for r in runs}) == 1 for cid in case_ids],
+                    dtype=bool)
+    if design is None or W is None:
+        return _prop(int(same.sum()), len(case_ids))
+    pos = {c["case_id"]: k for k, c in enumerate(design.cases)}
+    hit = np.zeros(len(design.cases), dtype=bool)
+    mask = np.zeros(len(design.cases), dtype=bool)
+    for cid, s in zip(case_ids, same):
+        mask[pos[cid]], hit[pos[cid]] = True, s
+    return _boot_prop(design, mask, hit, W)
 
 
 # ---------------------------------------------------------------- hypotheses
@@ -696,6 +710,8 @@ def score(case_dir: str | Path, run_dir: str | Path, extra_runs=(), n_boot: int 
     if extra_runs:
         others = [load_run(r) for r in extra_runs]
         ids = [c["case_id"] for c in case_list]
-        out["stability"] = {s: stability([run[s]] + [o.get(s, {}) for o in others], ids)
-                            for s in run if s in ("L1", "A2", "A1")}
+        W = design.weights(n_boot, seed)
+        out["stability"] = {s: stability([run[s]] + [o.get(s, {}) for o in others], ids,
+                                         design, W)
+                            for s in run if s in LLM_SYSTEMS}
     return out

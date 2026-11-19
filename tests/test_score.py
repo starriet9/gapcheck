@@ -86,6 +86,19 @@ def test_secondary():
     assert out["gap_sensitivity"]["n"] == sum(c["expected_status"] == "GAP" for c in cl)
     runs = [recs, {**recs, "2-C0": _rec("DISCUSS")}]
     assert score.stability(runs, [c["case_id"] for c in cl])["k"] == len(cl) - 1
+    st = score.stability(runs, [c["case_id"] for c in cl], d, d.weights(100, 2))
+    assert st["k"] == len(cl) - 1 and st["n"] == len(cl) and st["ci"][1] == 1.0
+
+
+def test_unsupported_claims_interval():
+    cl = _cases()
+    d = score.Design(cl)
+    recs = {c["case_id"]: {**_rec(c["expected_status"]), "audit": {"unsupported": [0, 4]}}
+            for c in cl}
+    recs["0-C0"]["audit"] = {"unsupported": [2, 4]}
+    u = score.secondary(d, recs, None, d.weights(200, 2))["unsupported_claims"]
+    assert u["k"] == 2 and u["n"] == 4 * len(cl)
+    assert u["ci"][0] == 0.0 and 0 < u["ci"][1] < 0.05
 
 
 # ---------------------------------------------------------------- answer change
