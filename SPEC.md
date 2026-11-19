@@ -219,7 +219,7 @@ note_for_clinician two sentences
 ### 6.2 Verifier
 
 Code only. It checks provenance and arithmetic. It never evaluates the decision table and never reads the ledger.
-1. Every DOCUMENTED source exists and its value or quoted text matches.
+1. Every DOCUMENTED source exists and its value or quoted text matches. For closed-world claims the conventions page defines the value as the codes of the cited rows (CKD: the stage number); in that format every code and stage must be a cited row's. Free text describing the cited rows is accepted and not compared, since the row-kind check already ties the claim to its rows.
 2. For the row the system itself states in `benefit_group`, every input in that row's fixed list of required inputs has a DOCUMENTED, COMPUTED or ABSENT claim. The list per row is a static table. A required binary input that is missing may instead be covered by two `prevent_risk` calls (one per value, other inputs documented) whose results give the same label.
 3. Every COMPUTED risk is recomputed from its cited inputs and matches within 0.1 percentage point.
 4. Every input in `missing`, and every ABSENT claim, is confirmed by re-running the fixed query.

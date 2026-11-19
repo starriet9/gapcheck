@@ -99,7 +99,8 @@ def main() -> None:
     if "L1" in names:
         for c in case_list:
             env = CaseEnv.from_case(case_dir, c["case_id"], page_size=st.page_size)
-            ser_t, prompt_t = systems.l1_prompt_tokens(env, st.chars_per_token)
+            ser_t, prompt_t = systems.l1_prompt_tokens(env, st.chars_per_token,
+                                                       st.l1_tool_rounds)
             serialize.build_stop(case_dir, c["case_id"], serialize.serialize(env), prompt_t,
                                  st.context_limit)
             l1_sizes[c["case_id"]] = {"serialization_tokens": ser_t, "prompt_tokens": prompt_t}

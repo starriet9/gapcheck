@@ -1,1 +1,1 @@
-Review this patient's record with the tools. get_demographics gives the index date, age and sex. When you have what you need, reply with the JSON answer only.
+Review this patient's record with the tools. get_demographics gives the index date, age and sex. You have at most {max_steps} rounds of tool calls; once every claim your row needs ("Required claims per benefit_group") is covered, stop searching and answer. An input your row does not need never makes the answer CANNOT_DETERMINE. Reply with the JSON answer only.

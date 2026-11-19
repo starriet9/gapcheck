@@ -118,6 +118,10 @@ null. If the risks fall in different bands, smoking may \
 decide the status; check the decision table with both risks before answering."""
 
 
+# Closed-world claims whose DOCUMENTED value is the cited rows' codes (ckd: the stage).
+CLOSED_WORLD_CLAIMS = ("statins", "ascvd", "diabetes", "ckd", "row5_features", "bp_drugs")
+
+
 def _rows_with(name: str) -> list[str]:
     return [r for r, v in REQUIRED_INPUTS.items() if name in v]
 
@@ -195,15 +199,28 @@ CANNOT_DETERMINE; every other status needs a row (ON_THERAPY: row 0)
 
 Evidence items:
 - claim: one of {", ".join(S.CLAIMS)}
-- support DOCUMENTED: source is a list of record row ids, or one note id with "quote" (an \
-exact substring of the note), or ["{S.DEMOGRAPHICS}"] for age and sex. value: the value \
-(lipid_panel as {{"tc": .., "hdl": .., "ldl": ..}}; smoking as the recorded text; \
-reason as its category: {", ".join(oracle.REASON_CATEGORIES)}).
+- support DOCUMENTED: source is a list of record row ids, or ["{S.DEMOGRAPHICS}"] for age \
+and sex, or one note id as a string (not a list) with "quote" (an exact substring of that \
+note). value:
+  - age: the number; sex: M or F; sbp, egfr: the recorded number; smoking: the recorded \
+text; lipid_panel: {{"tc": .., "hdl": .., "ldl": ..}}.
+  - {", ".join(CLOSED_WORLD_CLAIMS)} (closed-world): the codes of the cited rows, as a list \
+of strings; for ckd, the CKD stage number of the cited rows (a number such as 3). A code or \
+stage that no cited row has fails check 1.
+  - reason: its category: {", ".join(oracle.REASON_CATEGORIES)}.
 - support COMPUTED: source "{S.PREVENT_TOOL}", value the risk fraction, inputs the \
 prevent_risk arguments ({", ".join(S.PREVENT_ARGS)}).
 - support ABSENT: source is one named list, value null:
 {lists}
 - support INFERRED: source null; only for facts outside the inputs required below.
+
+Evidence item examples (ids, codes and text in angle brackets are placeholders):
+- {{"claim": "bp_drugs", "support": "DOCUMENTED", "source": ["<row id>", "<row id>"], \
+"value": ["<code>", "<code>"]}}
+- {{"claim": "ckd", "support": "DOCUMENTED", "source": ["<row id>"], "value": 3}}
+- {{"claim": "reason", "support": "DOCUMENTED", "source": "<note id>", "quote": "<exact \
+text of the note>", "value": "patient_declined"}}
+- {{"claim": "statins", "support": "ABSENT", "source": "statins", "value": null}}
 
 Required claims per benefit_group (evidence check 2). For the row you give in \
 benefit_group, the evidence must hold at least one claim with each name on that row's \

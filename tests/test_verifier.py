@@ -313,3 +313,35 @@ def test_check1_closed_world_free_text_value(env, good):
         out = copy.deepcopy(good)
         out["evidence"][i]["value"] = v
         assert _checks(verifier.verify(out, env)) == {1}, v
+
+
+def test_check1_defined_closed_world_format_is_strict():
+    """The conventions page defines the closed-world value: the cited rows' codes (ckd: the
+    stage number). In that format check 1 is strict: a code no cited row has, or a stage no
+    cited row has, fails; the right codes or stage (number or digit string) pass."""
+    rows = casedb.default_rows()
+    rows["conditions"] += [
+        {"row_id": "cond_ckd1", "START": "2019-01-01", "STOP": None, "PATIENT": casedb.PATIENT,
+         "CODE": "431855005", "DESCRIPTION": "Chronic kidney disease stage 1 (disorder)"},
+        {"row_id": "cond_ckd2", "START": "2021-01-01", "STOP": None, "PATIENT": casedb.PATIENT,
+         "CODE": "431856006", "DESCRIPTION": "Chronic kidney disease stage 2 (disorder)"}]
+    env = CaseEnv(casedb.connect(rows))
+    good = baselines.r1(env.facts(), notes_of(env))
+    i = _idx(good, "ckd")
+    good["evidence"][i] = S.item("ckd", S.DOCUMENTED, ["cond_ckd1", "cond_ckd2"], 2)
+    assert verifier.verify(good, env).ok
+    for v in (2, "2", 1, ["431855005", "431856006"], "431856006",
+              "Chronic kidney disease stage 2 (disorder), active at index"):
+        out = copy.deepcopy(good)
+        out["evidence"][i]["value"] = v
+        assert verifier.verify(out, env).ok, v
+    for v in (3, "3", 4, ["433144002"], ["431856006", "433144002"]):
+        out = copy.deepcopy(good)
+        out["evidence"][i]["value"] = v
+        assert _checks(verifier.verify(out, env)) == {1}, v
+    j = _idx(good, "bp_drugs")
+    for v, ok in ((["314076"], True), ("314076", True), (["314077"], False)):
+        out = copy.deepcopy(good)
+        out["evidence"][j]["value"] = v
+        assert verifier.verify(out, env).ok is ok, v
+    env.close()

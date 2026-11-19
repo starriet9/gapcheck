@@ -13,7 +13,9 @@
   run (`run_agent` returns both).
 
 Every system gets the same system prompt and conventions page. Prompts are
-plain text files in `prompts/`; their sha256 go into the run manifest.
+plain text files in `prompts/`; their sha256 go into the run manifest. The task
+prompts state the tool-round limits ({rounds}, {max_steps}), filled in from
+`Settings` so the number the model reads is the harness limit.
 
 A result is a dict: output (or None), schema_valid, error, trace, tokens,
 model_calls, tool_calls, seconds, verifier (A2: one report per round),
@@ -60,6 +62,16 @@ class Settings:
 
 def prompt(name: str) -> str:
     return (PROMPT_DIR / f"{name}.txt").read_text(encoding="utf-8").strip()
+
+
+def task_l1(rounds: int) -> str:
+    """L1 task prompt with its tool-round limit (Settings.l1_tool_rounds)."""
+    return prompt("task_l1").format(rounds=rounds)
+
+
+def task_agent(max_steps: int) -> str:
+    """Agent task prompt with its tool-round limit (Settings.max_steps)."""
+    return prompt("task_agent").format(max_steps=max_steps)
 
 
 def prompt_hashes() -> dict[str, str]:
@@ -215,21 +227,21 @@ def _bind(backend, env) -> None:
         b(env)
 
 
-def l1_messages(env: CaseEnv) -> list[dict]:
+def l1_messages(env: CaseEnv, rounds: int = Settings.l1_tool_rounds) -> list[dict]:
     return [system_message(),
-            {"role": "user", "content": prompt("task_l1") + "\n\n" + serialize(env)}]
+            {"role": "user", "content": task_l1(rounds) + "\n\n" + serialize(env)}]
 
 
 def run_l1(env: CaseEnv, backend: Backend, st: Settings) -> dict:
     _bind(backend, env)
     run = Run()
-    msgs = l1_messages(env)
+    msgs = l1_messages(env, st.l1_tool_rounds)
     out, err = answer(backend, msgs, tool_specs(("prevent_risk",)), env, st.l1_tool_rounds, run)
     return _result(out, err, run.snapshot())
 
 
-def agent_messages() -> list[dict]:
-    return [system_message(), {"role": "user", "content": prompt("task_agent")}]
+def agent_messages(max_steps: int = Settings.max_steps) -> list[dict]:
+    return [system_message(), {"role": "user", "content": task_agent(max_steps)}]
 
 
 FALLBACK_NOTE = ("The evidence for this answer did not pass the provenance checks after one "
@@ -247,7 +259,7 @@ def run_agent(env: CaseEnv, backend: Backend, st: Settings, verify: bool = True
     """A1 (pre-verification answer) and, with verify=True, A2 from the same run."""
     _bind(backend, env)
     run = Run()
-    msgs = agent_messages()
+    msgs = agent_messages(st.max_steps)
     tools = tool_specs()
     out, err = answer(backend, msgs, tools, env, st.max_steps, run)
     a1 = _result(out, err, run.snapshot())
@@ -275,10 +287,11 @@ def run_agent(env: CaseEnv, backend: Backend, st: Settings, verify: bool = True
                        forced_fallback=True)
 
 
-def l1_prompt_tokens(env: CaseEnv, chars_per_token: float = 4.0) -> tuple[int, int]:
+def l1_prompt_tokens(env: CaseEnv, chars_per_token: float = 4.0,
+                     rounds: int = Settings.l1_tool_rounds) -> tuple[int, int]:
     """(serialization tokens, whole L1 prompt tokens with the tool definition),
     estimated as characters / chars_per_token."""
-    msgs = l1_messages(env)
+    msgs = l1_messages(env, rounds)
     ser = serialize(env)
     tools = json.dumps(tool_specs(("prevent_risk",)))
     return (est_tokens(ser, chars_per_token),

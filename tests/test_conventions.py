@@ -49,3 +49,16 @@ def test_two_call_rule_stated():
     flat = " ".join(t.split())
     assert "Use null only with CANNOT_DETERMINE" in flat
     assert "a definite status with benefit_group null fails this check" in flat
+
+
+def test_closed_world_value_format_and_examples():
+    """The closed-world value format the verifier checks strictly is stated, and the
+    examples show a note source as a string, not a list."""
+    flat = " ".join(conventions.render().split())
+    assert ("(closed-world): the codes of the cited rows, as a list of strings; for ckd, the "
+            "CKD stage number of the cited rows") in flat
+    assert "one note id as a string (not a list)" in flat
+    assert '"source": "<note id>", "quote":' in flat
+    assert '"claim": "ckd", "support": "DOCUMENTED", "source": ["<row id>"], "value": 3' in flat
+    for c in conventions.CLOSED_WORLD_CLAIMS:
+        assert c in S.CLAIMS

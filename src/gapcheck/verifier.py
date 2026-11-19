@@ -8,9 +8,12 @@ Checks:
 1. Every DOCUMENTED source exists and its value or quoted text matches.
    Row ids must be rows of the kind the claim is about (for example a
    statin claim must cite a statin prescription row); note sources need the
-   quote as an exact substring of the note. For closed-world claims a free-text
-   value describing the cited rows is accepted (the format is not fixed); a
-   bare code or a numeric CKD stage must be one of the cited rows'.
+   quote as an exact substring of the note. For closed-world claims the
+   conventions page defines the value: the codes of the cited rows (ckd: the
+   stage number). In that format the check is strict: every code, and a CKD
+   stage (a number or a digit string), must be one of the cited rows'. A
+   free-text value describing the cited rows is also accepted and not
+   compared; the row-kind check already ties the claim to its rows.
 2. For the row the answer states in `benefit_group`, every input in that
    row's static list (`REQUIRED_INPUTS`) has a DOCUMENTED, COMPUTED or ABSENT
    claim. A required binary input that is missing (smoking status) may
@@ -246,12 +249,13 @@ def _check_value(claim: str, val, rows) -> str | None:
             cats.add("statin_intolerance" if t == "allergies"
                      else REASON_CATEGORY_OF_CODE.get(str(cols.get("CODE"))))
         return None if not isinstance(val, str) or val in cats else "reason category differs"
-    # Closed-world lists. The decision uses only whether such rows exist (and the CKD
-    # stage), and the conventions page fixes no value format, so a value may give the
-    # cited rows' codes or displays, a CKD stage, a plain yes (true or 1), or describe
-    # the rows in free text ("lisinopril (ACE inhibitor), active at index"). Free text
-    # is not compared; the row-kind check above already ties the claim to its rows. A
-    # bare code must be a cited row's code, and a numeric CKD stage a cited stage.
+    # Closed-world lists. The conventions page defines the value as the cited rows'
+    # codes (ckd: the stage number); in that format every code must be a cited row's
+    # code and a CKD stage (number or digit string) a cited stage. The decision uses
+    # only whether such rows exist (and the CKD stage), so other forms are accepted
+    # too: the cited rows' displays, a plain yes (true or 1), or free text describing
+    # the rows ("lisinopril (ACE inhibitor), active at index"), which is not compared
+    # (the row-kind check above already ties the claim to its rows).
     keys = set()
     for _, cols in rows:
         keys |= {str(cols.get("CODE")), str(cols.get("DESCRIPTION")).lower()}
@@ -269,6 +273,11 @@ def _check_value(claim: str, val, rows) -> str | None:
                 continue  # a plain yes
             return "value differs"
         t = str(v).strip()
+        if claim == "ckd" and t.isdigit() and len(t) == 1:  # a stage, not a code
+            stages = {int(C.CKD_STAGES[c].group) for c in keys if c in C.CKD_STAGES}
+            if int(t) not in stages:
+                return "CKD stage differs"
+            continue
         if t in keys or t.lower() in keys:
             continue
         if _BARE_CODE.fullmatch(t):

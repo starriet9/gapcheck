@@ -1,1 +1,1 @@
-The patient's record is below. You may call prevent_risk, in at most two rounds of calls. Then reply with the JSON answer only.
+The patient's record is below. You may call prevent_risk, in at most {rounds} rounds of calls. Use only values from the record as its inputs (the two-call rule for a missing smoking status is the only exception), and do not call it again with the same inputs. An input your row does not need never makes the answer CANNOT_DETERMINE. Reply with the JSON answer only.

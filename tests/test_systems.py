@@ -115,7 +115,7 @@ def test_l1_only_prevent_tool(env):
     assert r["schema_valid"] and r["output"] == systems.run_rule("R1", env)["output"]
     assert b.calls[0]["tools"] == ["prevent_risk"]
     user = b.calls[0]["messages"][1]["content"]
-    assert user.startswith(systems.prompt("task_l1")) and "# Patient record" in user
+    assert user.startswith(systems.task_l1(2)) and "# Patient record" in user
     # a tool other than prevent_risk is refused
     calls = iter([Response("", [ToolCall("a", "get_allergies", {})]), Response(json.dumps(ABSTAIN))])
     r = systems.run_l1(env, MockBackend(lambda m, t: next(calls)), systems.Settings())
@@ -349,3 +349,22 @@ def test_tool_call_after_limit_is_answered_and_reasked_truthfully(env):
     assert reask and "a tool call after the tool limit" in reask[0]["content"]
     assert a1["tool_calls"] == n["i"]  # every call is logged, refused ones included
     assert a1["error"] == "a tool call after the tool limit"
+
+
+def test_task_prompts_state_the_harness_limits(env):
+    """The round budget a model reads is the limit the harness enforces (A1: max_steps, L1:
+    l1_tool_rounds), and the prompts carry the stop rule, the COMPUTED rule and the
+    over-abstention rule (local-model smoke run)."""
+    for n in (3, 20):
+        b = MockBackend(lambda m, t: Response(json.dumps(ABSTAIN)))
+        systems.run_agent(env, b, systems.Settings(max_steps=n), verify=False)
+        task = b.calls[0]["messages"][1]["content"]
+        assert f"at most {n} rounds of tool calls" in task and "stop searching" in task
+        b = MockBackend(lambda m, t: Response(json.dumps(ABSTAIN)))
+        systems.run_l1(env, b, systems.Settings(l1_tool_rounds=n))
+        assert f"at most {n} rounds of calls" in b.calls[0]["messages"][1]["content"]
+    for name in ("task_l1", "task_agent"):
+        assert "never makes the answer CANNOT_DETERMINE" in systems.prompt(name)
+        assert "{" not in systems.task_l1(2) + systems.task_agent(20)
+    assert "A COMPUTED claim must copy a prevent_risk result" in systems.prompt("system")
+    assert "do not call it again with the same inputs" in systems.prompt("task_l1")
