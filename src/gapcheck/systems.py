@@ -127,10 +127,21 @@ class Run:
                 "seconds": round(time.perf_counter() - self.t0, 3)}
 
 
+def _refuse_calls(calls, messages: list[dict], run: Run) -> None:
+    """Answer each tool call with the limit error, so every assistant tool call in the
+    conversation has its tool result (APIs reject a tool call left unanswered)."""
+    for c in calls:
+        res = {"error": "tool limit reached"}
+        run.tool(c.name, c.arguments, res)
+        messages.append({"role": "tool", "tool_call_id": c.id, "name": c.name,
+                         "content": dumps(res)})
+
+
 def converse(backend: Backend, messages: list[dict], tools: list[dict], env: CaseEnv,
              max_rounds: int, run: Run) -> str | None:
     """Model turns until a reply without tool calls. After `max_rounds` rounds, tool calls
-    get an error and the limit prompt once; a further tool call ends with None."""
+    get an error and the limit prompt once; a further tool call gets the error too and
+    ends with None."""
     allowed = {t["name"] for t in tools}
     rounds, over = 0, False
     while True:
@@ -140,14 +151,10 @@ def converse(backend: Backend, messages: list[dict], tools: list[dict], env: Cas
         if not r.tool_calls:
             return r.text
         if rounds >= max_rounds:
+            _refuse_calls(r.tool_calls, messages, run)
             if over:
                 return None
             over = True
-            for c in r.tool_calls:
-                res = {"error": "tool limit reached"}
-                run.tool(c.name, c.arguments, res)
-                messages.append({"role": "tool", "tool_call_id": c.id, "name": c.name,
-                                 "content": dumps(res)})
             messages.append({"role": "user", "content": prompt("limit")})
             run.user("limit", prompt("limit"))
             continue
@@ -169,6 +176,8 @@ def answer(backend, messages, tools, env, max_rounds, run) -> tuple[dict | None,
         out, err = parse_answer(text)
         if out is not None:
             return out, None
+        if text is None:
+            err = "a tool call after the tool limit"
         msg = prompt("reask").format(error=err)
         messages.append({"role": "user", "content": msg})
         run.user("reask", msg)
@@ -177,6 +186,8 @@ def answer(backend, messages, tools, env, max_rounds, run) -> tuple[dict | None,
         run.trace.append({"type": "error", "error": str(e)})
         return None, f"backend: {e}"
     out, err2 = parse_answer(text)
+    if text is None:
+        err2 = "a tool call after the tool limit"
     return (out, None) if out is not None else (None, err2)
 
 

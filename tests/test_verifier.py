@@ -294,3 +294,22 @@ def test_verifier_does_not_use_oracle_or_ledger():
         assert not any(m == bad or m.endswith("." + bad) for m in mods), bad
     for word in ("deltas", "ledger.csv", "cases.jsonl", "expected_status"):
         assert word not in src
+
+
+def test_check1_closed_world_free_text_value(env, good):
+    """Real models describe closed-world rows in prose ("lisinopril ... (ACE inhibitor),
+    active at index"). The conventions page fixes no format there and the decision uses
+    only presence, so free text passes check 1; a bare code that no cited row has, or a
+    number other than 1, still fails. (Found in the local-model smoke run, where correct
+    ckd and bp_drugs claims forced CANNOT_DETERMINE after repair.)"""
+    i = _idx(good, "bp_drugs")
+    for v in ("lisinopril 10 MG Oral Tablet (ACE inhibitor, code 314076), active at index",
+              "Lisinopril (ACE inhibitor), active at index - BP treated = 1",
+              ["Lisinopril (ACE inhibitor)"], True, 1, "314076"):
+        out = copy.deepcopy(good)
+        out["evidence"][i]["value"] = v
+        assert verifier.verify(out, env).ok, v
+    for v in ("310798", ["314076", "860975"], 2):
+        out = copy.deepcopy(good)
+        out["evidence"][i]["value"] = v
+        assert _checks(verifier.verify(out, env)) == {1}, v

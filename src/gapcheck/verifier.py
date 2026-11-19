@@ -8,7 +8,9 @@ Checks:
 1. Every DOCUMENTED source exists and its value or quoted text matches.
    Row ids must be rows of the kind the claim is about (for example a
    statin claim must cite a statin prescription row); note sources need the
-   quote as an exact substring of the note.
+   quote as an exact substring of the note. For closed-world claims a free-text
+   value describing the cited rows is accepted (the format is not fixed); a
+   bare code or a numeric CKD stage must be one of the cited rows'.
 2. For the row the answer states in `benefit_group`, every input in that
    row's static list (`REQUIRED_INPUTS`) has a DOCUMENTED, COMPUTED or ABSENT
    claim. A required binary input that is missing (smoking status) may
@@ -94,6 +96,7 @@ BINARY_OPEN = ("smoking",)
 FLAG_CLAIM = {"statin": "statins", "bp_treated": "bp_drugs", "diabetes": "diabetes"}
 OBS_CODE = {"tc": C.TC.code, "hdl": C.HDL.code, "ldl": C.LDL.code}
 _STATIN_ALLERGY = re.compile(C.STATIN_ALLERGY_PATTERN, re.I)
+_BARE_CODE = re.compile(r"[A-Z]?\d[\d.]*")  # SNOMED, RxNorm or ICD-10 code
 
 
 @dataclass(frozen=True)
@@ -243,7 +246,12 @@ def _check_value(claim: str, val, rows) -> str | None:
             cats.add("statin_intolerance" if t == "allergies"
                      else REASON_CATEGORY_OF_CODE.get(str(cols.get("CODE"))))
         return None if not isinstance(val, str) or val in cats else "reason category differs"
-    # closed-world lists: codes, displays or a CKD stage
+    # Closed-world lists. The decision uses only whether such rows exist (and the CKD
+    # stage), and the conventions page fixes no value format, so a value may give the
+    # cited rows' codes or displays, a CKD stage, a plain yes (true or 1), or describe
+    # the rows in free text ("lisinopril (ACE inhibitor), active at index"). Free text
+    # is not compared; the row-kind check above already ties the claim to its rows. A
+    # bare code must be a cited row's code, and a numeric CKD stage a cited stage.
     keys = set()
     for _, cols in rows:
         keys |= {str(cols.get("CODE")), str(cols.get("DESCRIPTION")).lower()}
@@ -257,9 +265,14 @@ def _check_value(claim: str, val, rows) -> str | None:
                 if int(v) not in stages:
                     return "CKD stage differs"
                 continue
+            if v == 1:
+                continue  # a plain yes
             return "value differs"
-        if str(v) not in keys and str(v).lower() not in keys:
-            return "value differs"
+        t = str(v).strip()
+        if t in keys or t.lower() in keys:
+            continue
+        if _BARE_CODE.fullmatch(t):
+            return "value differs"  # a code no cited row has
     return None
 
 

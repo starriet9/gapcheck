@@ -314,3 +314,38 @@ def test_score_uses_the_run_case_list(case_set, tmp_path):
     assert round(n_ok) == 2  # the third listed case has no record: wrong
     (run / "manifest.json").write_text("{}")
     assert score.score(case_set, run, n_boot=50)["n_cases"] == len(cl)
+
+
+def _well_formed(messages):
+    """Every assistant tool call is answered by a tool message before the next turn."""
+    for k, m in enumerate(messages):
+        if m["role"] == "assistant" and m.get("tool_calls"):
+            ids = {c["id"] for c in m["tool_calls"]}
+            got = set()
+            for n in messages[k + 1:]:
+                if n["role"] != "tool":
+                    break
+                got.add(n["tool_call_id"])
+            if ids - got:
+                return False
+    return True
+
+
+def test_tool_call_after_limit_is_answered_and_reasked_truthfully(env):
+    """A model that keeps calling tools after the limit prompt (seen with a real model in
+    L1) must not leave a tool call unanswered in the conversation (the re-ask request
+    would be rejected by the Messages API), and the re-ask names the real problem."""
+    n = {"i": 0}
+
+    def spin(messages, tools):
+        n["i"] += 1
+        return Response("", [ToolCall(f"x{n['i']}", "get_allergies", {})])
+
+    b = MockBackend(spin)
+    a1, _ = systems.run_agent(env, b, systems.Settings(max_steps=1), verify=False)
+    assert not a1["schema_valid"]
+    assert all(_well_formed(c["messages"]) for c in b.calls)
+    reask = [t for t in a1["trace"] if t["type"] == "user" and t["kind"] == "reask"]
+    assert reask and "a tool call after the tool limit" in reask[0]["content"]
+    assert a1["tool_calls"] == n["i"]  # every call is logged, refused ones included
+    assert a1["error"] == "a tool call after the tool limit"
