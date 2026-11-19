@@ -1,0 +1,46 @@
+{
+ "_help": "Public, server-timestamped events outside this repository. Add an entry with kind, repo and number (and comment_id for a comment); `python scripts/site_events.py --refresh` fills title, url, created_at and state from the GitHub API (read-only). Do not type timestamps by hand.",
+ "events": [
+  {
+   "id": "pr1794",
+   "kind": "pull_request",
+   "repo": "synthetichealth/synthea",
+   "number": 1794,
+   "title": "Use the current hypertension code in the wellness eGFR check",
+   "url": "https://github.com/synthetichealth/synthea/pull/1794",
+   "created_at": "2026-11-19T12:26:05Z",
+   "state": "open",
+   "merged_at": null,
+   "checked_at": "2026-11-19",
+   "user": "starriet9"
+  },
+  {
+   "id": "c1793",
+   "kind": "issue_comment",
+   "repo": "synthetichealth/synthea",
+   "number": 1793,
+   "comment_id": 7015036080,
+   "title": "Kidney panel: hard-coded creatinine ignores kidney status, and the eGFR value is a creatinine clearance",
+   "url": "https://github.com/synthetichealth/synthea/issues/1793#issuecomment-7015036080",
+   "created_at": "2026-11-19T16:21:23Z",
+   "state": "open",
+   "checked_at": "2026-11-19",
+   "user": "starriet9",
+   "issue_user": "nicoveraz"
+  },
+  {
+   "id": "c1793_reply",
+   "kind": "issue_comment",
+   "repo": "synthetichealth/synthea",
+   "number": 1793,
+   "comment_id": 7015390260,
+   "url": "https://github.com/synthetichealth/synthea/issues/1793#issuecomment-7015390260",
+   "created_at": "2026-11-19T16:34:24Z",
+   "title": "Kidney panel: hard-coded creatinine ignores kidney status, and the eGFR value is a creatinine clearance",
+   "state": "open",
+   "user": "nicoveraz",
+   "issue_user": "nicoveraz",
+   "checked_at": "2026-11-19"
+  }
+ ]
+}

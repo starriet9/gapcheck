@@ -1,0 +1,30 @@
+{
+ "_help": "Page settings read by scripts/site_build.py. Text the author writes goes in site/user_text.md; log rows in site/log.json; public upstream events in site/events.json (timestamps filled by scripts/site_events.py --refresh).",
+ "repo_url": "https://github.com/starriet9/gapcheck",
+ "branch": "main",
+ "pages_url": "https://starriet9.github.io/gapcheck/",
+ "title": "Delete the deciding lab result. Does the care-gap agent notice?",
+ "subtitle": "gapcheck: a {planned}pre-registered test of a statin care-gap agent under the 2026 ACC/AHA guideline (PREVENT). About {n_cases} edited patient records, ground truth computed by code, no LLM judge.",
+ "ai_disclosure": "Code was written with AI coding agents; the design, protocol and review are mine.",
+ "strip": [
+  {"key": "first_commit", "label": "First commit", "from": "git"},
+  {"key": "protocol", "label": "protocol released", "from": "RUNS.md", "date_field": "published_at", "url_field": "GitHub Release URL"},
+  {"key": "beacon", "label": "test seed from beacon pulse", "from": "RUNS.md", "date_field": "Pulse `timeStamp`", "url_field": "Pulse URI"},
+  {"key": "run", "label": "single test run", "from": "RUNS.md", "run_row": "1", "anchor": "5-runs"}
+ ],
+ "limits_pick": ["not clinical judgment", "test-case mix is designed", "current smoker", "notes are templated", "generator values"],
+ "files": [
+  {"label": "Protocol", "path": "PROTOCOL.md"},
+  {"label": "Run log (release, seed, test set, runs)", "path": "RUNS.md"},
+  {"label": "Deviations from the protocol", "path": "DEVIATIONS.md"},
+  {"label": "TRIPOD-LLM checklist", "path": "docs/TRIPOD-LLM.md"},
+  {"label": "Answer key: decision table with guideline quotes", "path": "reports/oracle_rules.md"},
+  {"label": "Design specification", "path": "SPEC.md"},
+  {"label": "How to reproduce", "path": "docs/REPRODUCE.md"},
+  {"label": "Test set and model outputs", "path": "results/", "pending_text": "released with the results"}
+ ],
+ "make_targets": ["reproduce", "verify"],
+ "summary_pdf": "summary.pdf",
+ "figure_caption_preview": "Fills in after the single test run. See RUNS.md.",
+ "preview_note": "Preview: the protocol and the test set come first; results are added to this page after the single test run, whatever they are."
+}

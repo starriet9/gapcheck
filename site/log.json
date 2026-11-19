@@ -1,0 +1,25 @@
+{
+ "_help": "Log section of the page: at most 10 rows, shown in date order (UTC). Each row: date (YYYY-MM-DD), text, links. A link is {\"label\", \"commit\": <subject prefix>} (resolved with git log, so it survives a history rewrite), {\"label\", \"event\": <id in events.json>} (date and URL from the server), or {\"label\", \"path\": <repo file>}. A row with \"user\" instead of \"text\" is a placeholder the author fills in; the build marks it and --strict fails on it.",
+ "rows": [
+  {"date": "2026-11-18", "text": "First commit: design specification and project skeleton.",
+   "links": [{"label": "commit", "commit": "Add design spec v0.3"}]},
+  {"date": "2026-11-18", "text": "PREVENT base equations, cross-checked against two published implementations (Python and R).",
+   "links": [{"label": "commit", "commit": "Implement PREVENT base ASCVD equations"}]},
+  {"date": "2026-11-18", "text": "Answer key: the guideline's decision table in code, every row with its quoted sentence.",
+   "links": [{"label": "commit", "commit": "Add guideline oracle"}, {"label": "table", "path": "reports/oracle_rules.md"}]},
+  {"date": "2026-11-19", "text": "Answer key reviewed against the guideline text by a separate model; three rules changed (row 5, rows 11a and 11b, row-7 sampling).",
+   "links": [{"label": "commit", "commit": "Oracle: follow Figure 9 for diabetes 30-39"}]},
+  {"date": "2026-11-19", "text": "Record-edit engine, agent tools and a code verifier; first runs of a local open-weights model on development records.",
+   "links": [{"label": "edits", "commit": "Add note renderer, record-edit engine"}, {"label": "agent", "commit": "Add LLM systems L1/A1/A2"}]},
+  {"date": "2026-11-19", "event": "pr1794", "text": "Upstream pull request to Synthea: the wellness eGFR check skipped patients with hypertension.",
+   "links": [{"label": "PR #1794", "event": "pr1794"}]},
+  {"date": "2026-11-19", "event": "c1793", "text": "Comment on Synthea issue #1793: two code-level findings on the generated eGFR values.",
+   "links": [{"label": "comment", "event": "c1793"}]},
+  {"date": "2026-11-19", "text": "Generator defect: 826 of 9,883 adults have a diabetic kidney code or a glucose-lowering drug but no diabetes diagnosis. Excluded from sampling; answer key unchanged.",
+   "links": [{"label": "commit", "commit": "Sampling: exclude records with diabetes evidence"}]},
+  {"date": null, "user": "One of my own mistakes: what went wrong, how it was found, the fix. One line.",
+   "links": []},
+  {"date": null, "user": "A second mistake of mine, one line, with the commit that fixed it.",
+   "links": []}
+ ]
+}

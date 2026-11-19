@@ -21,3 +21,6 @@ tools/r-home/
 
 # Local machine settings (account selection)
 env.local.sh
+
+# Local browser-automation output (playwright-cli snapshots and logs)
+.playwright-cli/
