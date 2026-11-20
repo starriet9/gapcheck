@@ -534,9 +534,10 @@ def test_round_counter_settings():
 def test_prompt_set_plan(env):
     base, plan = systems.prompt("task_agent"), systems.prompt("task_agent", "plan")
     added = ("An efficient plan: in the first round, call get_demographics, get_medications, "
-             "search_conditions with the codes from the code lists, get_observations for each "
-             "open-world input (one call per code), and search_notes for statin use or reasons not "
-             "to prescribe; in the next round, call prevent_risk if your row needs a risk; then "
+             "get_allergies, search_conditions with the codes from the code lists, and "
+             "get_observations for each open-world input (one call per code); in the next round, "
+             "list the notes of the 365 days before the index date (search_notes with since) and "
+             "call prevent_risk if your row needs a risk; then read those notes with read_note and "
              "answer. A structured lookup that returns total 0 is enough to claim that input "
              "ABSENT; do not search for it again. " + NOREPEAT)
     assert plan.replace(added + " ", "") == base  # the base prompt, plus these sentences only
