@@ -17,13 +17,16 @@ the code, and a checkbox line. The overlay is a JSON object keyed by item id
 (row id such as "5" or "11a", reason category, convention id, "context",
 "not_encoded"):
 
-  {"_meta": {"title": str, "intro": [str], "changes": [str], "legend": [str]},
+  {"_meta": {"title": str, "intro": [str], "changes": [str], "legend": [str],
+             "labels": {<key in LABELS>: str}},
    "<item id>": {"text": str, "judge": [str], "hash": str}}
 
 `hash` is the hash (`--hashes`) of the English item the text was written for.
 If the item has changed since, the sheet prints a warning next to it. Items
 with [confirm] entries or a non-empty "judge" list are marked as needing a
 human judgment; items with only [encoding] entries are marked as such.
+`labels` replaces any of the sheet's fixed strings (`LABELS`, English by
+default) so the whole sheet can be in the reviewer's language.
 """
 from __future__ import annotations
 
@@ -40,10 +43,18 @@ DEFAULT_OUT = ROOT / "reports" / "oracle_rules.md"
 
 ROLE_NOTE = {"basis": "", "context": " · context, not the basis of the label",
              "conflict": " · reads differently; see [encoding]"}
-STALE = "⚠ 설명이 코드보다 오래됨"  # shown in review sheets when an overlay hash is stale
-CHECKBOX = "검토: [ ] 맞음  [ ] 수정 필요 → 메모:"
-JUDGE = "★ 사람 판단 필요"       # [confirm] entries or a "judge" list in the overlay
-ENCODING = "◆ 인코딩 선택 있음"  # [encoding] entries only
+# Fixed strings of the review sheet (--overlay); the overlay's _meta.labels replaces any of them.
+LABELS = {
+    "stale": "⚠ explanation is older than the code",  # overlay hash differs from the item
+    "no_text": "(no explanation)",                     # item missing from the overlay
+    "unknown": "items not in the code",                # overlay ids the code does not have
+    "checkbox": "Review: [ ] correct  [ ] needs a change → note:",
+    "judge": "★ needs a human judgment",  # [confirm] entries or a "judge" list in the overlay
+    "encoding": "◆ encoding choice",      # [encoding] entries only
+    "judge_list": "To judge:",
+    "changes": "What changed",
+    "details": "English rule from the code",
+}
 
 
 # ---------------------------------------------------------------- English items
@@ -181,10 +192,13 @@ def render_en() -> str:
 # ---------------------------------------------------------------- review sheet
 def render_overlay(overlay: dict) -> str:
     meta = overlay.get("_meta", {})
+    lab = {**LABELS, **meta.get("labels", {})}
+    for k in sorted(set(lab) - set(LABELS)):
+        print(f"unknown label: {k}", file=sys.stderr)
     L = [f"# {meta.get('title', 'Oracle review sheet')}", ""]
     L += [p for para in meta.get("intro", []) for p in (para, "")]
     if meta.get("changes"):
-        L += ["## 이번에 바뀐 것", ""]
+        L += [f"## {lab['changes']}", ""]
         L += [f"- {c}" for c in meta["changes"]] + [""]
     if meta.get("legend"):
         L += [f"- {x}" for x in meta["legend"]] + [""]
@@ -197,25 +211,25 @@ def render_overlay(overlay: dict) -> str:
         o = overlay.get(iid, {})
         head, _, body = text.partition("\n")
         judge = list(o.get("judge", []))
-        mark = JUDGE if (tag == "confirm" or judge) else (ENCODING if tag else "")
+        mark = lab["judge"] if (tag == "confirm" or judge) else (lab["encoding"] if tag else "")
         L.append(head + (f"  {mark}" if mark else ""))
         L.append("")
         if not o:
-            L += [f"> {STALE} (설명 없음)", ""]
+            L += [f"> {lab['stale']} {lab['no_text']}", ""]
             stale.append(iid)
         else:
             if o.get("hash") != item_hash(text):
-                L += [f"> {STALE}", ""]
+                L += [f"> {lab['stale']}", ""]
                 stale.append(iid)
             L += [o.get("text", "").strip(), ""]
             if judge:
-                L += ["판단할 것:"] + [f"- {j}" for j in judge] + [""]
-        L += ["<details><summary>English rule from the code</summary>", "", body.strip(), "",
-              "</details>", "", f"- {CHECKBOX}", ""]
+                L += [lab["judge_list"]] + [f"- {j}" for j in judge] + [""]
+        L += [f"<details><summary>{lab['details']}</summary>", "", body.strip(), "",
+              "</details>", "", f"- {lab['checkbox']}", ""]
     unknown = sorted(k for k in overlay if not k.startswith("_")
                      and k not in {i for i, *_ in items()})
     if unknown:
-        L += [f"> {STALE}: 코드에 없는 항목 {', '.join(unknown)}", ""]
+        L += [f"> {lab['stale']}: {lab['unknown']} {', '.join(unknown)}", ""]
     out = "\n".join(L).rstrip() + "\n"
     for iid in stale:
         print(f"stale: {iid}", file=sys.stderr)
