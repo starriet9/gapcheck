@@ -17,10 +17,11 @@ plain text files in `prompts/`; their sha256 go into the run manifest. The task
 prompts state the tool-round limits ({rounds}, {max_steps}), filled in from
 `Settings` so the number the model reads is the harness limit.
 
-Two run options, both off by default (the defaults reproduce earlier runs):
+Three run options, all off by default (an earlier run is reproduced from the
+commit in its manifest):
 - `Settings.prompt_set` names an entry of `PROMPT_SETS`, which maps a prompt
-  role to the file used in its place (for example "norepeat": the agent task
-  prompt with one added sentence, `task_agent_norepeat.txt`). The manifest
+  role to the file used in its place (for example a set that swaps in
+  another agent task prompt file to compare it with the default). The manifest
   records the set, the file of each role and the sha256 of the text each
   role used (`prompt_record`).
 - `Settings.rounds_left_notice` = N > 0: in the agent's tool loops (A1, and
@@ -56,12 +57,10 @@ PROMPTS = ("system", "task_l1", "task_agent", "reask", "repair", "limit", "round
            "round_counter")
 # Named prompt sets: role -> file (stem in prompts/) used in its place. A role
 # not listed uses its own file.
+# The candidate sets tried in the local pilot ("plan", "plan2") were frozen
+# into the default files; their history is in git.
 PROMPT_SETS: dict[str, dict[str, str]] = {
     "default": {},
-    "norepeat": {"task_agent": "task_agent_norepeat"},
-    "plan": {"task_agent": "task_agent_plan"},
-    # plan + a repair prompt that says to re-run prevent_risk after changing its inputs
-    "plan2": {"task_agent": "task_agent_plan", "repair": "repair_plan"},
 }
 SYSTEMS = ("R0", "R1", "L1", "A1", "A2")
 

@@ -144,7 +144,8 @@ A reply that is not one schema-valid JSON object gets one re-ask. A case with no
 
 | Setting | Value |
 |---|---|
-| A1 rounds of tool calls (`max_steps`) | `[FILL: proposed 20]` |
+| A1 rounds of tool calls (`max_steps`) | `[FILL: proposed 16]` |
+| Round counter: after each round of tool calls in A1 and in the A2 repair, one message "Round k of N used." (`round_counter`) | `[FILL: proposed on]` |
 | A2 repair rounds of tool calls (`repair_steps`) | `[FILL: proposed 8]` |
 | L1 rounds of `prevent_risk` calls (`l1_tool_rounds`) | `[FILL: proposed 2]` |
 | Tool page size | `[FILL: proposed 20]` |
@@ -162,6 +163,7 @@ A reply that is not one schema-valid JSON object gets one re-ask. A case with no
 | `src/gapcheck/prompts/reask.txt` | `[FILL]` |
 | `src/gapcheck/prompts/repair.txt` | `[FILL]` |
 | `src/gapcheck/prompts/limit.txt` | `[FILL]` |
+| `src/gapcheck/prompts/round_counter.txt` | `[FILL]` |
 | Conventions page (`gapcheck.conventions.sha256()`) | `[FILL]` |
 | `src/gapcheck/baselines.py` (R0, R1) | `[FILL]` |
 | `src/gapcheck/verifier.py` | `[FILL]` |
@@ -269,6 +271,8 @@ The primary outcome (sec. 7) is reported wherever results are reported, whatever
 Counts are written with their denominator first and then the rate: "k of n (p%, 95% CI lo to hi)". No rate is shown without k and n. Wherever R0 or R1 appears, the "correct by construction" note appears with it.
 
 Display. Results are shown first as three rows that follow one example patient's edits: record as is (C0), one sentence added to a note (C3a) and lipid panel deleted (C1, any deciding input). On the two structured-data rows the agent (A2) gives "k of n" and the rule column is labelled as the answer key, not scored, because the rule is correct there by construction. The note row gives "k of n" for the rule (R0), the keyword rule (R1) and the agent (A2). Results are not shown as a bar chart of the five systems.
+
+Wherever A2's result on a condition is shown, the number of A2's forced fallbacks on that condition is shown with it. A forced CANNOT_DETERMINE is correct on C1 and incorrect on every other condition.
 
 Examples shown with the results are chosen by the author and labelled as such. All outputs are released (sec. 15).
 

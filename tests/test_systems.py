@@ -466,31 +466,6 @@ def test_rounds_left_notice_in_the_repair_loop(env):
     assert a2["verifier"][-1]["ok"] and not a2["forced_fallback"]
 
 
-def test_prompt_set_norepeat_adds_one_sentence(env):
-    base, var = systems.prompt("task_agent"), systems.prompt("task_agent", "norepeat")
-    assert NOREPEAT not in base and var.count(NOREPEAT) == 1
-    assert var.replace(NOREPEAT + " ", "") == base  # nothing else differs
-    assert systems.prompt_file("task_agent", "norepeat").name == "task_agent_norepeat.txt"
-    for role in systems.PROMPTS:
-        if role != "task_agent":
-            assert systems.prompt(role, "norepeat") == systems.prompt(role)
-    d, n = systems.prompt_hashes(), systems.prompt_hashes("norepeat")
-    assert {k for k in d if d[k] != n[k]} == {"task_agent"}
-    rec = systems.prompt_record("norepeat")
-    assert rec["prompt_files"]["task_agent"] == "task_agent_norepeat.txt"
-    assert rec["prompts_sha256"]["task_agent"] == hashlib.sha256(
-        (systems.PROMPT_DIR / "task_agent_norepeat.txt").read_bytes()).hexdigest()
-    b = MockBackend(lambda m, t: Response(json.dumps(ABSTAIN)))
-    systems.run_agent(env, b, systems.Settings(max_steps=12, prompt_set="norepeat"), verify=False)
-    task = b.calls[0]["messages"][1]["content"]
-    assert NOREPEAT in task and "at most 12 rounds of tool calls" in task
-    b = MockBackend(lambda m, t: Response(json.dumps(ABSTAIN)))
-    systems.run_agent(env, b, systems.Settings(max_steps=12), verify=False)
-    assert NOREPEAT not in b.calls[0]["messages"][1]["content"]
-    # L1 is the same in both sets
-    assert systems.l1_messages(env, 2, "norepeat") == systems.l1_messages(env, 2)
-
-
 def test_every_prompt_file_is_a_role_or_in_a_set():
     """A prompt file nobody reads would be frozen without effect, and a set that names a
     missing file would fail mid-run."""
@@ -527,12 +502,13 @@ def test_round_counter_settings():
         systems.Settings(round_counter=True, rounds_left_notice=2)
     with pytest.raises(ValueError, match="round_counter"):
         systems.Settings.from_dict({"round_counter": "yes"})
-    assert systems.Settings.from_dict({"round_counter": True, "prompt_set": "plan",
-                                       "max_steps": 12}).round_counter
+    assert systems.Settings.from_dict({"round_counter": True, "max_steps": 16}).round_counter
 
 
-def test_prompt_set_plan(env):
-    base, plan = systems.prompt("task_agent"), systems.prompt("task_agent", "plan")
+def test_task_agent_prompt_plan(env):
+    """The agent task prompt (frozen from the local pilot's "plan" candidate) carries a call plan
+    that names real tools and says nothing about the test design."""
+    task = systems.prompt("task_agent")
     added = ("An efficient plan: in the first round, call get_demographics, get_medications, "
              "get_allergies, search_conditions with the codes from the code lists, and "
              "get_observations for each open-world input (one call per code); in the next round, "
@@ -540,7 +516,7 @@ def test_prompt_set_plan(env):
              "call prevent_risk if your row needs a risk; then read those notes with read_note and "
              "answer. A structured lookup that returns total 0 is enough to claim that input "
              "ABSENT; do not search for it again. " + NOREPEAT)
-    assert plan.replace(added + " ", "") == base  # the base prompt, plus these sentences only
+    assert task.count(added) == 1
     # tool names it mentions exist; it says nothing about the test design
     from gapcheck.tools import TOOL_SPECS
     named = {w.strip(",;.()") for w in added.split() if "_" in w and w.islower()}
@@ -553,9 +529,8 @@ def test_prompt_set_plan(env):
     for term in ("Code lists", "Open-world inputs", "Required claims per benefit_group"):
         assert term.lower() in conv.lower()
     b = MockBackend(lambda m, t: Response(json.dumps(ABSTAIN)))
-    systems.run_agent(env, b, systems.Settings(max_steps=12, prompt_set="plan", round_counter=True),
-                      verify=False)
-    assert b.calls[0]["messages"][1]["content"] == systems.task_agent(12, "plan")
+    systems.run_agent(env, b, systems.Settings(max_steps=16, round_counter=True), verify=False)
+    assert b.calls[0]["messages"][1]["content"] == systems.task_agent(16)
 
 
 def test_string_row_source_message():
@@ -564,13 +539,12 @@ def test_string_row_source_message():
         S.validate_item({"claim": "sbp", "support": "DOCUMENTED", "source": "obs_x", "value": 138})
 
 
-def test_prompt_set_plan2():
-    """plan2 = plan + a repair prompt with two added sentences; every other role is plan's."""
-    for role in systems.PROMPTS:
-        if role != "repair":
-            assert systems.prompt_file(role, "plan2") == systems.prompt_file(role, "plan")
+def test_repair_prompt_says_rerun_prevent_risk():
+    """The repair prompt (frozen from the pilot's "plan2" candidate) says to re-run prevent_risk
+    after changing an input and not to compute a risk from a value that is not in the record."""
     added = ("If you change any input of a COMPUTED claim, call prevent_risk again and copy its new "
              "result. A COMPUTED claim's inputs must all be DOCUMENTED; do not compute a risk from a "
              "value that is not in the record.")
-    assert systems.prompt("repair", "plan2") == systems.prompt("repair") + " " + added
-    assert "{failures}" in systems.prompt("repair", "plan2")
+    rep = systems.prompt("repair")
+    assert rep.endswith(" " + added) and rep.count("{failures}") == 1
+    assert "{" not in rep.format(failures="check 3")
