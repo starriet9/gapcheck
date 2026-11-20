@@ -111,7 +111,7 @@ Last commit that changed the decision table before the tag: `[FILL: commit sha]`
 
 C1 and C2a use one deletion per base patient; if several inputs qualify, one is chosen by the `edits` sub-seed. C2b is `[FILL: kept | dropped; proposed: kept]`; if dropped, the limit reads "C2 covers only inputs made irrelevant by an earlier row", and the primary outcome averages seven conditions.
 
-**Phrases.** 30 test phrasings per planted fact type, each used at most once, disjoint from the 20 development phrasings per type. A phrasing whose words state the patient's sex (a pronoun, a spouse, pregnancy) is planted only in patients of that sex (`SPEC.md` sec. 5.2). Test phrasings are written after the prompts and R1 are frozen and are used in no run before the tag. `[FILL: who read which sample of the test phrasings, and what was removed]`. Phrase file `src/gapcheck/phrases/test.json` (version `test-1`), sha256 at the tag: `[FILL]`.
+**Phrases.** 30 test phrasings per planted fact type, each used at most once, disjoint from the 20 development phrasings per type. A phrasing whose words state the patient's sex (a pronoun, a spouse, pregnancy) is planted only in patients of that sex (`SPEC.md` sec. 5.2). Test phrasings are written by an author who reads neither the prompts, the R1 rules nor any run output, and the authors of the prompts and R1 never read the test phrasings; R1 was frozen before they were written (its last change predates the phrase file's first commit). Test phrasings are used in no run before the tag. `[FILL: who read which sample of the test phrasings, and what was removed]`. Phrase file `src/gapcheck/phrases/test.json` (version `test-1`), sha256 at the tag: `[FILL]`.
 
 **Expected counts.** The exact counts are fixed by the tagged code and the seed, not by the author, and are entered in `RUNS.md` before any model call.
 
@@ -129,7 +129,7 @@ C2b and C1-by-smoking are small; their intervals will be wide and are reported a
 | System | What it is |
 |---|---|
 | R0 | The oracle on structured data only (no notes). Deterministic. |
-| R1 | R0 plus keyword and regular-expression rules over notes for reasons, with simple negation handling. Written from development phrasings only; frozen before test phrasings are written. |
+| R1 | R0 plus keyword and regular-expression rules over notes for reasons, with simple negation handling. Written from development phrasings only; frozen before test phrasings are written, by authors who never read them. |
 | L1 | One conversation on a serialized record, with `prevent_risk` as its only tool. |
 | A1 | Tool-using agent with nine tools (record queries, note search, `prevent_risk`, `guideline_lookup`). Each record tool is a tested, parameterized query; there is no free SQL. |
 | A2 | A1 plus the code verifier. A failed check gives one repair round; a second failure forces CANNOT_DETERMINE with `missing` unchanged. A1 is A2's answer before verification, from the same run. |
@@ -328,7 +328,7 @@ Both beacons were checked on 2026-11-19 (UTC): each returned its latest pulse an
 
 Visible in the commit history and in `RUNS.md`:
 
-1. Development phrasings; prompts and R1 frozen; then test phrasings written. Test phrasings are used in no run before the tag.
+1. Development phrasings; R1 frozen; test phrasings written by a separate author who does not read the prompts, R1 or run outputs (prompt authors never read the test phrasings); prompts frozen. Test phrasings are used in no run before the tag.
 2. Model chosen by the rule in sec. 6; every `[FILL]` in this file completed.
 3. Tag on the protocol commit, pushed to the public repository, and published as a GitHub Release (server-side time stamp).
 4. Beacon pulse at T; seed derived; both recorded in `RUNS.md`.
