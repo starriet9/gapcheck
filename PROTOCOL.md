@@ -36,11 +36,11 @@ Expectation, written before any test output: rule baselines should win wherever 
 
 Order: generate → P0 → P1 → indication group → P2 within groups → oracle label. Notes are rendered by the harness from the final structured state plus the planted sentences; the generator's own notes are not used. Generator limits that are not patched are listed in `SPEC.md` secs. 4.1 and 11.
 
-**Sets.** Development: fixed seeds 20261118, 20261119 and 20261120 (10,000 adults at seed 20261120 with the final settings; base patients sampled at 10 per stratum). Everything seen so far, including every model output, comes from these sets. Test: 20,000 living adults per batch from the derived seed (sec. 13).
+**Sets.** Development: fixed seeds 20261118, 20261119 and 20261120 (10,000 adults at seed 20261120 with the final settings; base patients sampled at 10 per stratum). A sizing batch (seed 5020261121, above the range of any test seed; 50,000 adults) was generated only to count eligible patients; no case set was written and no system was run on it. Everything seen so far, including every model output, comes from these sets. Test: 40,000 living adults, one batch, from the derived seed (sec. 13): `scripts/generate_synthea.sh <test seed> 40000 <out_dir>`.
 
 **Seeds.** Sub-seed for label L (`P1`, `P2`, `sample`, `edits`, `phrases`) = `int(sha256("<seed>:<L>").hexdigest()[:16], 16)`. Base patients are taken in ascending order of `sha256("<sample sub-seed>:<stratum>:<patient id>")`.
 
-**Further batches.** If any sampling cell (sec. 4) is short after the first batch, further batches of 20,000 are generated with seed + 1, seed + 2, … and the same settings, up to `[FILL: number of further batches; proposed 4, that is 100,000 adults in total]`. Generation stops at the first batch after which no cell is short. Each batch is patched with its own seed; eligible patients are pooled, and sampling, edits and phrase assignment use the sub-seeds of the test seed. A cell still short after the last allowed batch keeps the patients it has; the shortfall is reported in `RUNS.md` and is not filled from another cell. At development rates (4 treated and 2 untreated eligible patients per 10,000 adults in the S4 cell at risk ≥ 10%), one batch is expected to leave that cell short.
+**One batch.** No further batch is generated. A cell that is short keeps the patients it has; the shortfall is reported in `RUNS.md` and is not filled from another cell. At the rates measured before the tag (34 treated and 33 untreated eligible patients at risk ≥ 10% in 60,000 UTC adults), every cell fills with probability above 0.99.
 
 ## 3. Oracle (ground truth)
 
@@ -120,7 +120,7 @@ C1 and C2a use one deletion per base patient; if several inputs qualify, one is 
 | Every cell filled | 200 | about 80 | 120 | about 40 | 80 | 40 | 120 | about 126 | about 805 | 260 |
 | Simulated on the 10,000-adult development set (seed 20261120) | 186 | 71 | 114 | 36 | 72 | 40 | 112 | 125 | 756 | 246 |
 
-In the simulation the two S4 cells at risk ≥ 10% were short by 6 (treated) and 8 (untreated) of 10; no other cell was short, and 3 twins were rejected by the build checks. Clusters are base patients plus threshold sources.
+In the simulation the two S4 cells at risk ≥ 10% were short by 6 (treated) and 8 (untreated) of 10; no other cell was short, and 3 twins were rejected by the build checks. In the 50,000-adult sizing batch (sec. 2, counts only) no cell was short: 803 cases in 260 clusters (C1 78, C2b 39, C5 126), with 9 twins rejected by the build checks. Clusters are base patients plus threshold sources.
 
 C2b and C1-by-smoking are small; their intervals will be wide and are reported as such.
 
@@ -249,7 +249,7 @@ All pre-specified, all with 95% intervals from the same bootstrap, all on run 1 
 5. C3a miss rate (status other than DOCUMENTED_REASON). Answer-change rate in C2a, C2b, C3b and C4, each and pooled: the status differs from the same system's status on the same patient's C0 case; an invalid or missing output on either case counts as changed. C3a citation overlap with the planted sentence.
 6. Unsupported-claim rate: share of DOCUMENTED and ABSENT claims in final answers that fail verifier check 1 or 4.
 7. Run-to-run stability: share of cases with the same status in runs 1, 2 and 3, for L1, A1 and A2 (sec. 11).
-8. Tool calls, tokens and seconds per case; schema-invalid outputs; forced fallbacks per condition; parser failures.
+8. Tool calls, tokens and seconds per case; schema-invalid outputs; forced fallbacks per condition; parser failures; verifier first-round rejections by check number, and how many were repaired or forced; cost per case: GPU-hours times the hourly rate, divided by the number of cases.
 9. Sensitivity analyses (sec. 9).
 10. The H2 and H3 comparisons of sec. 1.
 
@@ -264,38 +264,19 @@ Reported for each: the primary outcome and comparison, and accuracy per conditio
 
 ## 10. Reporting rules
 
-**Headline numbers, chosen now.** The project page, the README and any summary or message that reports results show these three, for run 1, whatever their values. No other number is placed above them.
-
-1. **Primary outcome:** A2 − L1 difference in macro-averaged exact-status accuracy, in percentage points with its 95% interval, with the two accuracies beside it.
-2. **Answered anyway:** number of C1 cases in which the system gave a definite status although the deciding input had been deleted (secondary outcome 3), for L1, A1 and A2.
-3. **Changed when it must not:** number of C2a, C2b, C3b and C4 cases, pooled, in which the system's status differed from its own status on the unedited record (secondary outcome 5), for L1, A1 and A2.
+The primary outcome (sec. 7) is reported wherever results are reported, whatever its value.
 
 Counts are written with their denominator first and then the rate: "k of n (p%, 95% CI lo to hi)". No rate is shown without k and n. Wherever R0 or R1 appears, the "correct by construction" note appears with it.
 
-**Example record on the page.** The C1 case with the smallest case id among those whose lipid panel was deleted, shown with its base record, whatever the systems answered. Case ids are hashes, so their order is arbitrary.
+Examples shown with the results are chosen by the author and labelled as such. All outputs are released (sec. 15).
 
-**Failure cases.** The page shows three, chosen by this rule and not by reading traces. Rank the conditions by A2 accuracy in run 1, lowest first (ties in the order C0, C1, C2a, C2b, C3a, C3b, C4, C5). From each of the first three conditions that have an incorrect A2 case, show the incorrect case with the smallest case id. If fewer than three conditions have one, the remaining places are filled by the same rule for A1, then L1. If there are still fewer than three, the page says how many there were. Any further case shown is labelled "chosen by the author".
-
-**Fixed sentences.** Written now and used on the page as written, with the numbers filled in by the scoring code. Elsewhere they may be shortened, but not changed in claim, number or verdict word. Interpretation added by the author goes below them and is labelled as written after the results.
-
-Exactly one of the next three, chosen by the interval of A2 − L1:
-
-- Interval above 0: "On the primary outcome, the agent with the verifier (A2) was more accurate than the single call (L1): {a2}% against {l1}%, a difference of {d} percentage points (95% CI {lo} to {hi}). H1 is supported. A1 − L1 was {d1} ({lo1} to {hi1}); A2 − A1 was {d2} ({lo2} to {hi2})."
-- Interval includes 0 (flat): "On the primary outcome, A2 and L1 were not separated: {a2}% against {l1}%, a difference of {d} percentage points (95% CI {lo} to {hi}). H1 is unresolved. With this model and these records, tools and a verifier did not measurably change accuracy over one call on the full record."
-- Interval below 0 (reversed): "On the primary outcome, A2 was less accurate than L1: {a2}% against {l1}%, a difference of {d} percentage points (95% CI {lo} to {hi}). H1 is contradicted. A1 − L1 was {d1} ({lo1} to {hi1}); A2 − A1 was {d2} ({lo2} to {hi2})."
-
-Added when the macro-averaged accuracy of both L1 and A2 is 95% or higher (ceiling): "L1 and A2 were both at or above 95%, so this test set does not separate the systems with this model. What this study then contributes is the test harness and the per-condition design, not a ranking of systems; separating them needs harder edits or real notes."
-
-Added when more than 5% of the outputs of L1, A1 or A2 are schema-invalid: "{k} of {n} {system} outputs were not valid answers and were counted as wrong, so part of the difference is output format, not judgment."
-
-Always shown, so that the weakest result is stated: "A2's lowest condition was {condition}: {k} of {n} correct ({p}%, 95% CI {lo} to {hi}). On the note conditions (C3a, C3b, C4), A2 against the keyword baseline R1 differed by {d} points (95% CI {lo} to {hi}); H2 is {supported | unresolved | contradicted}. H3 is {supported | unresolved | contradicted}."
-
-Until run 1 exists, the page shows the hypotheses, an empty Figure 1 and no development-set accuracy.
+No development-set accuracy is reported as a result.
 
 ## 11. Run plan and stopping rule
 
-- **Run 1 is the primary analysis.** All five systems, the whole test set, once, at temperature 0. Its results are published whatever they show. Every outcome, headline number and fixed sentence in this protocol refers to run 1, except stability.
-- **Runs 2 and 3 come later** and serve only secondary outcome 7 (stability). L1, A1 and A2, non-zero temperature, seeds 2 and 3 (sec. 6). Until they are done, `RUNS.md` and the page list them as pending. They never replace or change a run 1 number. If they are not run, `RUNS.md` says so and outcome 7 is reported as not done.
+- **Run 1 is the primary analysis.** All five systems, the whole test set, once, at temperature 0. Its results are published whatever they show. Every outcome in this protocol refers to run 1, except stability.
+- **Only run 1 is reported first.** The first report of results covers run 1 and is published before runs 2 and 3 are made.
+- **Runs 2 and 3 come later** and serve only secondary outcome 7 (stability). L1, A1 and A2, non-zero temperature, seeds 2 and 3 (sec. 6). Until they are done, `RUNS.md` lists them as pending. They never replace or change a run 1 number. If they are not run, `RUNS.md` says so and outcome 7 is reported as not done.
 - **No interim analysis.** Test outputs are not scored until run 1 is complete for all systems.
 - **Complete** means every test case has, for every system, an output or a logged error.
 - **Crashes.** If a run stops (lost connection, server error, machine failure), it is resumed on the cases without an output, with the same commit, model, server settings and prompts, and the event is logged in `RUNS.md`. A case that already has an output, valid or not, is never run again.
@@ -351,7 +332,7 @@ Visible in the commit history and in `RUNS.md`:
 5. Test set built by the tag commit, unchanged, from a clean working tree; its sha256 (the sha256 of the case set's `manifest.json`, which lists the sha256 of every file) committed to `RUNS.md` and pushed before any model call.
 6. Run 1; scoring; results published with `RUNS.md` and `DEVIATIONS.md` updated.
 
-External registration: `[FILL: none | registry and URL]`.
+External registration: none.
 
 Approved by the author: `[FILL: name, date]`.
 

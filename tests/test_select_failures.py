@@ -1,4 +1,5 @@
-"""Failure-case and example-record selection (PROTOCOL.md sec. 10) on mock outputs."""
+"""Candidate failure cases and example record for the author (scripts/select_failures.py)
+on mock outputs."""
 import importlib.util
 import json
 from pathlib import Path

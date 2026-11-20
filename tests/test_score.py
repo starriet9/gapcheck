@@ -1,5 +1,5 @@
 """Scoring: correctness rule, macro-average, paired cluster bootstrap, secondary outcomes,
-hypotheses, headline numbers and the fixed sentences."""
+hypotheses, the page's numbers, verifier first-round rejections and cost per case."""
 from pathlib import Path
 
 import numpy as np
@@ -251,7 +251,7 @@ def _run(cl, wrong=None, abstain_c2=None, definite_c1=None):
     return run
 
 
-def test_hypotheses_headline_and_sentences():
+def test_hypotheses_and_headline():
     cl = _cases()
     d = score.Design(cl)
     run = _run(cl, wrong={"L1": {"C3a", "C4", "C5"}, "R1": {"C3a"}},
@@ -270,46 +270,44 @@ def test_hypotheses_headline_and_sentences():
     assert hd["primary"]["difference"]["est"] == pytest.approx(25 / 64)
     assert hd["answered_anyway"]["A1"]["k"] == 8 and hd["answered_anyway"]["L1"]["k"] == 2
     assert hd["answered_anyway"]["A2"] == {"k": 0, "n": 8, "rate": 0.0, "ci": [0.0, 0.0]}
+    # C1 correct: CANNOT_DETERMINE with the deleted input named (the complement here)
+    assert hd["c1_correct"]["A2"]["k"] == 8 and hd["c1_correct"]["A2"]["n"] == 8
+    assert hd["c1_correct"]["L1"]["k"] == 6 and hd["c1_correct"]["A1"]["k"] == 0
+    assert hd["c1_correct"]["L1"]["rate"] == pytest.approx(6 / 8)
+    assert set(hd["c1_correct"]) == {"L1", "A1", "A2"}       # R1 is not a page system
     # L1 got C4 wrong against a right C0: every C4 case changed; A2 abstained on one C2a
     assert hd["changed_when_must_not"]["L1"]["k"] == 8
     assert hd["changed_when_must_not"]["A2"]["k"] == 1
     assert hd["changed_when_must_not"]["A2"]["n"] == 32
     assert s["weakest_A2"]["condition"] == "C2a" and s["weakest_A2"]["k"] == 7
-    se = s["sentences"]
-    assert se["primary"].startswith("On the primary outcome, the agent with the verifier")
-    assert "98.4% against 59.4%, a difference of 39.1 percentage points" in se["primary"]
-    assert "{" not in se["primary"] and "{" not in se["weakest"]
-    assert se["weakest"].startswith("A2's lowest condition was C2a: 7 of 8 correct (87.5%")
-    assert "differed by 33.3 points" in se["weakest"] and "H2 is " in se["weakest"]
-    assert se["ceiling"] is None and se["schema_invalid"] == []
+    assert s["n_patients"] == 8
+    assert s["verifier_A2"] is None                 # these records carry no verifier report
     r = score.results({**s, "schema": score.RESULTS_SCHEMA, "case_set": "x", "run": "y",
                        "n_cases": len(cl)})
     assert list(r) == list(score.RESULT_KEYS)
+    assert r["cost"] is None and r["n_patients"] == 8
+    assert "sentences" not in r
 
 
-def test_ceiling_invalid_and_flat_sentences():
+def test_ceiling_and_invalid_flags():
     cl = _cases()
     d = score.Design(cl)
     run = _run(cl)
     bad = {"schema_valid": False, "output": None}
-    for c in cl[:3]:                    # 3 of 64 = 4.7%: no sentence
+    for c in cl[:3]:                    # 3 of 64 = 4.7%: under the 5% flag
         run["L1"][c["case_id"]] = bad
     s = score.score_design(d, run, n_boot=200, seed=1)
-    assert s["flags"]["ceiling"] and s["sentences"]["ceiling"] == score.SENTENCE_CEILING
-    assert s["sentences"]["schema_invalid"] == []
+    assert s["flags"]["ceiling"]
+    assert not s["flags"]["no_valid_output"]["L1"]["over_threshold"]
     run["L1"][cl[3]["case_id"]] = bad   # 4 of 64 = 6.25%
     del run["L1"][cl[4]["case_id"]]     # a missing output is no valid answer either
     s = score.score_design(d, run, n_boot=200, seed=1)
     assert s["flags"]["no_valid_output"]["L1"]["k"] == 5
-    assert s["sentences"]["schema_invalid"] == [
-        "5 of 64 L1 outputs were not valid answers and were counted as wrong, so part of the "
-        "difference is output format, not judgment."]
+    assert s["flags"]["no_valid_output"]["L1"]["over_threshold"]
     assert s["headline"]["primary"]["verdict"] in ("unresolved", "supported")
     run2 = _run(cl)
     s2 = score.score_design(d, run2, n_boot=200, seed=1)
     assert s2["headline"]["primary"]["verdict"] == "unresolved"
-    assert s2["sentences"]["primary"].startswith("On the primary outcome, A2 and L1 were not "
-                                                 "separated: 100.0% against 100.0%")
 
 
 def test_partial_run_has_no_headline_values():
@@ -319,26 +317,68 @@ def test_partial_run_has_no_headline_values():
     s = score.score_design(d, run, n_boot=50, seed=1)
     assert s["headline"]["primary"] is None and s["hypotheses"]["H1"] is None
     assert s["hypotheses"]["H2"] is None and s["hypotheses"]["H3"] is not None
-    assert s["sentences"]["primary"] is None and s["sentences"]["weakest"] is None
     assert set(s["headline"]["answered_anyway"]) == {"A1", "A2"}
+    assert set(s["headline"]["c1_correct"]) == {"A1", "A2"}
 
 
-def test_fixed_sentences_are_verbatim_from_the_protocol():
+def test_protocol_has_no_fixed_page_rules():
+    """PROTOCOL sec. 10 keeps the primary-outcome and labelling rules; the conditions the
+    scoring code relies on are named in the protocol."""
     text = (ROOT / "PROTOCOL.md").read_text()
-    for t in (score.SENTENCE_ABOVE, score.SENTENCE_FLAT, score.SENTENCE_REVERSED,
-              score.SENTENCE_CEILING, score.SENTENCE_INVALID, score.SENTENCE_WEAKEST):
-        assert f'"{t}"' in text, t[:60]
+    assert "is reported wherever results are reported, whatever its value" in text
+    assert "chosen by the author and labelled as such" in text
+    for gone in ("Fixed sentences", "Headline numbers, chosen now", "Example record on the page"):
+        assert gone not in text
     for k in ("MUST_NOT_CHANGE", "NOTE_CONDITIONS"):
         assert all(c in text for c in getattr(score, k))
 
 
-def test_fill_and_number_format():
-    assert score.fmt_pct(0.1234) == "12.3"
-    assert score.fmt_pct(-0.0123) == "\u22121.2"
-    assert score.fmt_pct(-0.0004) == "0.0" and score.fmt_pct(None) == "n/a"
-    assert score.fill("{a} to {b}; {c | d}", [1, "x", "y"]) == "1 to x; y"
+# ---------------------------------------------------------------- verifier and cost
+def _vrec(status, rounds, forced=False):
+    """An A2 record whose verifier reports fail the listed checks round by round."""
+    v = [{"ok": not fails, "failures": [{"check": c, "ref": f"evidence[{i}]", "detail": "x"}
+                                        for i, c in enumerate(fails)], "claims": []}
+         for fails in rounds]
+    return {**_rec(status), "verifier": v, "forced_fallback": forced}
+
+
+def test_verifier_first_round_rejections_by_check():
+    cl = _cases()
+    d = score.Design(cl)
+    W = d.weights(300, 5)
+    recs = {c["case_id"]: _vrec(c["expected_status"], [[]]) for c in cl}   # all pass
+    recs["0-C0"] = _vrec("GAP", [[4, 4, 4], []])            # rejected, repaired
+    recs["1-C0"] = _vrec("GAP", [[1, 3], []])               # two checks in one draft
+    recs["2-C0"] = _vrec("CANNOT_DETERMINE", [[3], [3]], forced=True)
+    recs["3-C0"] = _vrec("CANNOT_DETERMINE", [[2]], forced=True)  # repair gave no valid answer
+    recs["4-C0"] = {**_rec("GAP"), "verifier": [], "forced_fallback": False}  # no first answer
+    del recs["5-C0"]                                        # no record
+    v = score.secondary(d, recs, None, W)["verifier_first_round"]
+    assert v["checked"] == len(cl) - 2 and v["not_checked"] == 2
+    assert v["rejected"]["k"] == 4 and v["rejected"]["n"] == len(cl) - 2
+    assert v["rejected"]["rate"] == pytest.approx(4 / (len(cl) - 2))
+    lo, hi = v["rejected"]["ci"]
+    assert 0 <= lo <= v["rejected"]["rate"] <= hi <= 1
+    assert v["by_check"] == {"1": 1, "2": 1, "3": 2, "4": 1}
+    assert v["failures_by_check"] == {"1": 1, "2": 1, "3": 2, "4": 3}
+    assert v["repaired"] == 2 and v["forced"] == 2
+    # systems without a verifier report get no entry; the score copies A2's to the top level
+    plain = {c["case_id"]: _rec(c["expected_status"]) for c in cl}
+    assert "verifier_first_round" not in score.secondary(d, plain, None, W)
+    s = score.score_design(d, {"A2": recs, "A1": plain}, n_boot=100, seed=2)
+    assert s["verifier_A2"]["rejected"]["k"] == 4
+    assert score.results(s)["verifier_A2"]["by_check"]["3"] == 2
+
+
+def test_cost_per_case():
+    c = score.cost_per_case(12.5, 1.89, 805)
+    assert c["usd_per_case"] == pytest.approx(12.5 * 1.89 / 805)
+    assert c["gpu_seconds_per_case"] == pytest.approx(12.5 * 3600 / 805)
+    assert c["n_cases"] == 805 and c["gpu_hours"] == 12.5
     with pytest.raises(ValueError):
-        score.fill("{a} {b}", [1])
+        score.cost_per_case(1.0, 2.0, 0)
+    with pytest.raises(ValueError):
+        score.cost_per_case(-1.0, 2.0, 10)
 
 
 def test_rank_conditions_ties_in_protocol_order():

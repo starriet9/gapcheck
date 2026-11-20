@@ -1,19 +1,25 @@
-"""Pick the page's failure cases and example record by the rules of PROTOCOL.md sec. 10.
+"""List candidate failure cases for the author to read: a starting point, not a rule.
+
+The protocol has no selection rule for the examples shown with the results:
+they are chosen by the author and labelled as such, and all outputs are
+released (PROTOCOL.md sec. 10). This script gives a reproducible first list of
+incorrect cases to read, so that the choice starts from the weakest
+conditions rather than from wherever the author happened to look.
 
 Usage:
   python scripts/select_failures.py --cases data/cases/<set> --run data/runs/<run1> \
       [--out FILE]
 
 Writes <run>/failures.json by default. No model output is read except the
-status that decides correctness; nothing is chosen by reading traces.
+status that decides correctness.
 
-Failure cases. Rank the conditions by A2 accuracy in run 1, lowest first
+Candidates. Rank the conditions by A2 accuracy in run 1, lowest first
 (ties in the order C0, C1, C2a, C2b, C3a, C3b, C4, C5). From each of the
 first three conditions that have an incorrect A2 case, take the incorrect
 case with the smallest case id. If fewer than three conditions have one, the
 remaining places are filled by the same rule for A1, then L1. If there are
 still fewer than three, the output says how many there were.
-  Implementation details [author's reading of the rule, fixed here]:
+  Details:
   - Accuracy and correctness are those of `gapcheck.score` (main analysis,
     the cases the run manifest lists); a case with no record or no valid
     output is incorrect.
@@ -24,7 +30,7 @@ still fewer than three, the output says how many there were.
     incorrect case of that condition is taken instead (so a fallback system
     may show a condition already shown for A2, but never the same case).
 
-Example record. Among C1 cases whose deleted input is the lipid panel
+Example record (a candidate too). Among C1 cases whose deleted input is the lipid panel
 (variant "lipid_panel"), the one with the smallest case id, shown with its
 base record (the same patient's C0 case), whatever the systems answered.
 """
@@ -84,7 +90,7 @@ def _case_view(c: dict) -> dict:
 
 def failure_cases(case_list: list[dict], run: dict[str, dict[str, dict]],
                   n: int = N_FAILURES, systems=SYSTEM_ORDER) -> list[dict]:
-    """The failure cases of PROTOCOL 10, in page order."""
+    """Candidate failure cases, weakest condition first."""
     picked: list[dict] = []
     taken: set[str] = set()
     for s in systems:
@@ -113,7 +119,7 @@ def failure_cases(case_list: list[dict], run: dict[str, dict[str, dict]],
 
 def example_case(case_list: list[dict], run: dict[str, dict[str, dict]] | None = None
                  ) -> dict | None:
-    """The page's example record: smallest-id C1 case with the lipid panel deleted."""
+    """A candidate example record: smallest-id C1 case with the lipid panel deleted."""
     c1 = sorted((c for c in case_list
                  if c["condition"] == "C1" and c["variant"] == EXAMPLE_VARIANT),
                 key=lambda c: c["case_id"])

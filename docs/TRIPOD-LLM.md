@@ -41,7 +41,7 @@ Reporting guideline: Gallifant J, et al. The TRIPOD-LLM reporting guideline for 
 | 9b | Data used to develop the prompts | Yes | Development sets only (fixed seeds 20261118–20261120, development phrasings). The test set does not exist when the prompts are frozen; test phrasings are disjoint | Answered |
 | 10 | Preprocessing before summarization | No (summarization tasks only) | – | Not applicable |
 | 11 | Instruction tuning or alignment | No (M, D only; none done) | – | Not applicable |
-| 12 | Compute | Yes | `SPEC.md` sec. 10 (plan); `RUNS.md` sec. 5 (GPU-hours, cost); secondary outcome 8 (tool calls, tokens, seconds per case) | With results |
+| 12 | Compute | Yes | `SPEC.md` sec. 10 (plan); `RUNS.md` sec. 5 (GPU-hours, cost); secondary outcome 8 (tool calls, tokens, seconds and cost per case) | With results |
 | 13 | Ethics approval and consent | Yes | Synthetic records only; no human participants or patient data; no ethics review was sought. Stated in the README `[FILL: confirm wording]` | Planned |
 | 14a | Funding and role of funders | Yes | README `[FILL]` | Planned |
 | 14b | Conflicts of interest | Yes | README `[FILL]` | Planned |
@@ -56,7 +56,7 @@ Reporting guideline: Gallifant J, et al. The TRIPOD-LLM reporting guideline for 
 | 16d | Number of records and events in each analysis | Yes (E) | `score.json` (`n_cases` per condition); every reported rate is shown as k of n (`PROTOCOL.md` sec. 10) | With results |
 | 17 | Performance by the pre-specified metrics | Yes | Project page and README; Figure 1; `score.json`; pre-specified in `PROTOCOL.md` secs. 7–10 | With results |
 | 18 | Results of model updating | No (no updating) | – | Not applicable |
-| 19a | Interpretation, including fairness | Yes | One-page summary; fixed sentences in `PROTOCOL.md` sec. 10. Fairness across demographic groups is not assessed: the case mix is designed and no subgroup analysis is pre-specified; stated as a limit | With results |
+| 19a | Interpretation, including fairness | Yes | One-page summary; the primary outcome is reported wherever results are, whatever its value (`PROTOCOL.md` sec. 10). Fairness across demographic groups is not assessed: the case mix is designed and no subgroup analysis is pre-specified; stated as a limit | With results |
 | 19b | Limitations: bias, uncertainty, generalizability | Yes | `SPEC.md` sec. 11 (fixed text) | Answered |
 | 19c | Known problems with the data for this task | Yes (E) | `SPEC.md` sec. 4.1 (generator limits, measured, with their handling) | Answered |
 | 19d | Intended use, input, end user, autonomy and oversight | Yes (E) | `SPEC.md` secs. 1, 3 and 9: a flag for a clinician to review, never an action; research prototype, not for clinical use | Answered |
@@ -77,6 +77,6 @@ Reporting guideline: Gallifant J, et al. The TRIPOD-LLM reporting guideline for 
 | 2g | Model-building steps | No (M, D only; none) | – | Not applicable |
 | 2h | Task, inputs and outputs | Yes | `PROTOCOL.md` sec. 5; `SPEC.md` sec. 6.1 | Planned |
 | 2i | Evaluation data, endpoint, held-out status, measures | Yes | `PROTOCOL.md` secs. 7 and 13 (test set created after the protocol) | Planned |
-| 2j | Main results | Yes | The three headline numbers of `PROTOCOL.md` sec. 10 | With results |
+| 2j | Main results | Yes | The primary outcome (`PROTOCOL.md` secs. 7 and 10) with its 95% interval | With results |
 | 2k | Implications and concerns | Yes | `SPEC.md` sec. 11 | With results |
 | 2l | Registration | H only; answered | As item 14d | At tag |

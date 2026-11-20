@@ -1,4 +1,4 @@
-"""Scoring (PROTOCOL.md secs. 7-10; SPEC 7).
+"""Scoring (PROTOCOL.md secs. 7-9; SPEC 7).
 
 Ground truth: `expected_status` of each case (oracle label for C0, ledger
 label for C1-C5). A case is correct if the output is schema-valid and its
@@ -24,15 +24,21 @@ or DOCUMENTED_REASON with benefit_group 8, or 8 and 9, becomes DISCUSS).
 
 Results JSON (`results(score_dict)`, written by scripts/score_runs.py as
 results.json next to score.json; score.json holds the same keys plus the
-full tables). Schema "gapcheck-results/1". Rates and differences are
+full tables). Schema "gapcheck-results/2". Rates and differences are
 proportions (0-1); `ci` is [lo, hi] (None where not estimable); counts are
 {k, n, rate, ci}. Stable keys:
 
-  schema, case_set, run, n_cases
+  schema, case_set, run, n_cases, n_patients (distinct base patients and
+  threshold sources, the bootstrap clusters)
   headline.primary            {A2: {est, ci}, L1: {est, ci},
                                difference: {est, ci}  (A2 - L1, macro),
                                A1-L1: {est, ci}, A2-A1: {est, ci},
                                verdict: supported | unresolved | contradicted}
+                              the primary outcome (PROTOCOL sec. 7), reported
+                              wherever results are (sec. 10)
+  headline.c1_correct         {L1|A1|A2: {k, n, rate, ci}}  C1 cases answered
+                              CANNOT_DETERMINE with the deleted input in
+                              `missing` (accuracy on C1, secondary outcome 1)
   headline.answered_anyway    {L1|A1|A2: {k, n, rate, ci}}  C1 definite status
   headline.changed_when_must_not
                               {L1|A1|A2: {k, n, rate, ci}}  pooled answer
@@ -48,14 +54,19 @@ proportions (0-1); `ci` is [lo, hi] (None where not estimable); counts are
                                        verdict: met | not met | unresolved},
                                verdict}
   weakest_A2                  {condition, k, n, est, ci}
+  verifier_A2                 {checked, not_checked, rejected: {k, n, rate,
+                               ci}, by_check: {"1".."4": drafts}, failures_by_check:
+                               {"1".."4": failed items}, repaired, forced}
+                              A2's first drafts rejected by the verifier
+                              (secondary outcome 8); None if A2 is not in
+                              the run
+  cost                        {gpu_hours, usd_per_hour, n_cases, usd_per_case,
+                               gpu_seconds_per_case} (secondary outcome 8),
+                              from `cost_per_case`; None unless
+                              scripts/score_runs.py is given the GPU-hours
+                              and the hourly rate (RUNS.md sec. 5)
   flags.ceiling               bool (L1 and A2 macro both >= 0.95)
   flags.no_valid_output       {L1|A1|A2: {k, n, rate, over_threshold}}
-  sentences                   {primary, ceiling, schema_invalid: [..],
-                               weakest}; the fixed sentences of PROTOCOL.md
-                               sec. 10 with numbers filled in (percent and
-                               points to one decimal, U+2212 for minus);
-                               None (or []) when not applicable or when a
-                               system it needs is not in the run.
 
 Any value is None when a system it needs is not in the run. H3: "supported"
 needs part 1 supported and part 2 met; "contradicted" if part 1 is
@@ -80,13 +91,14 @@ N_BOOT = 10_000
 BOOT_SEED = 20261120
 RELABEL = {"S-A": ("8",), "S-C": ("8", "9")}
 MIN_OVERLAP = 15  # characters in common for C3a citation overlap
-MUST_NOT_CHANGE = ("C2a", "C2b", "C3b", "C4")   # PROTOCOL 8.5 and headline 3
+MUST_NOT_CHANGE = ("C2a", "C2b", "C3b", "C4")   # PROTOCOL 8.5
 NOTE_CONDITIONS = ("C3a", "C3b", "C4")          # H2
 H3_MARGIN = 0.05                                # H3 part 2, proportion
-CEILING = 0.95                                  # PROTOCOL 10, ceiling sentence
-INVALID_SHARE = 0.05                            # PROTOCOL 10, format-failure sentence
+CEILING = 0.95                                  # flag: both L1 and A2 at or above
+INVALID_SHARE = 0.05                            # flag: share of outputs with no valid answer
 LLM_SYSTEMS = ("L1", "A1", "A2")
-RESULTS_SCHEMA = "gapcheck-results/1"
+VERIFIER_CHECKS = (1, 2, 3, 4)                  # SPEC 6.2
+RESULTS_SCHEMA = "gapcheck-results/2"
 EPS = 1e-12  # tolerance for comparing interval limits with 0 and with the margin
 # Tool-call parser failures (PROTOCOL 6): stop reasons that signal a tool call,
 # and Qwen/Hermes-style call markup left in the text when no call was parsed.
@@ -310,6 +322,56 @@ def parser_failures(rec: dict | None) -> dict[str, int]:
     return out
 
 
+def verifier_first_round(design: Design, recs: dict[str, dict], W: np.ndarray) -> dict | None:
+    """Secondary outcome 8: first drafts the verifier rejected, by check number, and how many
+    of those were repaired in the one repair round or forced to CANNOT_DETERMINE.
+
+    A case is checked if its record has at least one verifier round (the agent gave a valid
+    first answer). `by_check` counts rejected drafts with at least one failure of that check
+    (a draft can fail several checks); `failures_by_check` counts the failed items. Repaired:
+    the last round passed and no fallback was forced. None if no record of this system has a
+    verifier report (systems without a verifier)."""
+    cs = design.cases
+    if not any("verifier" in (recs.get(c["case_id"]) or {}) and
+               (recs.get(c["case_id"]) or {}).get("verifier") is not None for c in cs):
+        return None
+    checked = np.zeros(len(cs), dtype=bool)
+    rejected = np.zeros(len(cs), dtype=bool)
+    by_check = {str(k): 0 for k in VERIFIER_CHECKS}
+    fails = {str(k): 0 for k in VERIFIER_CHECKS}
+    repaired = forced = 0
+    for i, c in enumerate(cs):
+        r = recs.get(c["case_id"]) or {}
+        v = r.get("verifier") or []
+        if not v:
+            continue
+        checked[i] = True
+        if v[0]["ok"]:
+            continue
+        rejected[i] = True
+        for f in v[0]["failures"]:
+            fails[str(f["check"])] = fails.get(str(f["check"]), 0) + 1
+        for k in sorted({f["check"] for f in v[0]["failures"]}):
+            by_check[str(k)] = by_check.get(str(k), 0) + 1
+        if r.get("forced_fallback"):
+            forced += 1
+        elif len(v) >= 2 and v[-1]["ok"]:
+            repaired += 1
+    return {"checked": int(checked.sum()), "not_checked": int((~checked).sum()),
+            "rejected": _boot_prop(design, checked, rejected, W), "by_check": by_check,
+            "failures_by_check": fails, "repaired": repaired, "forced": forced}
+
+
+def cost_per_case(gpu_hours: float, usd_per_hour: float, n_cases: int) -> dict:
+    """Secondary outcome 8: GPU-hours times the hourly rate, divided by the number of cases
+    (RUNS.md sec. 5 holds the GPU-hours and the rate of a run)."""
+    if n_cases <= 0 or gpu_hours < 0 or usd_per_hour < 0:
+        raise ValueError("cost_per_case needs n_cases > 0 and non-negative hours and rate")
+    return {"gpu_hours": float(gpu_hours), "usd_per_hour": float(usd_per_hour),
+            "n_cases": int(n_cases), "usd_per_case": gpu_hours * usd_per_hour / n_cases,
+            "gpu_seconds_per_case": 3600.0 * gpu_hours / n_cases}
+
+
 def case_flags(design: Design, recs: dict[str, dict]) -> dict[str, np.ndarray]:
     """Per-case arrays for one system: ok, definite, abstained, changed, no_valid."""
     cs = design.cases
@@ -420,6 +482,9 @@ def secondary(design: Design, recs: dict[str, dict], case_dir: str | Path | None
         "cases_with_any": _prop(sum(1 for x in pf if any(x.values())), len(cs)),
         "events": {k: sum(x[k] for x in pf) for k in
                    ("signal_without_call", "empty_required_arguments", "unparsed_arguments")}}
+    vr = verifier_first_round(design, recs, W)
+    if vr is not None:
+        out["verifier_first_round"] = vr
     return out
 
 
@@ -507,72 +572,17 @@ def hypotheses(design: Design, flags: dict[str, dict], acc: dict, W: np.ndarray)
     return out
 
 
-# ---------------------------------------------------------------- headline and sentences
+# ---------------------------------------------------------------- page numbers
 def rank_conditions(by_condition: dict) -> list[str]:
     """Conditions with cases, lowest accuracy first; ties in the order C0 ... C5."""
     have = [k for k in CONDITIONS if (by_condition.get(k) or {}).get("est") is not None]
     return sorted(have, key=lambda k: (by_condition[k]["est"], CONDITIONS.index(k)))
 
 
-MINUS = "\u2212"
-# PROTOCOL.md sec. 10, verbatim (tests check that each is a substring of PROTOCOL.md).
-# Placeholders are filled in order of appearance.
-SENTENCE_ABOVE = (
-    "On the primary outcome, the agent with the verifier (A2) was more accurate than the "
-    "single call (L1): {a2}% against {l1}%, a difference of {d} percentage points (95% CI "
-    "{lo} to {hi}). H1 is supported. A1 \u2212 L1 was {d1} ({lo1} to {hi1}); A2 \u2212 A1 was "
-    "{d2} ({lo2} to {hi2}).")
-SENTENCE_FLAT = (
-    "On the primary outcome, A2 and L1 were not separated: {a2}% against {l1}%, a difference "
-    "of {d} percentage points (95% CI {lo} to {hi}). H1 is unresolved. With this model and "
-    "these records, tools and a verifier did not measurably change accuracy over one call on "
-    "the full record.")
-SENTENCE_REVERSED = (
-    "On the primary outcome, A2 was less accurate than L1: {a2}% against {l1}%, a difference "
-    "of {d} percentage points (95% CI {lo} to {hi}). H1 is contradicted. A1 \u2212 L1 was {d1} "
-    "({lo1} to {hi1}); A2 \u2212 A1 was {d2} ({lo2} to {hi2}).")
-SENTENCE_CEILING = (
-    "L1 and A2 were both at or above 95%, so this test set does not separate the systems "
-    "with this model. What this study then contributes is the test harness and the "
-    "per-condition design, not a ranking of systems; separating them needs harder edits or "
-    "real notes.")
-SENTENCE_INVALID = (
-    "{k} of {n} {system} outputs were not valid answers and were counted as wrong, so part "
-    "of the difference is output format, not judgment.")
-SENTENCE_WEAKEST = (
-    "A2's lowest condition was {condition}: {k} of {n} correct ({p}%, 95% CI {lo} to {hi}). "
-    "On the note conditions (C3a, C3b, C4), A2 against the keyword baseline R1 differed by "
-    "{d} points (95% CI {lo} to {hi}); H2 is {supported | unresolved | contradicted}. H3 is "
-    "{supported | unresolved | contradicted}.")
-SENTENCES = {"supported": SENTENCE_ABOVE, "unresolved": SENTENCE_FLAT,
-             "contradicted": SENTENCE_REVERSED}
-
-
-def fill(template: str, values: list) -> str:
-    """Replace the {...} placeholders of a template in order of appearance."""
-    slots = re.findall(r"\{[^{}]*\}", template)
-    if len(slots) != len(values):
-        raise ValueError(f"{len(slots)} placeholders, {len(values)} values")
-    it = iter(values)
-    return re.sub(r"\{[^{}]*\}", lambda m: str(next(it)), template)
-
-
-def fmt_pct(x: float | None) -> str:
-    """A proportion (or difference of proportions) in percent or points, one decimal."""
-    if x is None:
-        return "n/a"
-    s = f"{100 * x:.1f}"
-    if s in ("-0.0", "0.0"):
-        return "0.0"
-    return MINUS + s[1:] if s.startswith("-") else s
-
-
-def _ci_pair(ci) -> list[str]:
-    return [fmt_pct(x) for x in (ci if ci else [None, None])]
-
-
 def headline(acc: dict, sec: dict, hyp: dict) -> dict:
-    """The three headline numbers of PROTOCOL 10, for L1, A1 and A2."""
+    """The numbers the project page shows for L1, A1 and A2: the primary outcome (PROTOCOL
+    sec. 7, reported wherever results are, sec. 10) and three counts from secondary
+    outcomes 1, 3 and 5. Which counts the page shows is a page choice, not a protocol rule."""
     sy, df = acc["systems"], acc["differences"]
     prim = None
     if "A2" in sy and "L1" in sy:
@@ -580,8 +590,14 @@ def headline(acc: dict, sec: dict, hyp: dict) -> dict:
                 "A1-L1": df.get("A1-L1"), "A2-A1": df.get("A2-A1"),
                 "verdict": verdict(df["A2-L1"]["ci"])}
     keep = ("k", "n", "rate", "ci")
+    c1 = {}
+    for s in LLM_SYSTEMS:
+        b = ((sy.get(s) or {}).get("by_condition") or {}).get("C1")
+        if b is not None:
+            c1[s] = {"k": b["k"], "n": b["n"], "rate": b["est"], "ci": b["ci"]}
     return {
         "primary": prim,
+        "c1_correct": c1,
         "answered_anyway": {s: {k: sec[s]["c1_fabricated_certainty"][k] for k in keep}
                             for s in LLM_SYSTEMS if s in sec},
         "changed_when_must_not": {s: {k: sec[s]["answer_change"]["pooled"][k] for k in keep}
@@ -600,34 +616,6 @@ def weakest(acc: dict, system: str = "A2") -> dict | None:
     return {"condition": k, **{x: bc[k][x] for x in ("k", "n", "est", "ci")}}
 
 
-def sentences(acc: dict, sec: dict, hyp: dict, head: dict, weak: dict | None,
-              flags: dict) -> dict:
-    """The fixed sentences of PROTOCOL 10 with the numbers filled in."""
-    out = {"primary": None, "ceiling": None, "schema_invalid": [], "weakest": None}
-    p = head["primary"]
-    if p is not None:
-        a1l1, a2a1 = p.get("A1-L1"), p.get("A2-A1")
-        vals = [fmt_pct(p["A2"]["est"]), fmt_pct(p["L1"]["est"]),
-                fmt_pct(p["difference"]["est"]), *_ci_pair(p["difference"]["ci"])]
-        if p["verdict"] != "unresolved":
-            for d in (a1l1, a2a1):
-                vals += [fmt_pct(d["est"] if d else None), *_ci_pair(d["ci"] if d else None)]
-        out["primary"] = fill(SENTENCES[p["verdict"]], vals)
-    if flags["ceiling"]:
-        out["ceiling"] = SENTENCE_CEILING
-    for s in LLM_SYSTEMS:
-        f = flags["no_valid_output"].get(s)
-        if f and f["over_threshold"]:
-            out["schema_invalid"].append(fill(SENTENCE_INVALID, [f["k"], f["n"], s]))
-    h2, h3 = hyp.get("H2"), hyp.get("H3")
-    if weak is not None and h2 is not None and h3 is not None:
-        out["weakest"] = fill(SENTENCE_WEAKEST, [
-            weak["condition"], weak["k"], weak["n"], fmt_pct(weak["est"]),
-            *_ci_pair(weak["ci"]), fmt_pct(h2["est"]), *_ci_pair(h2["ci"]),
-            h2["verdict"], h3["verdict"]])
-    return out
-
-
 def result_flags(acc: dict, sec: dict) -> dict:
     sy = acc["systems"]
     ceiling = all(s in sy and sy[s]["macro"]["est"] is not None
@@ -640,13 +628,14 @@ def result_flags(acc: dict, sec: dict) -> dict:
     return {"ceiling": bool(ceiling), "no_valid_output": inv}
 
 
-RESULT_KEYS = ("schema", "case_set", "run", "n_cases", "headline", "hypotheses", "weakest_A2",
-               "flags", "sentences")
+RESULT_KEYS = ("schema", "case_set", "run", "n_cases", "n_patients", "headline", "hypotheses",
+               "weakest_A2", "verifier_A2", "cost", "flags")
 
 
 def results(s: dict) -> dict:
-    """The page-facing subset of a score dict (keys documented in the module docstring)."""
-    return {k: s[k] for k in RESULT_KEYS}
+    """The page-facing subset of a score dict (keys documented in the module docstring);
+    a key the score does not have is None."""
+    return {k: s.get(k) for k in RESULT_KEYS}
 
 
 # ---------------------------------------------------------------- driver
@@ -688,11 +677,11 @@ def score_design(design: Design, run: dict[str, dict[str, dict]],
     flags = {s: case_flags(design, recs) for s, recs in run.items()}
     acc, sec = out["accuracy_main"], out["secondary"]
     hyp = hypotheses(design, flags, acc, W)
-    head = headline(acc, sec, hyp)
-    weak = weakest(acc)
-    rf = result_flags(acc, sec)
-    out.update({"headline": head, "hypotheses": hyp, "weakest_A2": weak, "flags": rf,
-                "sentences": sentences(acc, sec, hyp, head, weak, rf)})
+    out.update({"headline": headline(acc, sec, hyp), "hypotheses": hyp,
+                "weakest_A2": weakest(acc),
+                "verifier_A2": (sec.get("A2") or {}).get("verifier_first_round"),
+                "flags": result_flags(acc, sec),
+                "n_patients": len(design.cl_index)})
     return out
 
 
@@ -705,7 +694,7 @@ def score(case_dir: str | Path, run_dir: str | Path, extra_runs=(), n_boot: int 
     design = Design(case_list)
     run = load_run(run_dir)
     out = {"schema": RESULTS_SCHEMA, "case_set": Path(case_dir).name, "run": Path(run_dir).name,
-           "n_cases": len(case_list), "n_cases_in_set": n_set,
+           "n_cases": len(case_list), "n_cases_in_set": n_set, "cost": None,
            **score_design(design, run, case_dir, n_boot=n_boot, seed=seed)}
     if extra_runs:
         others = [load_run(r) for r in extra_runs]
