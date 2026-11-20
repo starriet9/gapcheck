@@ -12,7 +12,8 @@ checks on the final answer, never shown to any model) and manifest.json
 sha256, case-set sha256, backend and run settings). R0 and R1 need no
 backend. A1 and A2 come from one agent run: A1 is A2's pre-verification
 answer. The backend config's "run" block sets the harness settings
-(`systems.Settings`), including `prompt_set` and `rounds_left_notice`.
+(`systems.Settings`), including `prompt_set`, `rounds_left_notice` and
+`round_counter`.
 
 Before L1 runs, every case passes the build-stop check (serialize.build_stop):
 rows the oracle uses and planted sentences must be in the serialization, and

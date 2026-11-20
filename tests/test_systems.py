@@ -498,3 +498,60 @@ def test_every_prompt_file_is_a_role_or_in_a_set():
     assert {p.stem for p in systems.PROMPT_DIR.glob("*.txt")} == used
     for ps in systems.PROMPT_SETS:
         assert all(systems.prompt_file(r, ps).exists() for r in systems.PROMPTS)
+
+
+def test_round_counter_after_every_round(env):
+    b = MockBackend(_spinner())
+    a1, _ = systems.run_agent(env, b, systems.Settings(max_steps=3, round_counter=True), verify=False)
+    counts = [t["content"] for t in a1["trace"] if t["type"] == "user" and t["kind"] == "round_counter"]
+    assert counts == ["Round 1 of 3 used.", "Round 2 of 3 used.", "Round 3 of 3 used."]
+    assert systems.round_counter(2, 12) == "Round 2 of 12 used."
+    for k in (1, 2, 3):  # each follows that round's tool results, before the next model turn
+        msgs = b.calls[k]["messages"]
+        assert msgs[-1] == {"role": "user", "content": f"Round {k} of 3 used."}
+        assert msgs[-2]["role"] == "tool"
+    assert all(_well_formed(c["messages"]) for c in b.calls)
+    kinds = [t["kind"] for t in a1["trace"] if t["type"] == "user"]
+    assert kinds[:4] == ["round_counter"] * 3 + ["limit"]  # the limit is unchanged
+    assert not _notices(a1["trace"])
+    # off by default; L1 never gets it
+    a1, _ = systems.run_agent(env, MockBackend(_spinner()), systems.Settings(max_steps=3), verify=False)
+    assert not [t for t in a1["trace"] if t["type"] == "user" and t["kind"] == "round_counter"]
+    r = systems.run_l1(env, MockBackend(lambda m, t: Response(json.dumps(ABSTAIN))),
+                       systems.Settings(round_counter=True))
+    assert not [t for t in r["trace"] if t["type"] == "user"]
+
+
+def test_round_counter_settings():
+    with pytest.raises(ValueError, match="not both"):
+        systems.Settings(round_counter=True, rounds_left_notice=2)
+    with pytest.raises(ValueError, match="round_counter"):
+        systems.Settings.from_dict({"round_counter": "yes"})
+    assert systems.Settings.from_dict({"round_counter": True, "prompt_set": "plan",
+                                       "max_steps": 12}).round_counter
+
+
+def test_prompt_set_plan(env):
+    base, plan = systems.prompt("task_agent"), systems.prompt("task_agent", "plan")
+    added = ("An efficient plan: in the first round, call get_demographics, get_medications, "
+             "search_conditions with the codes from the code lists, get_observations for each "
+             "open-world input (one call per code), and search_notes for statin use or reasons not "
+             "to prescribe; in the next round, call prevent_risk if your row needs a risk; then "
+             "answer. A structured lookup that returns total 0 is enough to claim that input "
+             "ABSENT; do not search for it again. " + NOREPEAT)
+    assert plan.replace(added + " ", "") == base  # the base prompt, plus these sentences only
+    # tool names it mentions exist; it says nothing about the test design
+    from gapcheck.tools import TOOL_SPECS
+    named = {w.strip(",;.()") for w in added.split() if "_" in w and w.islower()}
+    assert named - {"open-world"} <= set(TOOL_SPECS)
+    prose = " ".join(w for w in added.split() if "_" not in w)  # without the tool names
+    for word in ("C0", "C1", "C2", "C3", "C4", "C5", "edit", "answer key", "ledger", "plant",
+                 "oracle", "condition", "test"):
+        assert word not in prose
+    conv = systems.system_message()["content"]
+    for term in ("Code lists", "Open-world inputs", "Required claims per benefit_group"):
+        assert term.lower() in conv.lower()
+    b = MockBackend(lambda m, t: Response(json.dumps(ABSTAIN)))
+    systems.run_agent(env, b, systems.Settings(max_steps=12, prompt_set="plan", round_counter=True),
+                      verify=False)
+    assert b.calls[0]["messages"][1]["content"] == systems.task_agent(12, "plan")

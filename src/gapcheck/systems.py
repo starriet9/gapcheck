@@ -28,6 +28,9 @@ Two run options, both off by default (the defaults reproduce earlier runs):
   harness adds one user message, `prompts/rounds_left.txt` with the number
   filled in. The model is otherwise told the limit only in the task prompt
   and when it is reached.
+- `Settings.round_counter` = True: in the same loops, after every round's
+  tool results, one user message `prompts/round_counter.txt` ("Round k of N
+  used."). Not combined with rounds_left_notice.
 
 A result is a dict: output (or None), schema_valid, error, trace, tokens,
 model_calls, tool_calls, seconds, verifier (A2: one report per round),
@@ -49,12 +52,14 @@ from .serialize import est_tokens, serialize
 from .tools import CaseEnv, dumps, tool_specs
 
 PROMPT_DIR = Path(__file__).with_name("prompts")
-PROMPTS = ("system", "task_l1", "task_agent", "reask", "repair", "limit", "rounds_left")
+PROMPTS = ("system", "task_l1", "task_agent", "reask", "repair", "limit", "rounds_left",
+           "round_counter")
 # Named prompt sets: role -> file (stem in prompts/) used in its place. A role
 # not listed uses its own file.
 PROMPT_SETS: dict[str, dict[str, str]] = {
     "default": {},
     "norepeat": {"task_agent": "task_agent_norepeat"},
+    "plan": {"task_agent": "task_agent_plan"},
 }
 SYSTEMS = ("R0", "R1", "L1", "A1", "A2")
 
@@ -73,6 +78,7 @@ class Settings:
     chars_per_token: float = 4.0
     prompt_set: str = "default"  # key of PROMPT_SETS
     rounds_left_notice: int = 0  # agent loops: notice when this many rounds are left; 0 = off
+    round_counter: bool = False  # agent loops: "Round k of N used." after every round
 
     def __post_init__(self):
         if self.prompt_set not in PROMPT_SETS:
@@ -80,6 +86,10 @@ class Settings:
                              f"known: {sorted(PROMPT_SETS)}")
         if not isinstance(self.rounds_left_notice, int) or self.rounds_left_notice < 0:
             raise ValueError("rounds_left_notice must be an integer >= 0")
+        if not isinstance(self.round_counter, bool):
+            raise ValueError("round_counter must be true or false")
+        if self.round_counter and self.rounds_left_notice:
+            raise ValueError("use round_counter or rounds_left_notice, not both")
 
     @classmethod
     def from_dict(cls, d: dict | None) -> "Settings":
@@ -109,6 +119,11 @@ def task_agent(max_steps: int, prompt_set: str = "default") -> str:
 def rounds_left(left: int, prompt_set: str = "default") -> str:
     """The rounds-left notice (Settings.rounds_left_notice)."""
     return prompt("rounds_left", prompt_set).format(left=left)
+
+
+def round_counter(k: int, n: int, prompt_set: str = "default") -> str:
+    """The every-round counter (Settings.round_counter)."""
+    return prompt("round_counter", prompt_set).format(k=k, n=n)
 
 
 def prompt_hashes(prompt_set: str = "default") -> dict[str, str]:
@@ -198,11 +213,12 @@ def _refuse_calls(calls, messages: list[dict], run: Run) -> None:
 
 def converse(backend: Backend, messages: list[dict], tools: list[dict], env: CaseEnv,
              max_rounds: int, run: Run, notice_at: int = 0,
-             prompt_set: str = "default") -> str | None:
+             prompt_set: str = "default", counter: bool = False) -> str | None:
     """Model turns until a reply without tool calls. After `max_rounds` rounds, tool calls
     get an error and the limit prompt once; a further tool call gets the error too and
     ends with None. With `notice_at` = N > 0, the round that leaves N rounds is followed
-    by the rounds-left notice (one user message after that round's tool results)."""
+    by the rounds-left notice (one user message after that round's tool results); with
+    `counter`, every round is followed by the round counter."""
     allowed = {t["name"] for t in tools}
     rounds, over = 0, False
     while True:
@@ -227,19 +243,24 @@ def converse(backend: Backend, messages: list[dict], tools: list[dict], env: Cas
             messages.append({"role": "tool", "tool_call_id": c.id, "name": c.name,
                              "content": dumps(res)})
         rounds += 1
-        if notice_at > 0 and max_rounds - rounds == notice_at:
+        if counter:
+            msg = round_counter(rounds, max_rounds, prompt_set)
+            messages.append({"role": "user", "content": msg})
+            run.user("round_counter", msg)
+        elif notice_at > 0 and max_rounds - rounds == notice_at:
             msg = rounds_left(notice_at, prompt_set)
             messages.append({"role": "user", "content": msg})
             run.user("rounds_left", msg)
 
 
 def answer(backend, messages, tools, env, max_rounds, run, notice_at: int = 0,
-           prompt_set: str = "default") -> tuple[dict | None, str | None]:
+           prompt_set: str = "default", counter: bool = False) -> tuple[dict | None, str | None]:
     """Converse, parse and validate; one re-ask on an invalid reply. A request the
     server rejects (BackendError, e.g. context overflow) ends with no answer and no
     re-ask: a longer conversation would be rejected too."""
     try:
-        text = converse(backend, messages, tools, env, max_rounds, run, notice_at, prompt_set)
+        text = converse(backend, messages, tools, env, max_rounds, run, notice_at, prompt_set,
+                        counter)
         out, err = parse_answer(text)
         if out is not None:
             return out, None
@@ -321,7 +342,8 @@ def run_agent(env: CaseEnv, backend: Backend, st: Settings, verify: bool = True
     ps = st.prompt_set
     msgs = agent_messages(st.max_steps, ps)
     tools = tool_specs()
-    out, err = answer(backend, msgs, tools, env, st.max_steps, run, st.rounds_left_notice, ps)
+    out, err = answer(backend, msgs, tools, env, st.max_steps, run, st.rounds_left_notice, ps,
+                      st.round_counter)
     a1 = _result(out, err, run.snapshot())
     if not verify:
         return a1, None
@@ -335,7 +357,8 @@ def run_agent(env: CaseEnv, backend: Backend, st: Settings, verify: bool = True
     msg = prompt("repair", ps).format(failures=verifier.feedback(rep))
     msgs.append({"role": "user", "content": msg})
     run.user("repair", msg)
-    out2, err2 = answer(backend, msgs, tools, env, st.repair_steps, run, st.rounds_left_notice, ps)
+    out2, err2 = answer(backend, msgs, tools, env, st.repair_steps, run, st.rounds_left_notice, ps,
+                        st.round_counter)
     if out2 is not None:
         rep2 = verifier.verify(out2, env)
         reports.append(rep2.to_dict())
