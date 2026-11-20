@@ -268,7 +268,7 @@ The primary outcome (sec. 7) is reported wherever results are reported, whatever
 
 Counts are written with their denominator first and then the rate: "k of n (p%, 95% CI lo to hi)". No rate is shown without k and n. Wherever R0 or R1 appears, the "correct by construction" note appears with it.
 
-Display. Results are shown first as three rows that follow one example patient's edits: record as is (C0), one sentence added to a note (C3a) and lipid panel deleted (C1, any deciding input). Each row gives "k of n" for the rule (R0) and the agent (A2). Results are not shown as a bar chart of the five systems.
+Display. Results are shown first as three rows that follow one example patient's edits: record as is (C0), one sentence added to a note (C3a) and lipid panel deleted (C1, any deciding input). On the two structured-data rows the agent (A2) gives "k of n" and the rule column is labelled as the answer key, not scored, because the rule is correct there by construction. The note row gives "k of n" for the rule (R0), the keyword rule (R1) and the agent (A2). Results are not shown as a bar chart of the five systems.
 
 Examples shown with the results are chosen by the author and labelled as such. All outputs are released (sec. 15).
 
