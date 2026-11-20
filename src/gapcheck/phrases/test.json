@@ -187,7 +187,7 @@
   "reason_declined": [
    {
     "id": "reason_declined-test-01",
-    "text": "Pt turned down a statin today after we reviewed the PREVENT estimate.",
+    "text": "Pt turned down a statin today when it was offered.",
     "category": "patient_declined",
     "sex": null
    },
@@ -417,7 +417,7 @@
    },
    {
     "id": "reason_pregnancy-test-09",
-    "text": "G1P0 at 30 wks, followed by OB; no statin in pregnancy.",
+    "text": "30 wks along, followed by OB; no statin in pregnancy.",
     "category": "pregnancy",
     "sex": "F"
    },
@@ -435,7 +435,7 @@
    },
    {
     "id": "reason_pregnancy-test-12",
-    "text": "Pt and partner plan to start a family soon; avoiding statins for now.",
+    "text": "Pt and partner intend to begin trying for pregnancy soon; statins avoided for now.",
     "category": "pregnancy",
     "sex": "F"
    },
@@ -587,7 +587,7 @@
    },
    {
     "id": "reason_liver-test-07",
-    "text": "Spontaneous bacterial peritonitis this spring; decompensated alcohol-related cirrhosis.",
+    "text": "Spontaneous bacterial peritonitis a few months ago; decompensated alcohol-related cirrhosis.",
     "category": "liver_failure",
     "sex": null
    },
@@ -695,7 +695,7 @@
    },
    {
     "id": "reason_liver-test-25",
-    "text": "Wilson disease presenting as acute liver failure, managed by transplant hepatology.",
+    "text": "Acute liver failure, cause still unclear, managed by transplant hepatology.",
     "category": "liver_failure",
     "sex": null
    },
@@ -975,7 +975,7 @@
    },
    {
     "id": "distractor_negation-test-11",
-    "text": "Statin naive, no known adverse drug reactions.",
+    "text": "No statin-related ADRs on file.",
     "category": "statin_intolerance",
     "sex": null
    },
@@ -987,7 +987,7 @@
    },
    {
     "id": "distractor_negation-test-13",
-    "text": "NKDA, no drug intolerances on record.",
+    "text": "Allergy and intolerance list reviewed: nothing involving a statin.",
     "category": "statin_intolerance",
     "sex": null
    },
@@ -1109,7 +1109,7 @@
    },
    {
     "id": "distractor_relative-test-03",
-    "text": "Pt's spouse refuses all prescription drugs, statins included.",
+    "text": "Pt's partner refuses all prescription drugs, statins included.",
     "category": "patient_declined",
     "sex": null
    },
@@ -1139,7 +1139,7 @@
    },
    {
     "id": "distractor_relative-test-08",
-    "text": "Brother, who would not take a statin, had a stroke at 52.",
+    "text": "Brother would not take a statin when his doctor advised one.",
     "category": "patient_declined",
     "sex": null
    },
@@ -1205,7 +1205,7 @@
    },
    {
     "id": "distractor_relative-test-19",
-    "text": "Spouse recently started hospice for lung cancer.",
+    "text": "Older brother recently started hospice for lung cancer.",
     "category": "palliative",
     "sex": null
    },
@@ -1297,7 +1297,7 @@
    },
    {
     "id": "distractor_deferral-test-04",
-    "text": "Spouse to join next appt so they can decide on a statin together.",
+    "text": "Partner to join next appt so they can decide on a statin together.",
     "category": "patient_declined",
     "sex": null
    },
@@ -1605,13 +1605,13 @@
    },
    {
     "id": "distractor_stable_liver-test-25",
-    "text": "Echogenic liver on US c/w mild steatosis, normal labs.",
+    "text": "Echogenic liver on US c/w mild steatosis, LFTs unremarkable.",
     "category": "liver_failure",
     "sex": null
    },
    {
     "id": "distractor_stable_liver-test-26",
-    "text": "Low-risk FIB-4 in metabolic steatotic liver disease, managed in primary care.",
+    "text": "Low-risk FIB-4 in steatotic liver disease, managed in primary care.",
     "category": "liver_failure",
     "sex": null
    },
@@ -1643,7 +1643,7 @@
   "smoking_current": [
    {
     "id": "smoking_current-test-01",
-    "text": "Smokes 1 ppd, 25 pack-year history.",
+    "text": "Smokes 1 ppd, mostly outside the house.",
     "category": "smoking",
     "sex": null
    },
@@ -1679,7 +1679,7 @@
    },
    {
     "id": "smoking_current-test-07",
-    "text": "Long-time smoker, currently half a pack a day.",
+    "text": "Smoker, currently at half a pack daily.",
     "category": "smoking",
     "sex": null
    },
@@ -1709,7 +1709,7 @@
    },
    {
     "id": "smoking_current-test-12",
-    "text": "Has smoked for decades and continues to.",
+    "text": "Smokes at home and in the car, every day.",
     "category": "smoking",
     "sex": null
    },
@@ -1763,7 +1763,7 @@
    },
    {
     "id": "smoking_current-test-21",
-    "text": "Smoker since age 16, ongoing.",
+    "text": "Smoker, ongoing; last cigarette this morning.",
     "category": "smoking",
     "sex": null
    },
