@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from conftest import FIXTURE, SEED
-from gapcheck import cases, edits, facts, load, notes, oracle, patches
+from gapcheck import cases, edits, facts, load, notes, oracle, patches, phrases
 
 N = 10
 
@@ -179,6 +179,8 @@ def test_planting_rules(built, case_list):
             ph = {x["id"]: x for t in edits.load_phrases("dev")["types"].values() for x in t}
             if ph[p["phrase_id"]]["category"] == "pregnancy":
                 assert sex == "F"
+            assert phrases.may_plant(ph[p["phrase_id"]], sex)  # "She ..." only in women
+            assert ph[p["phrase_id"]]["sex"] in (None, sex)
     assert len(used) == len(set(used))  # each phrase at most once per split
 
 

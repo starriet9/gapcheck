@@ -22,7 +22,7 @@ def test_format_and_counts():
     for t, ps in DEV["types"].items():
         assert len(ps) == 20, t
         for i, p in enumerate(ps, 1):
-            assert set(p) == {"id", "text", "category"}
+            assert set(p) == {"id", "text", "category", "sex"}
             assert p["id"] == f"{t}-dev-{i:02d}"
 
 
@@ -79,3 +79,110 @@ def test_by_id():
     d = P.by_id("dev")
     assert len(d) == 200
     assert d["reason_declined-dev-01"]["type"] == "reason_declined"
+
+
+# ---------------------------------------------------------------- sex of a sentence
+@pytest.mark.parametrize("text, want", [
+    ("She developed proximal muscle weakness while on pravastatin.", {"F"}),
+    ("Pt states every statin he has tried made his muscles ache.", {"M"}),
+    ("stopped it herself, does not want to retry", {"F"}),
+    ("Her sister refused statins and later had an MI.", {"F"}),     # her = the patient
+    ("Per pt, his dad could not tolerate any statin.", {"M"}),
+    ("Father stopped his statin because of muscle cramps.", set()),  # his = the father
+    ("Mom developed liver failure in her sixties.", set()),
+    ("Pt's mother refused cholesterol medicines her whole life.", set()),
+    ("Pt's husband recently enrolled in hospice.", {"F"}),
+    ("Wife is in hospice; pt is her caregiver.", {"M"}),
+    ("Her sister's husband declined a statin.", {"F"}),              # spouse of a relative
+    ("Daughter is pregnant with pt's first grandchild.", set()),
+    ("pt and partner are trying for a baby", set()),
+    ("Not pregnant and not planning pregnancy.", {"F"}),
+    ("currently pregant, prenatal vitamins only", {"F"}),            # typo still counts
+    ("G2P1, follows with OB.", {"F"}),
+    ("Postmenopausal, on no hormone therapy.", {"F"}),
+    ("BPH on tamsulosin; prostate exam normal.", {"M"}),
+    ("Mr. Smith declined a statin.", {"M"}),
+    ("On pregabalin for neuropathy.", set()),
+    ("Hx of MS, stable.", set()),                                    # not the title Ms
+    ("Hepatology follows; the patient is here today.", set()),       # no whole-word match
+    ("She says he refused it.", {"F", "M"}),
+])
+def test_sex_stated(text, want):
+    assert P.sex_stated(text) == want
+
+
+def test_dev_sex_field():
+    """Every dev phrase's sex is what its words state; pregnancy reasons are women's."""
+    for t, p in ALL:
+        stated = P.sex_stated(p["text"])
+        assert len(stated) <= 1, p["id"]
+        assert p["sex"] == ("F" if t == "reason_pregnancy" else next(iter(stated), None)), p["id"]
+    n = {(t, p["sex"]) for t, p in ALL}
+    assert ("reason_intolerance", "F") in n and ("reason_intolerance", "M") in n
+    assert {p["id"] for t, p in ALL if p["sex"] == "F" and t != "reason_pregnancy"} >= {
+        "reason_intolerance-dev-04", "distractor_relative-dev-12"}
+
+
+@pytest.mark.parametrize("phrase, sex, ok", [
+    ({"sex": None, "category": "statin_intolerance"}, "M", True),
+    ({"sex": None, "category": "statin_intolerance"}, "F", True),
+    ({"sex": "F", "category": "statin_intolerance"}, "M", False),
+    ({"sex": "F", "category": "statin_intolerance"}, "F", True),
+    ({"sex": "M", "category": "smoking"}, "F", False),
+    ({"sex": None, "category": "pregnancy"}, "M", False),  # "Daughter is pregnant": women only
+    ({"sex": None, "category": "pregnancy"}, "F", True),
+    ({"sex": "F", "category": "pregnancy"}, "F", True),
+])
+def test_may_plant(phrase, sex, ok):
+    assert P.may_plant(phrase, sex) is ok
+
+
+def _edited(type_, i, **change):
+    bad = json.loads(json.dumps(DEV))
+    bad["types"][type_][i - 1].update(change)
+    return bad
+
+
+@pytest.mark.parametrize("type_, i, change", [
+    ("reason_intolerance", 4, {"sex": None}),     # "She developed ..." without a sex
+    ("reason_intolerance", 4, {"sex": "M"}),      # disagrees with "She"
+    ("reason_intolerance", 1, {"sex": "F"}),      # no word states a sex
+    ("reason_pregnancy", 11, {"sex": None}),      # pregnancy reasons are women's
+    ("reason_liver", 1, {"sex": "X"}),
+    ("smoking_current", 1, {"text": "He and she smoke daily."}),
+    ("distractor_relative", 2, {"text": "Father stopped her statin."}),  # her = the patient
+])
+def test_validate_rejects_sex_mismatch(type_, i, change):
+    with pytest.raises(ValueError):
+        P.validate(_edited(type_, i, **change), "dev")
+
+
+def test_validate_requires_sex_field():
+    bad = json.loads(json.dumps(DEV))
+    del bad["types"]["reason_liver"][0]["sex"]
+    with pytest.raises(ValueError):
+        P.validate(bad, "dev")
+
+
+
+def test_pool_draws_only_sentences_the_patient_may_receive():
+    from gapcheck import edits as E
+    pool = E.PhrasePool(DEV, seed=7)
+    for t in E.PHRASE_TYPES:
+        cap = {s: sum(P.may_plant(p, s) for p in DEV["types"][t]) for s in P.SEXES}
+        sexes = ["M"] * cap["M"] if t != "reason_pregnancy" else ["F"] * cap["F"]
+        got = [pool.draw(t, s) for s in sexes]
+        assert all(P.may_plant(p, s) for p, s in zip(got, sexes)), t
+        assert len({p["id"] for p in got}) == len(got)
+        with pytest.raises(E.PhraseShortage):  # every sentence a man may receive is used
+            pool.draw(t, sexes[0])
+    women_only = {p["id"] for t in E.PHRASE_TYPES if t != "reason_pregnancy"
+                  for p in DEV["types"][t] if not P.may_plant(p, "M")}
+    assert women_only and women_only.isdisjoint(pool.used)
+
+
+def test_pool_order_is_seeded():
+    from gapcheck import edits as E
+    a, b, c = E.PhrasePool(DEV, 1), E.PhrasePool(DEV, 1), E.PhrasePool(DEV, 2)
+    first = lambda pool: [pool.draw("reason_declined", "F")["id"] for _ in range(5)]
+    assert first(a) == first(b) != first(c)

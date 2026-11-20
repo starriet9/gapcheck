@@ -59,6 +59,7 @@ from . import oracle, prevent, strata
 from .facts import PatientFacts, PatientRecord, facts_at_index
 from .load import TABLES, row_id
 from .notes import Plant, note_id
+from .phrases import may_plant
 
 EDIT_TABLES = ("conditions", "observations", "medications", "procedures", "allergies")
 ALL_TABLES = ("patients", "encounters") + EDIT_TABLES
@@ -129,8 +130,10 @@ class PhrasePool:
     """Draw phrases without replacement (each phrase at most once per split).
 
     Order within a type is a seeded shuffle. A draw takes the first unused
-    phrase that the patient may receive: sentences of category "pregnancy"
-    (reasons and distractors) only in women.
+    phrase that the patient may receive (`phrases.may_plant`): a sentence
+    whose `sex` is set only in patients of that sex ("She developed ..." only
+    in women), and sentences of category "pregnancy" (reasons and
+    distractors) only in women.
     """
 
     def __init__(self, lib: dict, seed: int):
@@ -143,7 +146,7 @@ class PhrasePool:
 
     def draw(self, ptype: str, sex: str) -> dict:
         for ph in self.pools[ptype]:
-            if ph["id"] in self.used or (ph["category"] == "pregnancy" and sex != "F"):
+            if ph["id"] in self.used or not may_plant(ph, sex):
                 continue
             self.used.add(ph["id"])
             return ph
