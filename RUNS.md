@@ -20,7 +20,7 @@ Rule: `PROTOCOL.md` sec. 13.
 
 | Field | Value |
 |---|---|
-| T = 00:00:00.000 UTC on the day after `published_at` | pending |
+| T = `published_at` rounded up to a whole minute, plus 2 minutes (UTC) | pending |
 | T in milliseconds since the Unix epoch | pending |
 | Source used (primary NIST Randomness Beacon 2.0; fallback drand quicknet) | pending |
 | Request URL | pending |
@@ -40,7 +40,7 @@ Built by the tag commit, unchanged, before any model is called.
 |---|---|
 | Commit used for the build (must equal the tag commit) | pending |
 | Working tree clean (`git status --porcelain` empty) | pending |
-| Generation batches: seed, `-p`, sha256 of each `run_manifest.json` | pending |
+| Generation batch: seed, `-p` (40000, one batch), sha256 of its `run_manifest.json` | pending |
 | Cohort size (alive, aged 30–79 at index) | pending |
 | Gate report | pending (`reports/gate_test_*.md`) |
 | Clusters by stratum × statin status | pending |

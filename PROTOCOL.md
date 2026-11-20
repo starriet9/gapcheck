@@ -301,7 +301,8 @@ test_seed = int( sha256( protocol_commit_sha + beacon_value ).hexdigest()[:8], 1
 - `protocol_commit_sha`: the 40-character lowercase hexadecimal id of the commit the Release tag points to.
 - `beacon_value`: defined below, exactly as published.
 - The two strings are joined with nothing between them and hashed as ASCII. Shell form: `printf '%s%s' "$SHA" "$VALUE" | sha256sum | cut -c1-8`, read as a base-16 integer.
-- T = 00:00:00.000 UTC on the calendar day (UTC) after the day of the Release's `published_at` time, as returned by the GitHub API.
+- T = the Release's `published_at` time, as returned by the GitHub API, rounded up to a whole minute, plus 2 minutes (UTC). For example, `published_at` 14:03:27Z gives T = 14:06:00.000Z, and 14:03:00Z gives 14:05:00.000Z.
+- Reason: the pulse must be published after the protocol commit and the Release are public, so nobody, the author included, could know it when the protocol was fixed; the 2 minutes cover clock differences between GitHub and NIST.
 
 **Primary beacon: NIST Randomness Beacon, version 2.0** (`https://beacon.nist.gov/beacon/2.0`, one pulse per minute).
 
@@ -313,7 +314,7 @@ test_seed = int( sha256( protocol_commit_sha + beacon_value ).hexdigest()[:8], 1
 **Fallback beacon: drand, League of Entropy `quicknet` chain** (chain hash `52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971`, genesis 1692803367, one round every 3 seconds).
 
 - Used only if no request made between T and T + 12 hours returns a NIST pulse that meets the rule above (at least three attempts, at least one hour apart, each logged in `RUNS.md` with its time and HTTP status).
-- Round: r = (T in seconds − 1692803367) / 3 + 1, the round emitted at T (the division is exact for any midnight UTC).
+- Round: r = (T in seconds − 1692803367) / 3 + 1, the round emitted at T (the division is exact for any whole minute).
 - Request: `GET https://api.drand.sh/52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971/public/<r>`.
 - `beacon_value` = the `randomness` field: 64 hexadecimal characters, lower case as published. It equals the sha256 of the round's signature, which is checked.
 
