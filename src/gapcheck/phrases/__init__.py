@@ -24,8 +24,8 @@ the patient. Every reason_pregnancy sentence has sex "F". `validate` checks
 the field against these words (SEX_WORDS, below).
 
 Who may receive a sentence (`may_plant`): a patient of its `sex` (any patient
-if null); sentences of category "pregnancy" (reasons and distractors) only
-women. The pregnancy reason counts only at ages 30-49
+if null), and only a woman if its category is "pregnancy" (reasons and
+distractors). The pregnancy reason counts only at ages 30-49
 (`oracle.applicable_reasons`).
 
 Rules (SPEC 5.2, 8): about 40 phrasings per type in total, dev and test
