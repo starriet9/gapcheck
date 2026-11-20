@@ -81,6 +81,8 @@ The accuracy hash depends on the scoring code (`src/gapcheck/score.py`) and the 
 
 All three passed on a clean clone (generated 2026-11-19 16:44 UTC) against the original dev set (generated 11:06 UTC the same day).
 
+On 2026-11-20 the P1 draw and the phrase draw changed (`SPEC.md` secs. 4.1 and 5.2). The database, the augmentation ledger, the strata file, the gate report and the case set were rebuilt from the same generator CSV files, whose hashes did not change; the expected hashes of the derived files were updated. A second rebuild from the same CSV files gave identical files. The mock run's accuracy sections did not change.
+
 Known differences that are not checked:
 
 - `observations.csv` as a whole depends on when it is generated. Synthea writes yearly QALY, DALY and QOLS rows dated after the simulation end date (`-e 20261118`), and which of them appear depends on the wall-clock time of the run: the clean clone had 7 more patients with such a row dated 2026-11-19 (21 lines), all timed between the two runs' start times. The pipeline drops every row dated after a patient's index date, which is on or before the end date, so nothing downstream changes; every derived file above matched.
