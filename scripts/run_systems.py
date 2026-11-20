@@ -8,9 +8,11 @@ Usage:
 Writes <out>/<run-id>/<system>.jsonl (case id, output, trace, tokens,
 seconds, verifier results, forced-fallback flag, and an `audit`: verifier
 checks on the final answer, never shown to any model) and manifest.json
-(git commit, prompt and conventions sha256, case-set sha256, backend and run
-settings). R0 and R1 need no backend. A1 and A2 come from one agent run:
-A1 is A2's pre-verification answer.
+(git commit, prompt set with each prompt role's file and sha256, conventions
+sha256, case-set sha256, backend and run settings). R0 and R1 need no
+backend. A1 and A2 come from one agent run: A1 is A2's pre-verification
+answer. The backend config's "run" block sets the harness settings
+(`systems.Settings`), including `prompt_set` and `rounds_left_notice`.
 
 Before L1 runs, every case passes the build-stop check (serialize.build_stop):
 rows the oracle uses and planted sentences must be in the serialization, and
@@ -100,7 +102,7 @@ def main() -> None:
         for c in case_list:
             env = CaseEnv.from_case(case_dir, c["case_id"], page_size=st.page_size)
             ser_t, prompt_t = systems.l1_prompt_tokens(env, st.chars_per_token,
-                                                       st.l1_tool_rounds)
+                                                       st.l1_tool_rounds, st.prompt_set)
             serialize.build_stop(case_dir, c["case_id"], serialize.serialize(env), prompt_t,
                                  st.context_limit)
             l1_sizes[c["case_id"]] = {"serialization_tokens": ser_t, "prompt_tokens": prompt_t}
@@ -113,7 +115,7 @@ def main() -> None:
         "case_set": {"path": rel(case_dir),
                      "manifest_sha256": hashlib.sha256(
                          (case_dir / "manifest.json").read_bytes()).hexdigest()},
-        "prompts_sha256": systems.prompt_hashes(),
+        **systems.prompt_record(st.prompt_set),  # prompt_set, prompt_files, prompts_sha256
         "conventions_sha256": conventions.sha256(),
         "backend": backend.describe() if backend else None,
         "settings": systems.Settings.from_dict(cfg.get("run")).__dict__,

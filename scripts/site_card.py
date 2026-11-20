@@ -197,6 +197,9 @@ def run_meta(run: dict, override_where: str | None, cmap: dict[str, str]) -> dic
     git = man.get("git") or {}
     commit = git.get("commit")
     now = current_prompts()
+    # Each role's text is compared with that role's own current file, so a run on a
+    # named prompt set (manifest prompt_set) shows as changed unless the default file
+    # now holds the same text.
     changed = sorted(k for k, v in (man.get("prompts_sha256") or {}).items() if now.get(k) not in (None, v))
     return {"run_id": man["run_id"], "model_display": model_display(be),
             "where": where(be, override_where), "model": be.get("model"),
@@ -205,6 +208,7 @@ def run_meta(run: dict, override_where: str | None, cmap: dict[str, str]) -> dic
             "finished_utc": man.get("finished_utc"),
             "date": (man.get("finished_utc") or man.get("started_utc") or "")[:10] or None,
             "prompts_changed_since": changed,
+            "prompt_set": man.get("prompt_set", "default"),
             "prompts_sha256": man.get("prompts_sha256"),
             "conventions_sha256": man.get("conventions_sha256")}
 

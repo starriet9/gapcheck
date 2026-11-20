@@ -1,5 +1,6 @@
 """Systems L1, A1, A2 with scripted mock models; serialization; R0/R1 on a case set."""
 import copy
+import hashlib
 import json
 
 import numpy as np
@@ -356,17 +357,144 @@ def test_task_prompts_state_the_harness_limits(env):
     l1_tool_rounds), and the prompts carry the stop rule (with parallel calls and a stop
     condition for the agent), the COMPUTED rule and the over-abstention rule (local-model
     smoke runs)."""
-    for n in (3, 20):
-        b = MockBackend(lambda m, t: Response(json.dumps(ABSTAIN)))
-        systems.run_agent(env, b, systems.Settings(max_steps=n), verify=False)
-        task = b.calls[0]["messages"][1]["content"]
-        assert f"at most {n} rounds of tool calls" in task and "stop searching" in task.lower()
-        assert "several tool calls" in task and "confirmed absent" in task
-        b = MockBackend(lambda m, t: Response(json.dumps(ABSTAIN)))
-        systems.run_l1(env, b, systems.Settings(l1_tool_rounds=n))
-        assert f"at most {n} rounds of calls" in b.calls[0]["messages"][1]["content"]
-    for name in ("task_l1", "task_agent"):
-        assert "never makes the answer CANNOT_DETERMINE" in systems.prompt(name)
-        assert "{" not in systems.task_l1(2) + systems.task_agent(20)
+    for ps in systems.PROMPT_SETS:
+        for n in (3, 12, 20):
+            b = MockBackend(lambda m, t: Response(json.dumps(ABSTAIN)))
+            systems.run_agent(env, b, systems.Settings(max_steps=n, prompt_set=ps), verify=False)
+            task = b.calls[0]["messages"][1]["content"]
+            assert task == systems.task_agent(n, ps)
+            assert f"at most {n} rounds of tool calls" in task and "stop searching" in task.lower()
+            assert "several tool calls" in task and "confirmed absent" in task
+            b = MockBackend(lambda m, t: Response(json.dumps(ABSTAIN)))
+            systems.run_l1(env, b, systems.Settings(l1_tool_rounds=n, prompt_set=ps))
+            assert f"at most {n} rounds of calls" in b.calls[0]["messages"][1]["content"]
+        for name in ("task_l1", "task_agent"):
+            assert "never makes the answer CANNOT_DETERMINE" in systems.prompt(name, ps)
+        assert "{" not in systems.task_l1(2, ps) + systems.task_agent(20, ps) \
+            + systems.rounds_left(2, ps)
     assert "A COMPUTED claim must copy a prevent_risk result" in systems.prompt("system")
     assert "do not call it again with the same inputs" in systems.prompt("task_l1")
+
+
+# ---------------------------------------------------------------- run options
+NOREPEAT = "Do not repeat a search whose rows you already have."
+
+
+def _spinner():
+    """A model that calls one tool per turn for ever (until refused twice)."""
+    n = {"i": 0}
+
+    def spin(messages, tools):
+        n["i"] += 1
+        return Response("", [ToolCall(f"s{n['i']}", "get_allergies", {})])
+    return spin
+
+
+def _notices(trace):
+    return [t for t in trace if t["type"] == "user" and t["kind"] == "rounds_left"]
+
+
+def test_run_options_default_off():
+    st = systems.Settings()
+    assert st.prompt_set == "default" and st.rounds_left_notice == 0
+    assert systems.Settings.from_dict({}) == st
+    rec = systems.prompt_record()
+    assert rec["prompt_set"] == "default"
+    assert rec["prompt_files"] == {n: f"{n}.txt" for n in systems.PROMPTS}
+    assert rec["prompts_sha256"] == systems.prompt_hashes()
+    with pytest.raises(ValueError, match="prompt_set"):
+        systems.Settings.from_dict({"prompt_set": "nosuchset"})
+    with pytest.raises(ValueError, match="rounds_left_notice"):
+        systems.Settings(rounds_left_notice=-1)
+
+
+def test_no_notice_by_default(env):
+    b = MockBackend(_spinner())
+    a1, _ = systems.run_agent(env, b, systems.Settings(max_steps=4), verify=False)
+    assert not _notices(a1["trace"])
+    assert not any(m["role"] == "user" and m["content"].startswith("Rounds of tool calls left")
+                   for c in b.calls for m in c["messages"])
+
+
+def test_rounds_left_notice_after_the_round_that_leaves_n(env):
+    b = MockBackend(_spinner())
+    st = systems.Settings(max_steps=5, rounds_left_notice=2)
+    a1, _ = systems.run_agent(env, b, st, verify=False)
+    notes = _notices(a1["trace"])
+    assert [t["content"] for t in notes] == ["Rounds of tool calls left: 2."]
+    assert systems.rounds_left(2) == "Rounds of tool calls left: 2."
+    # it follows the tool results of round 3 (5 - 3 = 2 left) and precedes the 4th call
+    msgs = b.calls[3]["messages"]
+    assert msgs[-1] == {"role": "user", "content": "Rounds of tool calls left: 2."}
+    assert msgs[-2]["role"] == "tool" and msgs[-3]["role"] == "assistant"
+    assert sum(m["role"] == "assistant" for m in msgs) == 3
+    assert all(_well_formed(c["messages"]) for c in b.calls)
+    # the limit still applies at 5 rounds: 5 real calls, then refusals
+    real = [t for t in a1["trace"] if t["type"] == "tool" and t["result"] != {"error": "tool limit reached"}]
+    assert len(real) == 5
+    # a notice at or above the limit never fires; L1 never gets one
+    a1, _ = systems.run_agent(env, MockBackend(_spinner()),
+                              systems.Settings(max_steps=2, rounds_left_notice=2), verify=False)
+    assert not _notices(a1["trace"])
+    r = systems.run_l1(env, MockBackend(lambda m, t: Response("", [ToolCall(
+        "p", "prevent_risk", {"sex": "male", "age": 55, "tc": 220, "hdl": 45, "sbp": 142,
+                              "bp_treated": 1, "statin": 0, "diabetes": 0, "smoker": 0,
+                              "egfr": 88})])), systems.Settings(l1_tool_rounds=3, rounds_left_notice=1))
+    assert not _notices(r["trace"])
+
+
+def test_rounds_left_notice_in_the_repair_loop(env):
+    """A2's repair loop counts its own rounds (repair_steps) and gets the notice too."""
+    state = {"n": 0}
+    first = ReferenceAgent(mutate=_fake_row)  # first draft cites a row that does not exist
+    first.bind(env)
+    good = systems.run_rule("R1", env)["output"]
+
+    def policy(messages, tools):
+        said = next(m for m in reversed(messages) if m["role"] == "user")["content"]
+        if "evidence checks failed" in said or state["n"]:
+            state["n"] += 1  # repair: three rounds of calls, then the corrected answer
+            if state["n"] <= 3:
+                return Response("", [ToolCall(f"r{state['n']}", "get_allergies", {})])
+            return Response(json.dumps(good))
+        return first(messages, tools)
+    b = MockBackend(policy)
+    _, a2 = systems.run_agent(env, b, systems.Settings(max_steps=6, repair_steps=4,
+                                                       rounds_left_notice=1))
+    kinds = [t["kind"] for t in a2["trace"] if t["type"] == "user"]
+    assert kinds == ["repair", "rounds_left"]  # main loop: 4 rounds of 6, never 1 left
+    assert a2["verifier"][-1]["ok"] and not a2["forced_fallback"]
+
+
+def test_prompt_set_norepeat_adds_one_sentence(env):
+    base, var = systems.prompt("task_agent"), systems.prompt("task_agent", "norepeat")
+    assert NOREPEAT not in base and var.count(NOREPEAT) == 1
+    assert var.replace(NOREPEAT + " ", "") == base  # nothing else differs
+    assert systems.prompt_file("task_agent", "norepeat").name == "task_agent_norepeat.txt"
+    for role in systems.PROMPTS:
+        if role != "task_agent":
+            assert systems.prompt(role, "norepeat") == systems.prompt(role)
+    d, n = systems.prompt_hashes(), systems.prompt_hashes("norepeat")
+    assert {k for k in d if d[k] != n[k]} == {"task_agent"}
+    rec = systems.prompt_record("norepeat")
+    assert rec["prompt_files"]["task_agent"] == "task_agent_norepeat.txt"
+    assert rec["prompts_sha256"]["task_agent"] == hashlib.sha256(
+        (systems.PROMPT_DIR / "task_agent_norepeat.txt").read_bytes()).hexdigest()
+    b = MockBackend(lambda m, t: Response(json.dumps(ABSTAIN)))
+    systems.run_agent(env, b, systems.Settings(max_steps=12, prompt_set="norepeat"), verify=False)
+    task = b.calls[0]["messages"][1]["content"]
+    assert NOREPEAT in task and "at most 12 rounds of tool calls" in task
+    b = MockBackend(lambda m, t: Response(json.dumps(ABSTAIN)))
+    systems.run_agent(env, b, systems.Settings(max_steps=12), verify=False)
+    assert NOREPEAT not in b.calls[0]["messages"][1]["content"]
+    # L1 is the same in both sets
+    assert systems.l1_messages(env, 2, "norepeat") == systems.l1_messages(env, 2)
+
+
+def test_every_prompt_file_is_a_role_or_in_a_set():
+    """A prompt file nobody reads would be frozen without effect, and a set that names a
+    missing file would fail mid-run."""
+    used = set(systems.PROMPTS) | {f for m in systems.PROMPT_SETS.values() for f in m.values()}
+    assert {p.stem for p in systems.PROMPT_DIR.glob("*.txt")} == used
+    for ps in systems.PROMPT_SETS:
+        assert all(systems.prompt_file(r, ps).exists() for r in systems.PROMPTS)

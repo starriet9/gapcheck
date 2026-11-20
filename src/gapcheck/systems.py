@@ -17,6 +17,18 @@ plain text files in `prompts/`; their sha256 go into the run manifest. The task
 prompts state the tool-round limits ({rounds}, {max_steps}), filled in from
 `Settings` so the number the model reads is the harness limit.
 
+Two run options, both off by default (the defaults reproduce earlier runs):
+- `Settings.prompt_set` names an entry of `PROMPT_SETS`, which maps a prompt
+  role to the file used in its place (for example "norepeat": the agent task
+  prompt with one added sentence, `task_agent_norepeat.txt`). The manifest
+  records the set, the file of each role and the sha256 of the text each
+  role used (`prompt_record`).
+- `Settings.rounds_left_notice` = N > 0: in the agent's tool loops (A1, and
+  the A2 repair), after the round that leaves N rounds of tool calls, the
+  harness adds one user message, `prompts/rounds_left.txt` with the number
+  filled in. The model is otherwise told the limit only in the task prompt
+  and when it is reached.
+
 A result is a dict: output (or None), schema_valid, error, trace, tokens,
 model_calls, tool_calls, seconds, verifier (A2: one report per round),
 forced_fallback.
@@ -37,7 +49,13 @@ from .serialize import est_tokens, serialize
 from .tools import CaseEnv, dumps, tool_specs
 
 PROMPT_DIR = Path(__file__).with_name("prompts")
-PROMPTS = ("system", "task_l1", "task_agent", "reask", "repair", "limit")
+PROMPTS = ("system", "task_l1", "task_agent", "reask", "repair", "limit", "rounds_left")
+# Named prompt sets: role -> file (stem in prompts/) used in its place. A role
+# not listed uses its own file.
+PROMPT_SETS: dict[str, dict[str, str]] = {
+    "default": {},
+    "norepeat": {"task_agent": "task_agent_norepeat"},
+}
 SYSTEMS = ("R0", "R1", "L1", "A1", "A2")
 
 
@@ -53,6 +71,15 @@ class Settings:
     # tokenizer measured about 2.2-2.3 on dev L1 prompts). Calibrate it with
     # the server's tokenizer before trusting the build stop.
     chars_per_token: float = 4.0
+    prompt_set: str = "default"  # key of PROMPT_SETS
+    rounds_left_notice: int = 0  # agent loops: notice when this many rounds are left; 0 = off
+
+    def __post_init__(self):
+        if self.prompt_set not in PROMPT_SETS:
+            raise ValueError(f"unknown prompt_set {self.prompt_set!r}; "
+                             f"known: {sorted(PROMPT_SETS)}")
+        if not isinstance(self.rounds_left_notice, int) or self.rounds_left_notice < 0:
+            raise ValueError("rounds_left_notice must be an integer >= 0")
 
     @classmethod
     def from_dict(cls, d: dict | None) -> "Settings":
@@ -60,27 +87,47 @@ class Settings:
         return cls(**{k: d[k] for k in asdict(cls()) if k in d})
 
 
-def prompt(name: str) -> str:
-    return (PROMPT_DIR / f"{name}.txt").read_text(encoding="utf-8").strip()
+def prompt_file(role: str, prompt_set: str = "default") -> Path:
+    """The file a prompt role reads in a prompt set."""
+    return PROMPT_DIR / f"{PROMPT_SETS[prompt_set].get(role, role)}.txt"
 
 
-def task_l1(rounds: int) -> str:
+def prompt(name: str, prompt_set: str = "default") -> str:
+    return prompt_file(name, prompt_set).read_text(encoding="utf-8").strip()
+
+
+def task_l1(rounds: int, prompt_set: str = "default") -> str:
     """L1 task prompt with its tool-round limit (Settings.l1_tool_rounds)."""
-    return prompt("task_l1").format(rounds=rounds)
+    return prompt("task_l1", prompt_set).format(rounds=rounds)
 
 
-def task_agent(max_steps: int) -> str:
+def task_agent(max_steps: int, prompt_set: str = "default") -> str:
     """Agent task prompt with its tool-round limit (Settings.max_steps)."""
-    return prompt("task_agent").format(max_steps=max_steps)
+    return prompt("task_agent", prompt_set).format(max_steps=max_steps)
 
 
-def prompt_hashes() -> dict[str, str]:
-    return {n: hashlib.sha256((PROMPT_DIR / f"{n}.txt").read_bytes()).hexdigest()
+def rounds_left(left: int, prompt_set: str = "default") -> str:
+    """The rounds-left notice (Settings.rounds_left_notice)."""
+    return prompt("rounds_left", prompt_set).format(left=left)
+
+
+def prompt_hashes(prompt_set: str = "default") -> dict[str, str]:
+    """{role: sha256 of the file that role reads in the prompt set}."""
+    return {n: hashlib.sha256(prompt_file(n, prompt_set).read_bytes()).hexdigest()
             for n in PROMPTS}
 
 
-def system_message() -> dict:
-    return {"role": "system", "content": prompt("system") + "\n\n" + conventions.render()}
+def prompt_record(prompt_set: str = "default") -> dict:
+    """What a run manifest records about its prompts: the set, each role's file and the
+    sha256 of each role's text."""
+    return {"prompt_set": prompt_set,
+            "prompt_files": {n: prompt_file(n, prompt_set).name for n in PROMPTS},
+            "prompts_sha256": prompt_hashes(prompt_set)}
+
+
+def system_message(prompt_set: str = "default") -> dict:
+    return {"role": "system",
+            "content": prompt("system", prompt_set) + "\n\n" + conventions.render()}
 
 
 # ---------------------------------------------------------------- parsing
@@ -150,10 +197,12 @@ def _refuse_calls(calls, messages: list[dict], run: Run) -> None:
 
 
 def converse(backend: Backend, messages: list[dict], tools: list[dict], env: CaseEnv,
-             max_rounds: int, run: Run) -> str | None:
+             max_rounds: int, run: Run, notice_at: int = 0,
+             prompt_set: str = "default") -> str | None:
     """Model turns until a reply without tool calls. After `max_rounds` rounds, tool calls
     get an error and the limit prompt once; a further tool call gets the error too and
-    ends with None."""
+    ends with None. With `notice_at` = N > 0, the round that leaves N rounds is followed
+    by the rounds-left notice (one user message after that round's tool results)."""
     allowed = {t["name"] for t in tools}
     rounds, over = 0, False
     while True:
@@ -167,8 +216,9 @@ def converse(backend: Backend, messages: list[dict], tools: list[dict], env: Cas
             if over:
                 return None
             over = True
-            messages.append({"role": "user", "content": prompt("limit")})
-            run.user("limit", prompt("limit"))
+            msg = prompt("limit", prompt_set)
+            messages.append({"role": "user", "content": msg})
+            run.user("limit", msg)
             continue
         for c in r.tool_calls:
             res = env.call(c.name, c.arguments) if c.name in allowed else \
@@ -177,23 +227,28 @@ def converse(backend: Backend, messages: list[dict], tools: list[dict], env: Cas
             messages.append({"role": "tool", "tool_call_id": c.id, "name": c.name,
                              "content": dumps(res)})
         rounds += 1
+        if notice_at > 0 and max_rounds - rounds == notice_at:
+            msg = rounds_left(notice_at, prompt_set)
+            messages.append({"role": "user", "content": msg})
+            run.user("rounds_left", msg)
 
 
-def answer(backend, messages, tools, env, max_rounds, run) -> tuple[dict | None, str | None]:
+def answer(backend, messages, tools, env, max_rounds, run, notice_at: int = 0,
+           prompt_set: str = "default") -> tuple[dict | None, str | None]:
     """Converse, parse and validate; one re-ask on an invalid reply. A request the
     server rejects (BackendError, e.g. context overflow) ends with no answer and no
     re-ask: a longer conversation would be rejected too."""
     try:
-        text = converse(backend, messages, tools, env, max_rounds, run)
+        text = converse(backend, messages, tools, env, max_rounds, run, notice_at, prompt_set)
         out, err = parse_answer(text)
         if out is not None:
             return out, None
         if text is None:
             err = "a tool call after the tool limit"
-        msg = prompt("reask").format(error=err)
+        msg = prompt("reask", prompt_set).format(error=err)
         messages.append({"role": "user", "content": msg})
         run.user("reask", msg)
-        text = converse(backend, messages, tools, env, 0, run)
+        text = converse(backend, messages, tools, env, 0, run, prompt_set=prompt_set)
     except BackendError as e:
         run.trace.append({"type": "error", "error": str(e)})
         return None, f"backend: {e}"
@@ -227,21 +282,25 @@ def _bind(backend, env) -> None:
         b(env)
 
 
-def l1_messages(env: CaseEnv, rounds: int = Settings.l1_tool_rounds) -> list[dict]:
-    return [system_message(),
-            {"role": "user", "content": task_l1(rounds) + "\n\n" + serialize(env)}]
+def l1_messages(env: CaseEnv, rounds: int = Settings.l1_tool_rounds,
+                prompt_set: str = "default") -> list[dict]:
+    return [system_message(prompt_set),
+            {"role": "user", "content": task_l1(rounds, prompt_set) + "\n\n" + serialize(env)}]
 
 
 def run_l1(env: CaseEnv, backend: Backend, st: Settings) -> dict:
     _bind(backend, env)
     run = Run()
-    msgs = l1_messages(env, st.l1_tool_rounds)
-    out, err = answer(backend, msgs, tool_specs(("prevent_risk",)), env, st.l1_tool_rounds, run)
+    msgs = l1_messages(env, st.l1_tool_rounds, st.prompt_set)
+    out, err = answer(backend, msgs, tool_specs(("prevent_risk",)), env, st.l1_tool_rounds, run,
+                      prompt_set=st.prompt_set)
     return _result(out, err, run.snapshot())
 
 
-def agent_messages(max_steps: int = Settings.max_steps) -> list[dict]:
-    return [system_message(), {"role": "user", "content": task_agent(max_steps)}]
+def agent_messages(max_steps: int = Settings.max_steps, prompt_set: str = "default"
+                   ) -> list[dict]:
+    return [system_message(prompt_set),
+            {"role": "user", "content": task_agent(max_steps, prompt_set)}]
 
 
 FALLBACK_NOTE = ("The evidence for this answer did not pass the provenance checks after one "
@@ -259,9 +318,10 @@ def run_agent(env: CaseEnv, backend: Backend, st: Settings, verify: bool = True
     """A1 (pre-verification answer) and, with verify=True, A2 from the same run."""
     _bind(backend, env)
     run = Run()
-    msgs = agent_messages(st.max_steps)
+    ps = st.prompt_set
+    msgs = agent_messages(st.max_steps, ps)
     tools = tool_specs()
-    out, err = answer(backend, msgs, tools, env, st.max_steps, run)
+    out, err = answer(backend, msgs, tools, env, st.max_steps, run, st.rounds_left_notice, ps)
     a1 = _result(out, err, run.snapshot())
     if not verify:
         return a1, None
@@ -272,10 +332,10 @@ def run_agent(env: CaseEnv, backend: Backend, st: Settings, verify: bool = True
     run.trace.append({"type": "verifier", "round": 1, **rep.to_dict()})
     if rep.ok:
         return a1, _result(out, None, run.snapshot(), verifier=reports)
-    msg = prompt("repair").format(failures=verifier.feedback(rep))
+    msg = prompt("repair", ps).format(failures=verifier.feedback(rep))
     msgs.append({"role": "user", "content": msg})
     run.user("repair", msg)
-    out2, err2 = answer(backend, msgs, tools, env, st.repair_steps, run)
+    out2, err2 = answer(backend, msgs, tools, env, st.repair_steps, run, st.rounds_left_notice, ps)
     if out2 is not None:
         rep2 = verifier.verify(out2, env)
         reports.append(rep2.to_dict())
@@ -288,10 +348,11 @@ def run_agent(env: CaseEnv, backend: Backend, st: Settings, verify: bool = True
 
 
 def l1_prompt_tokens(env: CaseEnv, chars_per_token: float = 4.0,
-                     rounds: int = Settings.l1_tool_rounds) -> tuple[int, int]:
+                     rounds: int = Settings.l1_tool_rounds,
+                     prompt_set: str = "default") -> tuple[int, int]:
     """(serialization tokens, whole L1 prompt tokens with the tool definition),
     estimated as characters / chars_per_token."""
-    msgs = l1_messages(env, rounds)
+    msgs = l1_messages(env, rounds, prompt_set)
     ser = serialize(env)
     tools = json.dumps(tool_specs(("prevent_risk",)))
     return (est_tokens(ser, chars_per_token),
