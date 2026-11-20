@@ -54,10 +54,14 @@ def test_p1_rows(patched):
     for col in ["CATEGORY", "CODE", "DESCRIPTION", "UNITS", "TYPE"]:
         assert (add[col] == native[col]).all(), col
     assert add.VALUE.str.fullmatch(r"\d+\.\d").all()
-    sex = dict(q(patched, "select PATIENT, sex from cohort"))
+    coh = {r[0]: r[1:] for r in q(patched, "select PATIENT, sex, birthdate from cohort")}
     v = add.VALUE.astype(float)
-    lo = add.PATIENT.map(lambda p: 77.0 if sex[p] == "M" else 60.0)
-    assert (v >= lo).all() and (v <= 140.0).all()
+    assert (v >= 60.0).all() and (v <= 140.0).all()
+    # each value lies within 4 reference SDs of healthy adults of that age and sex
+    for pid, when, val in zip(add.PATIENT, add.DATE, v):
+        sex, bd = coh[pid]
+        mean, sd = patches.p1_reference(patches._age_years(when, bd), sex)
+        assert abs(val - mean) <= 4 * sd, (pid, when, val)
     # one row per adult wellness encounter with an SBP row, at the BP panel time
     exp = patched.execute(f"""
         select o.PATIENT, o.ENCOUNTER, min(o.DATE) as DATE from observations o
@@ -76,10 +80,65 @@ def test_p1_pinned_to_dev_run(patched):
     rows = q(patched, "select row_id, DATE, VALUE from observations where PATIENT = ? "
                       "and patch = 'P1' order by DATE desc", [P1_ONLY])
     assert len(rows) == 6
-    assert rows[0] == ("obs_83772ad64e919c44", "2026-11-10T01:27:19Z", "129.7")
-    assert rows[1] == ("obs_87e6be1d6ef338c0", "2023-11-07T01:27:19Z", "127.8")
+    assert rows[0] == ("obs_3f54221f3015a89c", "2026-11-10T01:27:19Z", "96.2")
+    assert rows[1] == ("obs_8dae7b46ad5208d8", "2023-11-07T01:27:19Z", "104.7")
     assert q(patched, "select count(*), min(cast(VALUE as double)) from observations "
-                      "where PATIENT = ? and patch = 'P1'", [FEMALE])[0] == (6, 91.9)
+                      "where PATIENT = ? and patch = 'P1'", [FEMALE])[0] == (6, 115.8)
+
+
+def test_p1_reference_table():
+    assert patches.p1_reference(25, "M") == (114.5, 10.4)
+    assert patches.p1_reference(75, "F") == (82.2, 7.9)
+    assert patches.p1_reference(18, "F") == patches.p1_reference(25, "F")  # held at the ends
+    assert patches.p1_reference(79, "M") == patches.p1_reference(75, "M")
+    m, sd = patches.p1_reference(70, "M")
+    assert m == pytest.approx((89.2 + 79.6) / 2) and sd == pytest.approx((8.8 + 9.2) / 2)
+    for sex in ("M", "F"):  # mean falls with age
+        means = [patches.p1_reference(a, sex)[0] for a in range(18, 80)]
+        assert all(a >= b for a, b in zip(means, means[1:]))
+
+
+def _patients(age, sex, n=3000, visits=1, seed=11):
+    """Values of n simulated patients (one generator each, as apply_p1 does)."""
+    out = []
+    for i in range(n):
+        rng = patches._patient_rng(seed, f"p{i}")
+        z = patches.p1_level(rng)
+        out.append([patches.p1_value(rng, age, sex, z) for _ in range(visits)])
+    return np.array(out)
+
+
+@pytest.mark.parametrize("sex", ["M", "F"])
+def test_p1_value_depends_on_age(sex):
+    young, old = _patients(25, sex)[:, 0], _patients(75, sex)[:, 0]
+    for v, age in ((young, 25), (old, 75)):
+        assert v.min() >= 60.0 and v.max() <= 140.0
+        mean, sd = patches.p1_reference(age, sex)
+        assert v.mean() == pytest.approx(mean, abs=1.5)
+        assert v.std() == pytest.approx(sd, rel=0.15)  # values vary across patients
+    assert young.mean() - old.mean() > 25
+    assert np.median(old) < 90 and np.quantile(old, 0.99) < 110  # a 75-year-old is not 122
+    assert np.quantile(young, 0.5) > 105
+
+
+def test_p1_value_series_of_one_patient():
+    v = _patients(50, "F", n=400, visits=8)
+    sd_ref = patches.p1_reference(50, "F")[1]
+    within = v.std(axis=1, ddof=1).mean()
+    assert within == pytest.approx(sd_ref * np.sqrt(1 - patches.P1_PERSON_CORR ** 2), rel=0.15)
+    assert v.mean(axis=1).std() > 1.4 * within  # patients differ more than visits do
+
+
+def test_p1_value_deterministic():
+    a, b = _patients(40, "M", n=50, visits=3), _patients(40, "M", n=50, visits=3)
+    c = _patients(40, "M", n=50, visits=3, seed=12)
+    assert (a == b).all() and not (a == c).all()
+
+
+def test_p1_level_limited():
+    rng = np.random.default_rng(3)
+    z = np.array([patches.p1_level(rng) for _ in range(5000)])
+    assert np.abs(z).max() <= patches.P1_LEVEL_LIMIT and z.std() == pytest.approx(0.97, abs=0.05)
 
 
 def test_p1_deterministic_and_seeded(tmp_path):

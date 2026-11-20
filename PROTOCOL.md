@@ -31,7 +31,7 @@ Expectation, written before any test output: rule baselines should win wherever 
 **Patches** (after generation, seeded, every added or removed row in `augmentation_ledger.csv`; full rules in `SPEC.md` sec. 4.1):
 
 - P0: rows of the eGFR series in mL/min, which contradicts the diagnoses, are removed at load.
-- P1: adults with no eGFR and no kidney-related diagnosis get an eGFR row at each wellness encounter with a BP panel, drawn as the generator draws it and truncated to 60–140. A patient with a P1 value can be a base patient only if the indication row is the same for every eGFR from 60 to 140, so no test label depends on an imputed value.
+- P1: adults with no eGFR and no kidney-related diagnosis get an eGFR row at each wellness encounter with a BP panel, drawn for a healthy adult of the patient's age and sex (CKD-EPI reference values of Ma et al. 2021; `SPEC.md` sec. 4.1) and kept within 60–140. A patient with a P1 value can be a base patient only if the indication row is the same for every eGFR from 60 to 140, so no test label depends on an imputed value.
 - P2: within each indication row of S2–S4, a seeded random half receives an active statin.
 
 Order: generate → P0 → P1 → indication group → P2 within groups → oracle label. Notes are rendered by the harness from the final structured state plus the planted sentences; the generator's own notes are not used. Generator limits that are not patched are listed in `SPEC.md` secs. 4.1 and 11.
@@ -346,6 +346,7 @@ The synthetic test set, the augmentation and edit ledgers, all model outputs and
 - Blumenthal RS, et al. 2026 ACC/AHA/AACVPR/ABC/ACPM/ADA/AGS/APhA/ASPC/NLA/PCNA Guideline on the Management of Dyslipidemia. J Am Coll Cardiol 2026;87(19):2624–2757. doi:10.1016/j.jacc.2025.11.016.
 - Khan SS, et al. Development and validation of the American Heart Association's PREVENT equations. Circulation 2024;149(6):430–449. doi:10.1161/CIRCULATIONAHA.123.067626.
 - Walonoski J, et al. Synthea. J Am Med Inform Assoc 2018;25(3):230–238. doi:10.1093/jamia/ocx079.
+- Ma Y, Zhan J, Xu G. Reference values of glomerular filtration rate for healthy adults in southern China: a cross-sectional survey. Ther Adv Chronic Dis 2021;12:20406223211035287. doi:10.1177/20406223211035287.
 - Gallifant J, et al. The TRIPOD-LLM reporting guideline for studies using large language models. Nat Med 2025;31(1):60–69. doi:10.1038/s41591-024-03425-5.
 - NIST Randomness Beacon, version 2.0. https://beacon.nist.gov/beacon/2.0 (format: NIST Interagency Report 8213, draft, "A Reference for Randomness Beacons: Format and Protocol Version 2").
 - drand, League of Entropy, `quicknet` chain. https://api.drand.sh (chain information at `/<chain hash>/info`).

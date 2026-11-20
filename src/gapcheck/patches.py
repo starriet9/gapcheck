@@ -22,11 +22,35 @@ import pandas as pd
 from . import codes as C
 from .load import original_columns, resort, row_id, sql_date
 
-# P1 value range: the generator's own draw for people without kidney damage
-# (biometrics.yml metabolic.basic_panel.creatinine_clearance.normal; drawn
-# uniformly by LifecycleModule via Person.rand(range)), truncated to 60-140.
-P1_NORMAL_RANGE = {"M": (77.0, 160.0), "F": (56.0, 161.0)}
-P1_TRUNCATE = (60.0, 140.0)
+# P1 values: eGFR of healthy adults by age and sex, truncated to 60-140.
+# Reference: CKD-EPI eGFR (mL/min/1.73 m2), mean and SD by age decade and sex,
+# in 20,930 healthy adults (no hypertension, diabetes, kidney or cardiovascular
+# disease, normal urine and blood tests): Ma Y, Zhan J, Xu G. Reference values
+# of glomerular filtration rate for healthy adults in southern China: a
+# cross-sectional survey. Ther Adv Chronic Dis 2021;12:20406223211035287,
+# Table 1. Each decade is placed at its midpoint (">= 70" at 75); between
+# midpoints mean and SD are interpolated linearly, outside them held at the
+# end value. The paper does not name its CKD-EPI version; PREVENT uses
+# CKD-EPI 2021.
+# (The generator's own draw, uniform over men 77-160 and women 56-161 at
+# every age, gave a 72-year-old 122.)
+P1_REFERENCE = {  # (age, mean, SD)
+    "M": ((25, 114.5, 10.4), (35, 109.3, 10.0), (45, 101.6, 9.8), (55, 95.2, 9.2),
+          (65, 89.2, 8.8), (75, 79.6, 9.2)),
+    "F": ((25, 121.1, 8.3), (35, 116.1, 7.9), (45, 106.8, 8.1), (55, 99.4, 7.8),
+          (65, 91.4, 8.1), (75, 82.2, 7.9)),
+}
+# A patient keeps one place in that distribution (a level z, |z| <= 2.5 SD)
+# across visits; each visit adds its own variation. Value at a visit:
+# mean(age) + SD(age) * (r * z + sqrt(1 - r^2) * e), e standard normal, so
+# values across patients keep the reference SD, and within one patient the
+# visit-to-visit SD is about 0.53 SD, 4-5.5 mL/min/1.73 m2: close to the
+# within-person variation of creatinine (CV 4.4%; Carobene et al., EuBIVAS,
+# 2017) times 1.2 (the CKD-EPI 2021 creatinine exponent above the knot) at an
+# eGFR of 90. r = 0.85 is a choice, not a published value.
+P1_PERSON_CORR = 0.85
+P1_LEVEL_LIMIT = 2.5
+P1_TRUNCATE = (60.0, 140.0)  # a draw outside is redrawn (visit term e only)
 # Only wellness encounters from this age on get a P1 row (no eGFR rows in
 # childhood; SPEC does not say, see PIPELINE notes).
 P1_MIN_AGE = 18
@@ -82,11 +106,12 @@ def p1_targets(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """One row per (eligible patient, adult wellness encounter with an SBP row).
 
     DATE is the time of the BP panel (the encounter's first SBP row).
+    Columns: PATIENT, sex, birthdate, ENCOUNTER, DATE.
     """
     elig = p1_eligible(con)
     con.register("_p1_elig", elig)
     df = con.execute(f"""
-        select o.PATIENT, e.sex, o.ENCOUNTER, min(o.DATE) as DATE
+        select o.PATIENT, e.sex, c.birthdate, o.ENCOUNTER, min(o.DATE) as DATE
         from observations o
         join encounters x on x.Id = o.ENCOUNTER
         join _p1_elig e on e.PATIENT = o.PATIENT
@@ -99,14 +124,43 @@ def p1_targets(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     return df
 
 
-def p1_value(rng: np.random.Generator, sex: str) -> float:
-    lo, hi = P1_NORMAL_RANGE[sex]
-    lo, hi = max(lo, P1_TRUNCATE[0]), min(hi, P1_TRUNCATE[1])
-    return round(float(rng.uniform(lo, hi)), 1)
+def p1_reference(age: float, sex: str) -> tuple[float, float]:
+    """(mean, SD) of healthy adults' eGFR at this age (P1_REFERENCE)."""
+    ages, means, sds = zip(*P1_REFERENCE[sex])
+    return float(np.interp(age, ages, means)), float(np.interp(age, ages, sds))
+
+
+def p1_level(rng: np.random.Generator) -> float:
+    """A patient's place in the reference distribution, in SD units (|z| <= 2.5)."""
+    while True:
+        z = float(rng.standard_normal())
+        if abs(z) <= P1_LEVEL_LIMIT:
+            return z
+
+
+def p1_value(rng: np.random.Generator, age: float, sex: str, level: float) -> float:
+    """One visit's eGFR, rounded to 0.1 and within P1_TRUNCATE."""
+    mean, sd = p1_reference(age, sex)
+    r = P1_PERSON_CORR
+    lo, hi = P1_TRUNCATE
+    for _ in range(10_000):
+        v = mean + sd * (r * level + np.sqrt(1 - r * r) * float(rng.standard_normal()))
+        if lo <= v <= hi:
+            return round(float(v), 1)
+    raise RuntimeError(f"P1: no value in {P1_TRUNCATE} at age {age:.1f}, level {level:.2f}")
+
+
+def _age_years(when: str, birthdate) -> float:
+    d = pd.Timestamp(str(when)[:10])
+    return (d - pd.Timestamp(birthdate)).days / 365.25
 
 
 def apply_p1(con: duckdb.DuckDBPyConnection, seed: int) -> tuple[int, int]:
-    """Add imputed eGFR rows. Returns (patients, rows added)."""
+    """Add imputed eGFR rows. Returns (patients, rows added).
+
+    Per patient, a generator seeded by the P1 sub-seed and the patient id draws
+    the level, then one value per visit in time order (age at the visit).
+    """
     s = sub_seed(seed, "P1")
     targets = p1_targets(con)
     cols = original_columns(con, "observations")
@@ -114,8 +168,9 @@ def apply_p1(con: duckdb.DuckDBPyConnection, seed: int) -> tuple[int, int]:
     seen: dict[str, int] = {}
     for patient, grp in targets.groupby("PATIENT", sort=True):
         rng = _patient_rng(s, patient)
-        for t in grp.itertuples(index=False):
-            v = p1_value(rng, t.sex)
+        level = p1_level(rng)
+        for t in grp.itertuples(index=False):  # in time order
+            v = p1_value(rng, _age_years(t.DATE, t.birthdate), t.sex, level)
             rec = {c: None for c in cols}
             rec.update({"DATE": t.DATE, "PATIENT": patient, "ENCOUNTER": t.ENCOUNTER,
                         "CATEGORY": "laboratory", "CODE": C.EGFR.code,

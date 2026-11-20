@@ -28,7 +28,7 @@ def test_p1_only_patient(F):
     assert lp.row_ids == ("obs_5e930bff4efe704a", "obs_9085801727323cd1", "obs_4c0afd673dba6069")
     assert not lp.tied
     assert f.smoking.current is False and f.smoking.recognized
-    assert f.egfr_imputed and f.egfr.value == 129.7 and f.egfr.row_id == "obs_83772ad64e919c44"
+    assert f.egfr_imputed and f.egfr.value == 96.2 and f.egfr.row_id == "obs_3f54221f3015a89c"
     assert len(f.p1_rows) == 6
     assert f.missing == ()
     assert not (f.has_ascvd or f.has_diabetes or f.on_statin or f.on_bp_drug or f.excluded)
@@ -180,7 +180,7 @@ def test_unit_filter_and_medication_window(patched):
     e = obs[obs.CODE == C.EGFR.code].iloc[[0]].copy()
     e["row_id"], e["DATE"], e["UNITS"], e["VALUE"] = "obs_ffff", "2026-11-10T23:00:00Z", "mL/min", "5.0"
     f = facts.facts_at_index(r.replace(observations=pd.concat([obs, e])))
-    assert f.egfr.row_id == "obs_83772ad64e919c44"  # mL/min row ignored
+    assert f.egfr.row_id == "obs_3f54221f3015a89c"  # mL/min row ignored
     med = pd.DataFrame([{c: None for c in r.medications.columns}] * 3)
     med["row_id"] = ["med_a", "med_b", "med_c"]
     med["CODE"] = ["617311", "617311", "314076"]
