@@ -111,7 +111,7 @@ Last commit that changed the decision table before the tag: `[FILL: commit sha]`
 
 C1 and C2a use one deletion per base patient; if several inputs qualify, one is chosen by the `edits` sub-seed. C2b is `[FILL: kept | dropped; proposed: kept]`; if dropped, the limit reads "C2 covers only inputs made irrelevant by an earlier row", and the primary outcome averages seven conditions.
 
-**Phrases.** 30 test phrasings per planted fact type, each used at most once, disjoint from the 20 development phrasings per type. A phrasing whose words state the patient's sex (a pronoun, a spouse, pregnancy) is planted only in patients of that sex (`SPEC.md` sec. 5.2). Test phrasings are written after the prompts and R1 are frozen and are used in no run before the tag. `[FILL: who read which sample of the test phrasings, and what was removed]`. Phrase file sha256 at the tag: `[FILL]`.
+**Phrases.** 30 test phrasings per planted fact type, each used at most once, disjoint from the 20 development phrasings per type. A phrasing whose words state the patient's sex (a pronoun, a spouse, pregnancy) is planted only in patients of that sex (`SPEC.md` sec. 5.2). Test phrasings are written after the prompts and R1 are frozen and are used in no run before the tag. `[FILL: who read which sample of the test phrasings, and what was removed]`. Phrase file `src/gapcheck/phrases/test.json` (version `test-1`), sha256 at the tag: `[FILL]`.
 
 **Expected counts.** The exact counts are fixed by the tagged code and the seed, not by the author, and are entered in `RUNS.md` before any model call.
 

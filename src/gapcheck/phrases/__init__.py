@@ -1,6 +1,7 @@
 """Phrase library for sentences planted in notes (SPEC 5.2).
 
-Files: `<split>.json` in this folder, one per split ("dev", later "test").
+Files: `<split>.json` in this folder, one per split: dev.json ("dev-1") and
+test.json ("test-1").
 Format:
 
     {"version": "dev-1", "split": "dev",
@@ -28,7 +29,7 @@ if null), and only a woman if its category is "pregnancy" (reasons and
 distractors). The pregnancy reason counts only at ages 30-49
 (`oracle.applicable_reasons`).
 
-Rules (SPEC 5.2, 8): about 40 phrasings per type in total, dev and test
+Rules (SPEC 5.2, 8): 20 dev and 30 test phrasings per type, dev and test
 disjoint, each test phrasing used at most once, reviewed by a clinician on a
 sample. The dev split is frozen before the test phrasings are written, and
 R1 (`gapcheck.baselines`) is written from the dev split only.

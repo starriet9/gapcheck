@@ -186,3 +186,75 @@ def test_pool_order_is_seeded():
     a, b, c = E.PhrasePool(DEV, 1), E.PhrasePool(DEV, 1), E.PhrasePool(DEV, 2)
     first = lambda pool: [pool.draw("reason_declined", "F")["id"] for _ in range(5)]
     assert first(a) == first(b) != first(c)
+
+
+# ---------------------------------------------------------------- test split
+TEST = P.load("test")
+ALL_TEST = [(t, p) for t, ps in TEST["types"].items() for p in ps]
+
+
+def _norm(text):
+    return " ".join(text.lower().split())
+
+
+def test_test_format_and_counts():
+    raw = json.loads((P.HERE / "test.json").read_text(encoding="utf-8"))
+    assert raw == TEST
+    assert TEST["version"] == "test-1" and TEST["split"] == "test"
+    assert tuple(TEST["types"]) == P.FACT_TYPES
+    for t, ps in TEST["types"].items():
+        assert len(ps) == 30, t  # SPEC 5.2: 30 test phrasings per type
+        for i, p in enumerate(ps, 1):
+            assert p["id"] == f"{t}-test-{i:02d}"
+            if P.is_reason(t):
+                assert p["category"] == P.REASON_TYPES[t]
+            elif t in P.DISTRACTOR_TYPES:
+                assert p["category"] in oracle.REASON_CATEGORIES
+            else:
+                assert p["category"] == "smoking"
+
+
+def test_test_split_loads_for_case_builds():
+    from gapcheck import edits as E
+    assert E.load_phrases("test") is TEST
+    assert set(P.by_id("test")).isdisjoint(P.by_id("dev"))
+
+
+def test_test_disjoint_from_dev():
+    dev = {_norm(p["text"]) for _, p in ALL}
+    assert not [p["id"] for _, p in ALL_TEST if _norm(p["text"]) in dev]
+    worst = max((difflib.SequenceMatcher(None, a["text"].lower(), b["text"].lower()).ratio(),
+                 a["id"], b["id"]) for _, a in ALL_TEST for _, b in ALL)
+    assert worst[0] < 0.8, worst
+
+
+def test_test_no_near_duplicates_and_content_rules():
+    texts = [_norm(p["text"]) for _, p in ALL_TEST]
+    assert len(set(texts)) == len(texts)
+    worst = max(((difflib.SequenceMatcher(None, a["text"].lower(), b["text"].lower()).ratio(),
+                  a["id"], b["id"]) for (_, a), (_, b) in itertools.combinations(ALL_TEST, 2)))
+    assert worst[0] < 0.8, worst
+    lab_value = re.compile(r"\d\s*(?:mg/dl|mmol|%|u/l|iu/l)|\b(?:ldl|hdl|alt|ast|ck|a1c)\s*[:=]?\s*\d",
+                           re.I)
+    forbidden = re.compile(r"/home/|https?:|@")
+    for t, p in ALL_TEST:
+        assert not lab_value.search(p["text"]), p["id"]
+        assert not forbidden.search(p["text"]), p["id"]
+        assert p["text"].isascii(), p["id"]
+
+
+def test_test_sex_rules_cover_the_test_scale():
+    """SPEC 5.2: every distractor (and every smoking phrasing) may go to any patient; at
+    most 5 sex-tied phrasings per sex in each reason type other than pregnancy; every
+    pregnancy reason is a woman's."""
+    for t, ps in TEST["types"].items():
+        for p in ps:
+            assert p["sex"] == ("F" if t == "reason_pregnancy" else next(iter(
+                P.sex_stated(p["text"])), None)), p["id"]
+        if t in P.DISTRACTOR_TYPES or t in P.SMOKING_TYPES:
+            assert all(P.may_plant(p, s) for p in ps for s in P.SEXES), t
+        elif t == "reason_pregnancy":
+            assert all(p["sex"] == "F" for p in ps)
+        else:
+            for s in P.SEXES:
+                assert sum(p["sex"] == s for p in ps) <= 5, (t, s)

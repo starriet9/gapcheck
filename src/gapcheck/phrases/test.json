@@ -1,0 +1,1826 @@
+{
+ "version": "test-1",
+ "split": "test",
+ "types": {
+  "reason_intolerance": [
+   {
+    "id": "reason_intolerance-test-01",
+    "text": "Rosuvastatin trial ended after two weeks of calf pain; pt asks not to be rechallenged with any statin.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-02",
+    "text": "Zocor gave pt diffuse myalgias that cleared off the drug, so statins were added to the intolerance list.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-03",
+    "text": "Anti-HMGCR positive necrotizing myopathy attributed to atorvastatin; no statins ever again per neurology.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-04",
+    "text": "Three statins tried (simva, prava, rosuva), each stopped for muscle symptoms.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-05",
+    "text": "Fluvastatin XL was the last attempt; the cramping came back within a month, so it was stopped.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-06",
+    "text": "She could not stay on Crestor even every other day because of thigh aching.",
+    "category": "statin_intolerance",
+    "sex": "F"
+   },
+   {
+    "id": "reason_intolerance-test-07",
+    "text": "Intolerance: atorvastatin (myopathy, CK elevated).",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-08",
+    "text": "Got muscle soreness on rosuvastatin and again on pravastatin, so lipid therapy will be non-statin.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-09",
+    "text": "Each statin started has caused leg pain and fatigue within weeks; pt is done trying them.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-10",
+    "text": "Admitted for rhabdomyolysis that was attributed to high-dose simvastatin; statins avoided since.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-11",
+    "text": "ADR list: HMG-CoA reductase inhibitors - muscle weakness.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-12",
+    "text": "Muscle cramps w/ lovastatin and atorvastain, both d/c'd; pt is statin intolerant.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-13",
+    "text": "Myalgia started a few weeks into Pravachol and resolved once it was held; did not tolerate rechallenge either.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-14",
+    "text": "He stopped Lipitor on his own because it gave him shoulder and back aches.",
+    "category": "statin_intolerance",
+    "sex": "M"
+   },
+   {
+    "id": "reason_intolerance-test-15",
+    "text": "Known statin intolerance; muscle symptoms on every agent tried.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-16",
+    "text": "Ezetimibe/simvastatin (Vytorin) caused myalgias and was discontinued; pt reluctant to try another statin.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-17",
+    "text": "SAMS documented with two agents; meets criteria for statin intolerance.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-18",
+    "text": "Proximal weakness with a raised CK on rosuvastatin, drug stopped and not to be restarted.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-19",
+    "text": "Statins cause pt severe muscle pain, so they are not an option.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-20",
+    "text": "Pt says simvastatin made walking painful and would not take it again.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-21",
+    "text": "She tolerated no more than a few days of atorvastatin before the aches set in.",
+    "category": "statin_intolerance",
+    "sex": "F"
+   },
+   {
+    "id": "reason_intolerance-test-22",
+    "text": "Transaminases rose above three times normal on atorvastatin, which was stopped; statin intolerance documented.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-23",
+    "text": "Cramps and weakness on low-dose Crestor, so pt is off statins and staying off.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-24",
+    "text": "Statin myalgia hx, intolerant of rosuva and atorva even at minimal doses.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-25",
+    "text": "Muscle aching on pitavastatin as well as on earlier statins; considered statin-intolerant.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-26",
+    "text": "Pt developed hives on atorvastatin; listed as a drug allergy.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-27",
+    "text": "His CK went up and he had dark urine on simvastatin; statins are off the table.",
+    "category": "statin_intolerance",
+    "sex": "M"
+   },
+   {
+    "id": "reason_intolerance-test-28",
+    "text": "Muscle pain at rest on prava, stopped, pain went away; intolerance noted.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-29",
+    "text": "Rechallenge with rosuvastatin twice weekly also failed because of myalgias.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "reason_intolerance-test-30",
+    "text": "Prior statin-induced myositis; avoid all statins.",
+    "category": "statin_intolerance",
+    "sex": null
+   }
+  ],
+  "reason_declined": [
+   {
+    "id": "reason_declined-test-01",
+    "text": "Pt turned down a statin today after we reviewed the PREVENT estimate.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-02",
+    "text": "Pt chose not to begin statin therapy despite counseling on CV risk.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-03",
+    "text": "Opts out of statin therapy; understands the increased risk of heart attack and stroke.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-04",
+    "text": "Patient refuses lipid-lowering medication, including statins, and wants this documented.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-05",
+    "text": "She has made it clear she will not take a statin.",
+    "category": "patient_declined",
+    "sex": "F"
+   },
+   {
+    "id": "reason_declined-test-06",
+    "text": "He prefers to manage cholesterol with diet alone and declines medication.",
+    "category": "patient_declined",
+    "sex": "M"
+   },
+   {
+    "id": "reason_declined-test-07",
+    "text": "Refused atorvastatin; concerned about side effects after a friend had problems.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-08",
+    "text": "Statin recommendation reiterated, pt still unwilling.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-09",
+    "text": "Pt is against taking any statin and has declined on multiple occasions.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-10",
+    "text": "After a risk discussion, pt would rather not take a statin and declines the Rx.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-11",
+    "text": "Declines Crestor; prefers supplements (fish oil, plant sterols).",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-12",
+    "text": "Patient does not want statins because of fear of memory side effects.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-13",
+    "text": "Pt will not take rosuvastatin and asked that no prescription be sent.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-14",
+    "text": "Pt does not want to start a statin, risks explained and accepted.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-15",
+    "text": "Rx for pravastatin offered; pt declined to start it.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-16",
+    "text": "She refuses statins on principle and wants no more prescriptions.",
+    "category": "patient_declined",
+    "sex": "F"
+   },
+   {
+    "id": "reason_declined-test-17",
+    "text": "Statin therapy: patient declines (informed refusal).",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-18",
+    "text": "Pt not agreable to a statin, even at a low dose.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-19",
+    "text": "He was counseled at length but will not take a statin.",
+    "category": "patient_declined",
+    "sex": "M"
+   },
+   {
+    "id": "reason_declined-test-20",
+    "text": "Pt wishes to avoid statins entirely and refused a trial.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-21",
+    "text": "Pt decided to forgo statin therapy after reading about side effects.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-22",
+    "text": "Explained the benefit of a statin; pt politely declined.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-23",
+    "text": "Pt refuses atorva, says the pills make no sense for someone who feels fine.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-24",
+    "text": "Long-standing refusal of statins, reconfirmed today.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-25",
+    "text": "Pt opposes statin treatment for personal reasons.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-26",
+    "text": "Pt refuses to start a statin and asked that it not be offered again.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-27",
+    "text": "Has refused statins for years and refused again today.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-28",
+    "text": "No statin per pt preference; pt declined after counseling.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-29",
+    "text": "Pt is emphatic about not wanting a statin.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "reason_declined-test-30",
+    "text": "Patient declined the statin prescription; lifestyle measures only.",
+    "category": "patient_declined",
+    "sex": null
+   }
+  ],
+  "reason_pregnancy": [
+   {
+    "id": "reason_pregnancy-test-01",
+    "text": "Pt is 22 weeks pregnant; statin deferred until after delivery and breastfeeding.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-02",
+    "text": "Breastfeeding a 3-month-old, so no statin while lactating.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-03",
+    "text": "Second trimester, uncomplicated so far; lipid meds avoided.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-04",
+    "text": "Currently lactating; statins contraindicated until weaning.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-05",
+    "text": "Off birth control and trying to get pregnant, so a statin is not appropriate now.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-06",
+    "text": "Prenatal visit: intrauterine pregnancy at about 8 weeks, no statin.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-07",
+    "text": "She is nursing her infant and wants to avoid all nonessential meds, statin included.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-08",
+    "text": "Undergoing fertility treatment to conceive; statin not started.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-09",
+    "text": "G1P0 at 30 wks, followed by OB; no statin in pregnancy.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-10",
+    "text": "Quantitative hCG confirms pregnancy; statin not to be started.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-11",
+    "text": "Exclusively breastfeeding, so statin will wait until she weans.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-12",
+    "text": "Pt and partner plan to start a family soon; avoiding statins for now.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-13",
+    "text": "Expecting twins, currently in her second trimester.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-14",
+    "text": "Pregnant (about 12 weeks by LMP); statins are not used in pregnancy.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-15",
+    "text": "Hoping to become pregnent within the next few months, so no statin.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-16",
+    "text": "Ultrasound today shows a viable intrauterine pregnancy.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-17",
+    "text": "Pregnant with her third child; avoiding lipid-lowering drugs.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-18",
+    "text": "Six weeks postpartum and breastfeeding; statin contraindicated during lactation.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-19",
+    "text": "Trying to conceive for the past year, seeing fertility clinic; no statin.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-20",
+    "text": "Recently found out she is pregnant, so the statin plan is cancelled.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-21",
+    "text": "Urine hCG positive in clinic; no statin.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-22",
+    "text": "OB following for current pregnancy; avoid statins.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-23",
+    "text": "Wants another child soon and has stopped contraception; statin not advised.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-24",
+    "text": "Lactating mother of a newborn; no statin until done breastfeeding.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-25",
+    "text": "At 9 weeks gestation, so no statin.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-26",
+    "text": "Pt intends to conceive next year; a statin would have to be stopped anyway, so not starting.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-27",
+    "text": "Pregnant, EDD in a few months; no cholesterol meds during pregnancy.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-28",
+    "text": "Pumping breast milk for her baby; statin avoided while lactating.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-29",
+    "text": "Planning a pregnancy with her partner and asked to avoid statins.",
+    "category": "pregnancy",
+    "sex": "F"
+   },
+   {
+    "id": "reason_pregnancy-test-30",
+    "text": "Known pregnancy, late third trimester; statins not given.",
+    "category": "pregnancy",
+    "sex": "F"
+   }
+  ],
+  "reason_liver": [
+   {
+    "id": "reason_liver-test-01",
+    "text": "New ascites from cirrhosis, started on diuretics; no statin.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-02",
+    "text": "s/p TIPS for refractory ascites in the setting of cirrhosis.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-03",
+    "text": "Two admissions this year for hepatic encephalopathy due to cirrhosis.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-04",
+    "text": "Esophageal variceal hemorrhage last month needing banding; cirrhosis now decompensated.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-05",
+    "text": "Child-Turcotte-Pugh class C, MELD rising, transplant hepatology following.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-06",
+    "text": "Admitted with acute liver failure (encephalopathy, high INR) from drug-induced liver injury.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-07",
+    "text": "Spontaneous bacterial peritonitis this spring; decompensated alcohol-related cirrhosis.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-08",
+    "text": "Listed for liver transplant for end-stage cirrhosis.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-09",
+    "text": "Jaundiced with failing synthetic function from cirrhosis; statins avoided.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-10",
+    "text": "Acute-on-chronic liver failure during last hospitalization, hepatology says no statins.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-11",
+    "text": "MASH cirrhosis complicated by hepatic hydrothorax needing thoracentesis.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-12",
+    "text": "HCV cirrhosis, decompensated, paracentesis every few weeks.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-13",
+    "text": "Acute liver failure from hepatitis A, being assessed for urgent transplant.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-14",
+    "text": "Alcohol-associated cirrhosis with diuretic-refractory ascites; no statin.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-15",
+    "text": "ESLD due to primary sclerosing cholangitis, MELD high.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-16",
+    "text": "Coagulopathic and jaundiced from hepatic failure; do not start a statin.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-17",
+    "text": "pt w/ decompensated cirrhosis, frequent ER visits for confusion and abd distension",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-18",
+    "text": "Overt hepatic encephalopathy on rifaximin from underlying cirrhosis.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-19",
+    "text": "Liver: decompensated cirrhosis; statins not to be used.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-20",
+    "text": "Acute liver failure due to autoimmune hepatitis this year, awaiting transplant.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-21",
+    "text": "Hospitalized for acute hepatic failure from an herbal supplement; statin is contraindicated.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-22",
+    "text": "Cirrosis has decompensated over the past year with jaundice and ascites.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-23",
+    "text": "He has decompensated cirrhosis from alcohol, with ascites drained monthly.",
+    "category": "liver_failure",
+    "sex": "M"
+   },
+   {
+    "id": "reason_liver-test-24",
+    "text": "She was admitted for acute liver failure last month and remains jaundiced.",
+    "category": "liver_failure",
+    "sex": "F"
+   },
+   {
+    "id": "reason_liver-test-25",
+    "text": "Wilson disease presenting as acute liver failure, managed by transplant hepatology.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-26",
+    "text": "Hepatic decompensation (ascites plus encephalopathy), no statins.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-27",
+    "text": "Cirrhosis with portal hypertension, recurrent ascites and a prior variceal bleed.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-28",
+    "text": "PBC that has progressed to decompensated cirrhosis, referred for transplant.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-29",
+    "text": "Severe alcoholic hepatitis on top of cirrhosis, jaundiced and decompensated.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "reason_liver-test-30",
+    "text": "Decomp cirrhosis per GI; no statin, no NSAIDs.",
+    "category": "liver_failure",
+    "sex": null
+   }
+  ],
+  "reason_palliative": [
+   {
+    "id": "reason_palliative-test-01",
+    "text": "Admitted to hospice this month for metastatic lung cancer.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-02",
+    "text": "Comfort measures only per POLST; no preventive medications.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-03",
+    "text": "Glioblastoma progressing despite treatment; pt has chosen hospice.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-04",
+    "text": "Prognosis is weeks to months; we agreed to stop anything not aimed at comfort.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-05",
+    "text": "Palliative care team following for unresectable esophageal cancer.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-06",
+    "text": "Oncology estimates survival under 12 months; no benefit expected from a statin.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-07",
+    "text": "Pt is under hospice care; a nurse visits weekly at home.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-08",
+    "text": "Pt elected hospice after diagnosis of metastatic gastric cancer.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-09",
+    "text": "After a family meeting, plan is comfort-directed care with no new medications.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-10",
+    "text": "Rapidly progressive motor neuron disease, now under hospice care.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-11",
+    "text": "Seen by palliative care; plan centers on symptom relief rather than prevention.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-12",
+    "text": "Terminal metastatic colon cancer, pt declined further chemo and is on hospice.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-13",
+    "text": "End-stage pulmonary fibrosis with limited life expectancy; no preventive drugs.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-14",
+    "text": "Care is now purely palliative.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-15",
+    "text": "Hospice recommended by oncology and accepted by pt.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-16",
+    "text": "Survival expected in months given metastatic melanoma with brain lesions.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-17",
+    "text": "End-stage cardiomyopathy, not a transplant or LVAD candidate, enrolled in hospice.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-18",
+    "text": "Advanced AML, no further disease-directed therapy; pt in palliative phase.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-19",
+    "text": "Hospice agency now managing all care at home; DNR on file.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-20",
+    "text": "Not expected to survive six months per hospice certification.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-21",
+    "text": "Focus of care has shifted to comfort; preventive therapies, including statins, are not appropriate.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-22",
+    "text": "Metastatic prostate cancer, castration-resistant, now on hospice.",
+    "category": "palliative",
+    "sex": "M"
+   },
+   {
+    "id": "reason_palliative-test-23",
+    "text": "Metastatic ovarian cancer, platinum resistant; palliative care only.",
+    "category": "palliative",
+    "sex": "F"
+   },
+   {
+    "id": "reason_palliative-test-24",
+    "text": "Palliative chemotherapy stopped; enrolled in hospice for comfort.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-25",
+    "text": "Life-limiting illness with prognosis under a year; avoiding medications with no short-term benefit.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-26",
+    "text": "Hospice-appropriate per oncology; pt and family want comfort care only.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-27",
+    "text": "Palliative medicine consult: deprescribe nonessential meds, statin not to be started.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-28",
+    "text": "pt on hopsice, wants no more pills",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-29",
+    "text": "Given limited life expectancy, pt and team agreed a statin offers no meaningful benefit.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "reason_palliative-test-30",
+    "text": "Palliative care visit: pt's priority is time at home, not new medications.",
+    "category": "palliative",
+    "sex": null
+   }
+  ],
+  "distractor_negation": [
+   {
+    "id": "distractor_negation-test-01",
+    "text": "Reports no myalgias.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-02",
+    "text": "MSK review: no cramping, soreness or loss of strength.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-03",
+    "text": "No contraindication to statin therapy identified.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-04",
+    "text": "Has never had a reaction to any cholesterol medication.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-05",
+    "text": "Denies hx of rhabdomyolsis or myositis.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-06",
+    "text": "Muscle strength full and symmetric, no tenderness to palpation.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-07",
+    "text": "Exam: anicteric, abdomen soft without fluid wave, no asterixis.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-08",
+    "text": "Never diagnosed with cirrhosis or hepatic failure.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-09",
+    "text": "Pt is not enrolled in hospice and has no palliative care referral.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-10",
+    "text": "No life-limiting illness; good functional status.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-11",
+    "text": "Statin naive, no known adverse drug reactions.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-12",
+    "text": "pt says no muscle probs at all",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-13",
+    "text": "NKDA, no drug intolerances on record.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-14",
+    "text": "Pt has no objection to statin therapy.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-15",
+    "text": "Pt raised no concerns about taking a statin.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-16",
+    "text": "No muscle pain with exertion.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-17",
+    "text": "Previously took rosuvastatin without any side effects.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-18",
+    "text": "Denies any history of liver disease.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-19",
+    "text": "Does not meet hospice criteria.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-20",
+    "text": "No muscle-related side effects reported.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-21",
+    "text": "SAMS: none.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-22",
+    "text": "Hx negative for variceal bleeding and paracentesis.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-23",
+    "text": "Not on any palliative or end-of-life care pathway.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-24",
+    "text": "No prior intolerance to lipid-lowering drugs.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-25",
+    "text": "No leg cramps reported.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-26",
+    "text": "Liver ultrasound without cirrhosis or ascites.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-27",
+    "text": "Life expectancy is not limited by any current diagnosis.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-28",
+    "text": "Never had any myopathy.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-29",
+    "text": "Not currently followed by hospice.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "distractor_negation-test-30",
+    "text": "Muscle exam unremarkable, gait normal.",
+    "category": "statin_intolerance",
+    "sex": null
+   }
+  ],
+  "distractor_relative": [
+   {
+    "id": "distractor_relative-test-01",
+    "text": "Sister developed rhabdomyolysis on Zocor.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-02",
+    "text": "Both parents quit their statins because of leg cramps.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-03",
+    "text": "Pt's spouse refuses all prescription drugs, statins included.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-04",
+    "text": "Maternal grandfather died of liver failure from alcohol.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-05",
+    "text": "Mother is on hospice at home and pt is the main caregiver.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-06",
+    "text": "Two siblings could not tolerate statins.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-07",
+    "text": "Pt's son had acute liver failure after an acetaminophen overdose and needed a transplant.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-08",
+    "text": "Brother, who would not take a statin, had a stroke at 52.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-09",
+    "text": "Aunt had muscle pain on every statin tried.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-10",
+    "text": "Partner is enrolled in palliative care for ALS.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-11",
+    "text": "Cousin underwent liver transplant for decompensated cirrhosis.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-12",
+    "text": "Pt's daughter developed myopathy on rosuvastatin.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-13",
+    "text": "Grandmother refused all cholesterol pills.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-14",
+    "text": "Twin sibling has statin-induced myositis.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-15",
+    "text": "Mother died in hospice last month; pt is grieving.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-16",
+    "text": "Father's hepatitis B progressed to liver failure.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-17",
+    "text": "Several relatives have had to stop statins d/t aches.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-18",
+    "text": "Uncle declined statin therapy despite two heart attacks.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-19",
+    "text": "Spouse recently started hospice for lung cancer.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-20",
+    "text": "Sister on simvastatin had CK in the thousands and stopped it.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-21",
+    "text": "A parent had cirrhosis complicated by ascites.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-22",
+    "text": "Brother-in-law stopped Lipitor because of cramps.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-23",
+    "text": "Pt's child is followed by palliative care for a genetic condition.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-24",
+    "text": "Grandparents both had muscle problmes on cholesterol meds.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-25",
+    "text": "A parent had to stop pravastatin because of myalgias.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-26",
+    "text": "Nephew in hospice after a glioblastoma diagnosis.",
+    "category": "palliative",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-27",
+    "text": "Sister is against statins and has never taken one.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-28",
+    "text": "Mother was transplanted for fulminant hepatic failure years ago.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-29",
+    "text": "Family members on statins have done poorly with muscle pain, per pt.",
+    "category": "statin_intolerance",
+    "sex": null
+   },
+   {
+    "id": "distractor_relative-test-30",
+    "text": "Pt's brother is statin intolerant (cramps).",
+    "category": "statin_intolerance",
+    "sex": null
+   }
+  ],
+  "distractor_deferral": [
+   {
+    "id": "distractor_deferral-test-01",
+    "text": "Pt would like more time before deciding on a statin; readdress in a few months.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-02",
+    "text": "Statin choice left open today, to be settled at follow-up.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-03",
+    "text": "Will go over the statin handout at home and decide later.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-04",
+    "text": "Spouse to join next appt so they can decide on a statin together.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-05",
+    "text": "Undecided re: atorvastatin, will call the clinic once decided.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-06",
+    "text": "Visit ran long; lipid therapy conversation carried over to f/u.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-07",
+    "text": "No decision yet on starting a statin; pt reviewing materials.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-08",
+    "text": "Pt asked for a second opinion from cardiology before committing to statin therapy.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-09",
+    "text": "Statin: pending further discussion.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-10",
+    "text": "Plan to readdress lipid-lowering therapy at the 6-month visit.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-11",
+    "text": "Rosuvastatin benefits and side effects reviewed; pt still deciding.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-12",
+    "text": "Wants a repeat lipid panel first, then will decide about a statin.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-13",
+    "text": "Statin discussion to continue next visit; pt open to it.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-14",
+    "text": "Statin start postponed until after pt's upcoming knee surgery; will readdress then.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-15",
+    "text": "Pt not sure about a statin and will thnk it over at home.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-16",
+    "text": "Holding off on the statin decision until pt has read more about it.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-17",
+    "text": "Pt will make a decision on statin therapy at the next primary care appt.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-18",
+    "text": "Introduced the idea of a statin; pt wants written info first.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-19",
+    "text": "Lipids discussed by phone; will review statin options in person.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-20",
+    "text": "Pt asked to come back to the statin question when work is less busy.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-21",
+    "text": "Pt hesitant; agreed to discuss statin again after reading the decision aid.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-22",
+    "text": "Statin Rx not sent today, pt still considering.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-23",
+    "text": "Will finalize the lipid plan after pt meets with the dietitian.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-24",
+    "text": "Pt wants to do some reading on statins before committing either way.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-25",
+    "text": "Statin question parked for now; will pick it back up at the annual exam.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-26",
+    "text": "Cholesterol medication decision pending; f/u in two months.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-27",
+    "text": "Atorvastatin discussed, pt to get back to us with a decision.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-28",
+    "text": "Statin initiation deferred until acute illness resolves.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-29",
+    "text": "Leaning toward a statin, final decision at the next appointment.",
+    "category": "patient_declined",
+    "sex": null
+   },
+   {
+    "id": "distractor_deferral-test-30",
+    "text": "Shared decision-making begun, no conclusion yet about a statin.",
+    "category": "patient_declined",
+    "sex": null
+   }
+  ],
+  "distractor_stable_liver": [
+   {
+    "id": "distractor_stable_liver-test-01",
+    "text": "MASLD on imaging, liver enzymes normal, no fibrosis on elastography.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-02",
+    "text": "Chronic hepatitis B, virally suppressed on entecavir, no cirrhosis.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-03",
+    "text": "Hep C cured with sofosbuvir/velpatasvir, SVR, minimal fibrosis.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-04",
+    "text": "Autoimmune hepatitis in biochemical remission on azathioprine.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-05",
+    "text": "Isolated mild ALT elevation, unchanged over several checks, attributed to steatosis.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-06",
+    "text": "GI reviewed the fatty liver and has no objection to a statin.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-07",
+    "text": "Well-compensated Child-Pugh A cirrhosis, never decompensated.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-08",
+    "text": "Small simple hepatic cyst on CT, no follow-up needed.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-09",
+    "text": "Fatty liver, improving with wieght loss; LFTs within range.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-10",
+    "text": "Primary sclerosing cholangitis, stable, annual MRCP.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-11",
+    "text": "Benign hepatic hemangioma, incidental.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-12",
+    "text": "Alpha-1 antitrypsin MZ carrier, normal liver tests.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-13",
+    "text": "Wilson disease, stable on zinc, normal synthetic function.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-14",
+    "text": "Mild transaminitis from prior alcohol use, resolved with abstinence.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-15",
+    "text": "Nonalcoholic fatty liver disease, stable, managed with diet.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-16",
+    "text": "Isolated GGT elevation with an otherwise normal liver panel.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-17",
+    "text": "Biopsy-proven MASH, early-stage fibrosis, stable for years.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-18",
+    "text": "Hepatitis B core antibody positive, surface antigen negative; normal liver.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-19",
+    "text": "Prior hepatitis A infection, fully recovered.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-20",
+    "text": "Fatty infiltration of the liver seen on abdominal US; synthetic function preserved.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-21",
+    "text": "Liver panel unchanged from baseline.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-22",
+    "text": "Hepatitis C antibody positive, RNA negative (spontaneous clearance), normal liver.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-23",
+    "text": "Mild hepatomegaly with steatosis, otherwise normal workup.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-24",
+    "text": "Transaminase rise on isoniazid resolved after the drug was stopped.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-25",
+    "text": "Echogenic liver on US c/w mild steatosis, normal labs.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-26",
+    "text": "Low-risk FIB-4 in metabolic steatotic liver disease, managed in primary care.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-27",
+    "text": "Remote hepatitis from EBV as a teen, liver normal since.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-28",
+    "text": "Alcohol use reduced, liver tests improved, no stigmata of chronic liver disease.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-29",
+    "text": "Celiac-related transaminase elevation, normalized on a gluten-free diet.",
+    "category": "liver_failure",
+    "sex": null
+   },
+   {
+    "id": "distractor_stable_liver-test-30",
+    "text": "Steatosis on MRI, LFTs never abnormal, hepatology sees no limit on lipid therapy.",
+    "category": "liver_failure",
+    "sex": null
+   }
+  ],
+  "smoking_current": [
+   {
+    "id": "smoking_current-test-01",
+    "text": "Smokes 1 ppd, 25 pack-year history.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-02",
+    "text": "Current cigarette smoker; counseled on quitting for 3 minutes.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-03",
+    "text": "Still smoking despite a varenicline trial last year.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-04",
+    "text": "Cigarettes: yes, every day.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-05",
+    "text": "Pt lights up about 15 cigarettes a day.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-06",
+    "text": "Relapsed after a brief quit attempt and is smoking daily again.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-07",
+    "text": "Long-time smoker, currently half a pack a day.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-08",
+    "text": "Currently smokes and is precontemplative about quitting.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-09",
+    "text": "Smoker; advised cessation today.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-10",
+    "text": "Goes through roughly 30 cigarettes a day.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-11",
+    "text": "Active smoker, uses nicotine gum to cut down but still smokes daily.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-12",
+    "text": "Has smoked for decades and continues to.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-13",
+    "text": "Tobacco use disorder, cigarettes, currently smoking.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-14",
+    "text": "pt smokes menthols daily",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-15",
+    "text": "Positive for current tobacco smoking (cigarettes).",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-16",
+    "text": "Smokes roll-your-own cigarettes every day.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-17",
+    "text": "Current smoker; does not want help quitting right now.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-18",
+    "text": "Smokes cigarettes after every meal.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-19",
+    "text": "Cigarete use continues, about 10 per day.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-20",
+    "text": "Quit-line referral offered; pt still smokes every day.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-21",
+    "text": "Smoker since age 16, ongoing.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-22",
+    "text": "Reports smoking daily, mostly in the evenings.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-23",
+    "text": "Daily cigarette use confirmed at intake.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-24",
+    "text": "Continues to smoke tobacco daily, wants to quit eventually.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-25",
+    "text": "Smokes a pack every one to two days.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-26",
+    "text": "Smoking: current. Cigarettes only, no vaping.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-27",
+    "text": "Still a smoker; quit attempt with patches failed.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-28",
+    "text": "Smokes daily, first cigarette within minutes of waking.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-29",
+    "text": "Tobacco: smokes cigarettes, roughly one pack daily.",
+    "category": "smoking",
+    "sex": null
+   },
+   {
+    "id": "smoking_current-test-30",
+    "text": "Active cigarette smoker, cutting back.",
+    "category": "smoking",
+    "sex": null
+   }
+  ]
+ }
+}
