@@ -14,7 +14,7 @@
    {
     "run_id": "local_flashnext_1119/run",
     "model_display": "Qwen3.8-Flash-Next, 4-bit GGUF, CPU",
-    "commit": "c63294749387ea75c78032bf30bfdb7d9c5b3ba5",
+    "commit": "c3c7841c60711d65de224c903276676b2df444df",
     "dirty": false,
     "model": "qwen3.8-flash-next-local",
     "revision": "unsloth/Qwen3.8-Flash-Next-GGUF@766911a6b7369840a91dbcd95f9f997acaab6cd6 UD-Q4_K_XL; ik_llama.cpp 81617c6503ef; MTP draft Q8_0 n_max=2; CPU; ctx 32768; context-shift off",
@@ -570,7 +570,7 @@
    "run": {
     "run_id": "local_flashnext_1119/run",
     "model_display": "Qwen3.8-Flash-Next, 4-bit GGUF, CPU",
-    "commit": "c63294749387ea75c78032bf30bfdb7d9c5b3ba5",
+    "commit": "c3c7841c60711d65de224c903276676b2df444df",
     "dirty": false,
     "model": "qwen3.8-flash-next-local",
     "revision": "unsloth/Qwen3.8-Flash-Next-GGUF@766911a6b7369840a91dbcd95f9f997acaab6cd6 UD-Q4_K_XL; ik_llama.cpp 81617c6503ef; MTP draft Q8_0 n_max=2; CPU; ctx 32768; context-shift off",

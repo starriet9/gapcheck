@@ -80,7 +80,7 @@ Encoding choices where the guideline leaves room, the reason taxonomy, the open-
 | `src/gapcheck/facts.py` | `[FILL]` |
 | `reports/oracle_rules.md` | `[FILL]` |
 
-Last commit that changed the decision table before the tag: `[FILL: commit sha]` (in this draft: `ba78e6f`).
+Last commit that changed the decision table before the tag: `[FILL: commit sha]` (in this draft: `d60c5a2`).
 
 ## 4. Cohort, conditions and expected counts
 
