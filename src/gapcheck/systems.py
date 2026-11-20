@@ -60,6 +60,8 @@ PROMPT_SETS: dict[str, dict[str, str]] = {
     "default": {},
     "norepeat": {"task_agent": "task_agent_norepeat"},
     "plan": {"task_agent": "task_agent_plan"},
+    # plan + a repair prompt that says to re-run prevent_risk after changing its inputs
+    "plan2": {"task_agent": "task_agent_plan", "repair": "repair_plan"},
 }
 SYSTEMS = ("R0", "R1", "L1", "A1", "A2")
 

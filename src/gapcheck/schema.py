@@ -91,7 +91,9 @@ def validate_item(it: dict) -> None:
     if s == DOCUMENTED:
         if isinstance(src, str):
             if not isinstance(it.get("quote"), str) or not it["quote"]:
-                raise ValueError("a DOCUMENTED note source needs a non-empty quote")
+                raise ValueError(f"DOCUMENTED source \"{src}\" is a string, which means a note id and "
+                                 f"needs a non-empty quote; cite record rows as a list of row ids, "
+                                 f"e.g. [\"{src}\"]")
         elif not (isinstance(src, list) and src and all(isinstance(x, str) and x for x in src)):
             raise ValueError(f"DOCUMENTED source must be row ids or a note id: {src!r}")
     elif s == COMPUTED:

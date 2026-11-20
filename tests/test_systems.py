@@ -556,3 +556,21 @@ def test_prompt_set_plan(env):
     systems.run_agent(env, b, systems.Settings(max_steps=12, prompt_set="plan", round_counter=True),
                       verify=False)
     assert b.calls[0]["messages"][1]["content"] == systems.task_agent(12, "plan")
+
+
+def test_string_row_source_message():
+    """A row id given as a string (not a list) is read as a note id; the message says how to fix it."""
+    with pytest.raises(ValueError, match=r'cite record rows as a list of row ids, e\.g\. \["obs_x"\]'):
+        S.validate_item({"claim": "sbp", "support": "DOCUMENTED", "source": "obs_x", "value": 138})
+
+
+def test_prompt_set_plan2():
+    """plan2 = plan + a repair prompt with two added sentences; every other role is plan's."""
+    for role in systems.PROMPTS:
+        if role != "repair":
+            assert systems.prompt_file(role, "plan2") == systems.prompt_file(role, "plan")
+    added = ("If you change any input of a COMPUTED claim, call prevent_risk again and copy its new "
+             "result. A COMPUTED claim's inputs must all be DOCUMENTED; do not compute a risk from a "
+             "value that is not in the record.")
+    assert systems.prompt("repair", "plan2") == systems.prompt("repair") + " " + added
+    assert "{failures}" in systems.prompt("repair", "plan2")
