@@ -1,18 +1,49 @@
 {
- "_help": "Page settings read by scripts/site_build.py. Text the author writes goes in site/user_text.md; log rows in site/log.json; public upstream events in site/events.json (timestamps filled by scripts/site_events.py --refresh).",
+ "_help": "Page text that is not the author's prose, read by scripts/site_build.py. The author's sentences go in site/user_text.md; timeline rows in site/log.json; upstream findings in site/upstream.json; public upstream events in site/events.json (scripts/site_events.py --refresh); the card's examples in site/card_pick.json (scripts/site_card.py). Placeholders in braces are filled by the build.",
  "repo_url": "https://github.com/starriet9/gapcheck",
  "branch": "main",
  "pages_url": "https://starriet9.github.io/gapcheck/",
- "title": "Delete the deciding lab result. Does the care-gap agent notice?",
- "subtitle": "gapcheck: a {planned}pre-registered test of a statin care-gap agent under the 2026 ACC/AHA guideline (PREVENT). About {n_cases} edited patient records, ground truth computed by code, no LLM judge.",
- "ai_disclosure": "Code was written with AI coding agents; the design, protocol and review are mine.",
- "strip": [
-  {"key": "first_commit", "label": "First commit", "from": "git"},
-  {"key": "protocol", "label": "protocol released", "from": "RUNS.md", "date_field": "published_at", "url_field": "GitHub Release URL"},
-  {"key": "beacon", "label": "test seed from beacon pulse", "from": "RUNS.md", "date_field": "Pulse `timeStamp`", "url_field": "Pulse URI"},
-  {"key": "run", "label": "single test run", "from": "RUNS.md", "run_row": "1", "anchor": "5-runs"}
+ "eyebrow_pre": "Research prototype · first commit {first}",
+ "eyebrow_post": "Research prototype · built {span}, {year} · open source",
+ "title": "A care-gap agent that checks its own work.",
+ "subtitle": "Reads the whole record, flags a missing statin, and shows what matters and what's missing. Code re-checks every fact before a clinician sees it.",
+ "how_it_works": [
+  ["Reads.", "The agent queries the record with tools: labs, diagnoses, medications, notes. It computes 10-year risk with the PREVENT equations."],
+  ["Claims.", "It answers with a status and a list of claims. Each claim cites a record row, a computation, or a confirmed absence."],
+  ["Gets checked.", "Code re-reads every cited row, recomputes every risk and re-runs every “not on record” query. A failed claim sends the draft back once. If it fails again, no alert is shown."]
  ],
- "limits_pick": ["not clinical judgment", "test-case mix is designed", "current smoker", "notes are templated", "generator values"],
+ "how_it_works_note": "The verifier never sees the answer key. It checks facts and arithmetic, not judgment.",
+ "test_lead": "Delete the lab result. The alert should withdraw itself.",
+ "test_pre": "About {n} test records: synthetic patients as generated, and edited copies of them. Each edit changes one thing. Some edits must flip the answer. Some must not. The run happens once, and the numbers land here whatever they are.",
+ "test_post": "Tested once on {n} records from {p} synthetic patients. The protocol was public before the test set existed.",
+ "test_steps": [
+  {"key": "protocol", "label": "Protocol released", "date_field": "published_at", "url_field": "GitHub Release URL"},
+  {"key": "seed", "label": "Test seed drawn", "date_field": "Pulse `timeStamp`", "anchor": "2-beacon-pulse-and-test-seed"},
+  {"key": "testset", "label": "Test set built", "done_field": "Test set sha256", "commit_field": "Commit that recorded this section", "anchor": "3-test-set"},
+  {"key": "run", "label": "One run", "run_row": "1", "anchor": "5-runs"}
+ ],
+ "test_steps_note": "Protocol: draft, not yet released. Each step is logged with its time stamp in",
+ "test_steps_note_released": "Each step is logged with its time stamp in",
+ "result_tiles": {
+  "c1": "Withheld the alert and named the missing input when the deciding input was deleted.",
+  "kept": "Kept its answer when an irrelevant detail changed.",
+  "verifier": "First drafts rejected by the verifier; {repaired} repaired in one round, {forced} withheld."
+ },
+ "upstream_title": "Bugs found in the data source, fixes sent upstream",
+ "upstream_intro": "Synthea is the open-source generator behind the synthetic patients. Building on it meant reading it closely.",
+ "deploy_text": "Open-weights model, served locally. No model API. The records and the model sit on the same machine: a CPU-only workstation during development, one rented GPU for the test.",
+ "deploy_post": "{s} seconds of GPU time and ${c} per patient record on the test run.",
+ "deploy_dev_timing": null,
+ "rigor": [
+  {"text": "Protocol: draft, release pending", "text_released": "Pre-registered before the test set existed", "link": "protocol"},
+  {"text": "test seed from a public randomness beacon", "link": "beacon"},
+  {"text": "answer key is code with the guideline sentence behind every rule, no LLM judge", "link": "oracle"},
+  {"text": "one command reproduces it", "link": "reproduce"}
+ ],
+ "failed_title_pre": "Where it failed: a wrong answer the verifier passed",
+ "footer": "Synthetic patients (Synthea). The answer key is the 2026 ACC/AHA guideline as encoded here, not clinical judgment. Research prototype, not medical advice.",
+ "ai_disclosure": "Code was written with AI coding agents; the design, protocol and review are mine.",
+ "limits_folded": ["test-case mix is designed", "notes are templated", "generator values"],
  "files": [
   {"label": "Protocol", "path": "PROTOCOL.md"},
   {"label": "Run log (release, seed, test set, runs)", "path": "RUNS.md"},
@@ -24,7 +55,5 @@
   {"label": "Test set and model outputs", "path": "results/", "pending_text": "released with the results"}
  ],
  "make_targets": ["reproduce", "verify"],
- "summary_pdf": "summary.pdf",
- "figure_caption_preview": "Fills in after the single test run. See RUNS.md.",
- "preview_note": "Preview: the protocol and the test set come first; results are added to this page after the single test run, whatever they are."
+ "summary_pdf": "summary.pdf"
 }

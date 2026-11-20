@@ -1,0 +1,17 @@
+{
+ "_help": "Findings in the data generator and the fixes sent upstream, in page order. An item is shown only when its `event` (an id in site/events.json, which holds the URL, the server timestamp and the state) exists, so an item whose pull request is not posted yet stays off the page. `reply` quotes nothing: its text says what the reply did, within what the reply itself says.",
+ "items": [
+  {"id": "pr1794", "event": "pr1794",
+   "finding": "Patients with hypertension never got a kidney-function result.",
+   "detail": "The wellness check tested a diagnosis code that no module has created since 2019."},
+  {"id": "pr1795", "event": "pr1795",
+   "finding": "Kidney function was one CKD stage off, and end-stage patients got normal values.",
+   "reply": {"event": "c1793_reply", "text": "The emergency physician who had reported the kidney panel checked both findings, agreed, and said he will base his own fix on this one."}},
+  {"id": "pr_timezone", "event": null,
+   "finding": "The same seed produced different patients in different time zones."},
+  {"id": "pr_nephropathy", "event": null,
+   "finding": "People with hypertension and no diabetes were coded with diabetic kidney disease and given insulin.",
+   "detail": "Open since 2023 (issue #1343).",
+   "note": "The evaluation found this one: a model disagreed with the answer key on one record, and the record turned out to contradict itself. 826 of 9,883 adults were affected."}
+ ]
+}

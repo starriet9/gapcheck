@@ -1,580 +1,598 @@
 {
- "schema": 1,
- "label": "Development record, local model. Not a result.",
- "footer": "Synthetic patient. Designed test set, not prevalence. Research prototype, not medical advice.",
- "rules": {
-  "pair": "Pair: the C1 twin with the smallest case id among those whose lipid panel was deleted, shown with its original record, whatever any system answered (the rule PROTOCOL.md sets for the test set, applied here to the development set). Case ids are hashes, so their order is arbitrary.",
-  "caught": "Caught failure: among real local-model A2 runs from a clean commit, the smallest case id whose first verifier round failed and whose single repair round passed."
- },
- "provenance": {
-  "case_set": "dev_s20261120_utc_n10",
-  "case_set_manifest_sha256": "70d101bbb502ca0d22f801ed7fc466364f8f3fcefc7fea011fa39c643da51484",
-  "generator": "scripts/site_card.py",
-  "runs": [
-   {
-    "run_id": "local_flashnext_1119/run",
-    "model_display": "Qwen3.8-Flash-Next, 4-bit GGUF, CPU",
-    "commit": "c3c7841c60711d65de224c903276676b2df444df",
-    "dirty": false,
-    "model": "qwen3.8-flash-next-local",
-    "revision": "unsloth/Qwen3.8-Flash-Next-GGUF@766911a6b7369840a91dbcd95f9f997acaab6cd6 UD-Q4_K_XL; ik_llama.cpp 81617c6503ef; MTP draft Q8_0 n_max=2; CPU; ctx 32768; context-shift off",
-    "temperature": 0,
-    "prompts_sha256": {
-     "limit": "abab3790d19b3d328f3466d29b093aa64297c4d8a64bdd594dde7c0c6da287e6",
-     "reask": "e387fb738616a92ed44939efa69ddc05b0bf811d6cc2150311d0efa58ed5c81d",
-     "repair": "60dfd9c6c27ae2369c82fc8a7b6fe62b3f24ca08c7f2a9ec831eda95e39a234e",
-     "system": "b096d6783512eba9d6174ab017467bacf8f3f20fc8da2ce8fbb79d2a046a2ac3",
-     "task_agent": "71abe5cb42f58b6e5a1ca9a2b8d689aa73fe68e50de4b6c43e8190aadb7bab9f",
-     "task_l1": "2ce646403f895731ae825b2fc9b2bd3b16ba4eb845f2d81e7623044f7f197531"
-    },
-    "conventions_sha256": "a6ad3ab5eebf74f989e4c6ab516f86a9d57a93cd286a58575f15b80b8395376f",
-    "finished_utc": "2026-11-19T12:08:17Z"
-   }
-  ],
-  "real_runs_seen": [
-   "local_flashnext_1119/run",
-   "local_flashnext_overnight/stoprule"
-  ]
- },
+ "schema": 2,
+ "generator": "scripts/site_card.py",
+ "case_set": "dev_s20261120_utc_n10",
+ "case_set_manifest_sha256": "70d101bbb502ca0d22f801ed7fc466364f8f3fcefc7fea011fa39c643da51484",
  "checks": {
   "1": "a cited record row must exist and hold the cited value",
   "2": "every input the stated row needs must be covered",
   "3": "a computed risk must match a recomputation from its cited inputs",
   "4": "an input listed as missing, or claimed absent, must really be absent"
  },
- "states": {
-  "original": {
-   "case_id": "case_7fcab84c242d",
-   "condition": "C0",
-   "variant": "clean",
-   "patient": {
-    "sex": "M",
-    "age": 36,
-    "index_date": "2026-04-23"
-   },
-   "answer_key": {
-    "status": "NOT_INDICATED",
-    "row": "11b",
-    "missing": [],
-    "row_text": "row 11b: PREVENT < 3%, otherwise",
-    "risk_10y": 0.011240509271926257
-   },
-   "lines": [
-    {
-     "name": "lipid_panel",
-     "label": "Lipid panel",
-     "value": "LDL-C 125.3 mg/dL (TC 175.2, HDL-C 23.7)",
-     "support": "DOCUMENTED",
-     "source": [
-      "obs_582eff37828319f8",
-      "obs_6830546edb4480ef",
-      "obs_2771fb79a1ff91ec"
-     ],
-     "date": "2026-04-23"
-    },
-    {
-     "name": "risk_10y",
-     "label": "10-year ASCVD risk",
-     "value": "1.1%",
-     "support": "COMPUTED",
-     "source": "PREVENT equations",
-     "date": null
-    },
-    {
-     "name": "ascvd",
-     "label": "Clinical ASCVD",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "ascvd_codes",
-     "date": null
-    },
-    {
-     "name": "diabetes",
-     "label": "Diabetes",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "diabetes_codes",
-     "date": null
-    },
-    {
-     "name": "statins",
-     "label": "Statin",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "statins",
-     "date": null
-    }
-   ],
-   "all_lines": [
-    {
-     "name": "age",
-     "label": "Age",
-     "value": "36",
-     "support": "DOCUMENTED",
-     "source": [
-      "demographics"
-     ],
-     "date": null
-    },
-    {
-     "name": "sex",
-     "label": "Sex",
-     "value": "male",
-     "support": "DOCUMENTED",
-     "source": [
-      "demographics"
-     ],
-     "date": null
-    },
-    {
-     "name": "statins",
-     "label": "Statin",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "statins",
-     "date": null
-    },
-    {
-     "name": "hiv",
-     "label": "HIV",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "hiv_codes",
-     "date": null
-    },
-    {
-     "name": "esrd",
-     "label": "ESRD, dialysis, transplant",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "esrd_codes",
-     "date": null
-    },
-    {
-     "name": "ascvd",
-     "label": "Clinical ASCVD",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "ascvd_codes",
-     "date": null
-    },
-    {
-     "name": "diabetes",
-     "label": "Diabetes",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "diabetes_codes",
-     "date": null
-    },
-    {
-     "name": "ckd",
-     "label": "CKD stage 3-4",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "ckd_codes",
-     "date": null
-    },
-    {
-     "name": "row5_features",
-     "label": "Diabetes complications",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "row5_feature_codes",
-     "date": null
-    },
-    {
-     "name": "bp_drugs",
-     "label": "BP medication",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "bp_drugs",
-     "date": null
-    },
-    {
-     "name": "lipid_panel",
-     "label": "Lipid panel",
-     "value": "LDL-C 125.3 mg/dL (TC 175.2, HDL-C 23.7)",
-     "support": "DOCUMENTED",
-     "source": [
-      "obs_582eff37828319f8",
-      "obs_6830546edb4480ef",
-      "obs_2771fb79a1ff91ec"
-     ],
-     "date": "2026-04-23"
-    },
-    {
-     "name": "sbp",
-     "label": "Systolic BP",
-     "value": "129 mm Hg",
-     "support": "DOCUMENTED",
-     "source": [
-      "obs_47196dd0c2ff669b"
-     ],
-     "date": "2026-04-23"
-    },
-    {
-     "name": "smoking",
-     "label": "Smoking status",
-     "value": "Never smoked tobacco",
-     "support": "DOCUMENTED",
-     "source": [
-      "obs_ef9502c7f00707c7"
-     ],
-     "date": "2026-04-23"
-    },
-    {
-     "name": "egfr",
-     "label": "eGFR",
-     "value": "133.3 mL/min/1.73 m²",
-     "support": "DOCUMENTED",
-     "source": [
-      "obs_09f0ec2a6e4910ec"
-     ],
-     "date": "2026-04-23"
-    },
-    {
-     "name": "risk_10y",
-     "label": "10-year ASCVD risk",
-     "value": "1.1%",
-     "support": "COMPUTED",
-     "source": "PREVENT equations",
-     "date": null
-    },
-    {
-     "name": "risk_30y",
-     "label": "30-year ASCVD risk",
-     "value": "7.1%",
-     "support": "COMPUTED",
-     "source": "PREVENT equations",
-     "date": null
-    }
-   ],
-   "missing_text": [],
-   "agent": null,
-   "deleted_rows": 0,
-   "scrubbed_notes": 0
-  },
-  "edited": {
-   "case_id": "case_108de2488c01",
-   "condition": "C1",
-   "variant": "lipid_panel",
-   "patient": {
-    "sex": "M",
-    "age": 36,
-    "index_date": "2026-04-23"
-   },
-   "answer_key": {
-    "status": "CANNOT_DETERMINE",
-    "row": null,
-    "missing": [
-     "lipid_panel"
-    ],
-    "row_text": null,
-    "risk_10y": null
-   },
-   "lines": [
-    {
-     "name": "lipid_panel",
-     "label": "Lipid panel",
-     "value": "LDL-C 125.3 mg/dL (TC 175.2, HDL-C 23.7)",
-     "support": "DOCUMENTED",
-     "source": [
-      "obs_582eff37828319f8",
-      "obs_6830546edb4480ef",
-      "obs_2771fb79a1ff91ec"
-     ],
-     "date": "2026-04-23",
-     "deleted": true
-    },
-    {
-     "name": "risk_10y",
-     "label": "10-year ASCVD risk",
-     "value": "cannot be computed",
-     "support": null,
-     "source": null,
-     "date": null,
-     "blocked": true
-    },
-    {
-     "name": "ascvd",
-     "label": "Clinical ASCVD",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "ascvd_codes",
-     "date": null
-    },
-    {
-     "name": "diabetes",
-     "label": "Diabetes",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "diabetes_codes",
-     "date": null
-    },
-    {
-     "name": "statins",
-     "label": "Statin",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "statins",
-     "date": null
-    }
-   ],
-   "all_lines": [
-    {
-     "name": "age",
-     "label": "Age",
-     "value": "36",
-     "support": "DOCUMENTED",
-     "source": [
-      "demographics"
-     ],
-     "date": null
-    },
-    {
-     "name": "sex",
-     "label": "Sex",
-     "value": "male",
-     "support": "DOCUMENTED",
-     "source": [
-      "demographics"
-     ],
-     "date": null
-    },
-    {
-     "name": "statins",
-     "label": "Statin",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "statins",
-     "date": null
-    },
-    {
-     "name": "hiv",
-     "label": "HIV",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "hiv_codes",
-     "date": null
-    },
-    {
-     "name": "esrd",
-     "label": "ESRD, dialysis, transplant",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "esrd_codes",
-     "date": null
-    },
-    {
-     "name": "ascvd",
-     "label": "Clinical ASCVD",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "ascvd_codes",
-     "date": null
-    },
-    {
-     "name": "diabetes",
-     "label": "Diabetes",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "diabetes_codes",
-     "date": null
-    },
-    {
-     "name": "bp_drugs",
-     "label": "BP medication",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "bp_drugs",
-     "date": null
-    },
-    {
-     "name": "lipid_panel",
-     "label": "Lipid panel",
-     "value": "none on record",
-     "support": "ABSENT",
-     "source": "lipid_panel",
-     "date": null
-    },
-    {
-     "name": "sbp",
-     "label": "Systolic BP",
-     "value": "129 mm Hg",
-     "support": "DOCUMENTED",
-     "source": [
-      "obs_47196dd0c2ff669b"
-     ],
-     "date": "2026-04-23"
-    },
-    {
-     "name": "smoking",
-     "label": "Smoking status",
-     "value": "Never smoked tobacco",
-     "support": "DOCUMENTED",
-     "source": [
-      "obs_ef9502c7f00707c7"
-     ],
-     "date": "2026-04-23"
-    },
-    {
-     "name": "egfr",
-     "label": "eGFR",
-     "value": "133.3 mL/min/1.73 m²",
-     "support": "DOCUMENTED",
-     "source": [
-      "obs_09f0ec2a6e4910ec"
-     ],
-     "date": "2026-04-23"
-    }
-   ],
-   "missing_text": [
-    "Lipid panel: 10-year risk cannot be computed."
-   ],
-   "agent": null,
-   "deleted_rows": 12,
-   "scrubbed_notes": 3
-  },
-  "caught": {
+ "tabs": [
+  {
+   "id": "gap",
+   "chosen_by": "author",
    "case_id": "case_3f2531b19843",
-   "condition": "C4",
-   "variant": "negation",
+   "system": "A2",
    "patient": {
     "sex": "M",
     "age": 46,
     "index_date": "2025-12-05"
    },
-   "answer_key": {
+   "answer": {
     "status": "GAP",
     "row": "1",
+    "row_info": {
+     "row": "1",
+     "group": "Clinical ASCVD",
+     "class": "1",
+     "rule": "Clinical ASCVD, any age"
+    },
+    "risk_10y": null,
+    "risks": [],
     "missing": [],
-    "row_text": "row 1: Clinical ASCVD (COR 1)"
-   },
-   "first": {
-    "status": "GAP",
-    "row": "1",
-    "row_text": "row 1: Clinical ASCVD (COR 1)",
-    "missing": [
-     "lipid_panel",
-     "sbp",
-     "egfr"
-    ],
+    "note_for_clinician": "This 46-year-old man has clinical ASCVD: NSTEMI on 2025-10-24 with CABG on 2025-11-03, and no statin is active at index, so a class 1 recommendation to start a statin applies with no documented reason for not prescribing. Latest lipids (2025-11-13) show LDL-C 160 mg/dL with TC 222.4 and HDL-C 33, supporting high-intensity statin initiation and follow-up lipid monitoring.",
     "lines": [
      {
       "name": "ascvd",
-      "label": "Clinical ASCVD",
-      "value": "Acute non-ST segment elevation myocardial infarction + 4 more rows",
       "support": "DOCUMENTED",
-      "source": [
-       "cond_aa2a9c41d9fa00e9",
-       "cond_f1b45c714036694b",
-       "cond_33565eb984a492af",
-       "proc_90da397fb810306c",
-       "cond_0eac548cc801b0aa"
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "cond_aa2a9c41d9fa00e9",
+        "table": "conditions",
+        "description": "Acute non-ST segment elevation myocardial infarction",
+        "date": "2025-10-24",
+        "value": null,
+        "patch": null
+       }
       ],
-      "date": "2025-10-24"
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": null,
+      "when": "2025-10-24",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Acute non-ST segment elevation myocardial infarction",
+      "claim_rows": [
+       {
+        "id": "cond_aa2a9c41d9fa00e9",
+        "table": "conditions",
+        "description": "Acute non-ST segment elevation myocardial infarction",
+        "date": "2025-10-24",
+        "value": null,
+        "patch": null
+       },
+       {
+        "id": "cond_f1b45c714036694b",
+        "table": "conditions",
+        "description": "Myocardial infarction",
+        "date": "2025-10-24",
+        "value": null,
+        "patch": null
+       },
+       {
+        "id": "cond_33565eb984a492af",
+        "table": "conditions",
+        "description": "History of coronary artery bypass grafting",
+        "date": "2025-11-03",
+        "value": null,
+        "patch": null
+       },
+       {
+        "id": "proc_90da397fb810306c",
+        "table": "procedures",
+        "description": "Coronary artery bypass grafting",
+        "date": "2025-11-03",
+        "value": null,
+        "patch": null
+       },
+       {
+        "id": "cond_0eac548cc801b0aa",
+        "table": "conditions",
+        "description": "History of myocardial infarction",
+        "date": "2025-11-13",
+        "value": null,
+        "patch": null
+       }
+      ]
+     },
+     {
+      "name": "ascvd",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "proc_90da397fb810306c",
+        "table": "procedures",
+        "description": "Coronary artery bypass grafting",
+        "date": "2025-11-03",
+        "value": null,
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": null,
+      "when": "2025-11-03",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Coronary artery bypass grafting",
+      "claim_rows": [
+       {
+        "id": "cond_aa2a9c41d9fa00e9",
+        "table": "conditions",
+        "description": "Acute non-ST segment elevation myocardial infarction",
+        "date": "2025-10-24",
+        "value": null,
+        "patch": null
+       },
+       {
+        "id": "cond_f1b45c714036694b",
+        "table": "conditions",
+        "description": "Myocardial infarction",
+        "date": "2025-10-24",
+        "value": null,
+        "patch": null
+       },
+       {
+        "id": "cond_33565eb984a492af",
+        "table": "conditions",
+        "description": "History of coronary artery bypass grafting",
+        "date": "2025-11-03",
+        "value": null,
+        "patch": null
+       },
+       {
+        "id": "proc_90da397fb810306c",
+        "table": "procedures",
+        "description": "Coronary artery bypass grafting",
+        "date": "2025-11-03",
+        "value": null,
+        "patch": null
+       },
+       {
+        "id": "cond_0eac548cc801b0aa",
+        "table": "conditions",
+        "description": "History of myocardial infarction",
+        "date": "2025-11-13",
+        "value": null,
+        "patch": null
+       }
+      ]
+     },
+     {
+      "name": "lipid_panel",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_da70d0656b72dbd1",
+        "table": "observations",
+        "description": "Cholesterol [Mass/volume] in Serum or Plasma",
+        "date": "2025-11-13",
+        "value": "222.4 mg/dL",
+        "patch": null
+       },
+       {
+        "id": "obs_a9f582dd1e80a740",
+        "table": "observations",
+        "description": "Cholesterol in HDL [Mass/volume] in Serum or Plasma",
+        "date": "2025-11-13",
+        "value": "33 mg/dL",
+        "patch": null
+       },
+       {
+        "id": "obs_7e6196525bb2891f",
+        "table": "observations",
+        "description": "Cholesterol in LDL [Mass/volume] in Serum or Plasma by Direct assay",
+        "date": "2025-11-13",
+        "value": "160 mg/dL",
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": "TC 222.4, HDL-C 33",
+      "value": "160 mg/dL",
+      "when": "2025-11-13",
+      "inputs": null,
+      "sep": " ",
+      "text": "LDL-C"
      },
      {
       "name": "statins",
-      "label": "Statin",
-      "value": "none on record",
       "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
       "source": "statins",
-      "date": null
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Statin"
+     }
+    ],
+    "claims": [
+     {
+      "name": "age",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "46",
+      "when": null,
+      "inputs": null,
+      "sep": " ",
+      "text": "Age"
      },
      {
-      "name": "reason",
-      "label": "Reason not to prescribe (365 days)",
-      "value": "none on record",
+      "name": "sex",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "male",
+      "when": null,
+      "inputs": null,
+      "sep": ": ",
+      "text": "Sex"
+     },
+     {
+      "name": "statins",
       "support": "ABSENT",
-      "source": "reasons_365d",
-      "date": null
-     }
-    ]
-   },
-   "failed": [
-    {
-     "kind": "missing",
-     "name": "lipid_panel",
-     "label": "Lipid panel",
-     "check": 4,
-     "check_text": "an input listed as missing, or claimed absent, must really be absent",
-     "detail": "lipid_panel is on record"
-    },
-    {
-     "kind": "missing",
-     "name": "sbp",
-     "label": "Systolic BP",
-     "check": 4,
-     "check_text": "an input listed as missing, or claimed absent, must really be absent",
-     "detail": "sbp is on record"
-    },
-    {
-     "kind": "missing",
-     "name": "egfr",
-     "label": "eGFR",
-     "check": 4,
-     "check_text": "an input listed as missing, or claimed absent, must really be absent",
-     "detail": "egfr is on record"
-    }
-   ],
-   "repaired": {
-    "status": "GAP",
-    "row": "1",
-    "row_text": "row 1: Clinical ASCVD (COR 1)",
-    "missing": [],
-    "lines": [
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "statins",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Statin"
+     },
+     {
+      "name": "ascvd",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "cond_aa2a9c41d9fa00e9",
+        "table": "conditions",
+        "description": "Acute non-ST segment elevation myocardial infarction",
+        "date": "2025-10-24",
+        "value": null,
+        "patch": null
+       },
+       {
+        "id": "cond_f1b45c714036694b",
+        "table": "conditions",
+        "description": "Myocardial infarction",
+        "date": "2025-10-24",
+        "value": null,
+        "patch": null
+       },
+       {
+        "id": "cond_33565eb984a492af",
+        "table": "conditions",
+        "description": "History of coronary artery bypass grafting",
+        "date": "2025-11-03",
+        "value": null,
+        "patch": null
+       },
+       {
+        "id": "proc_90da397fb810306c",
+        "table": "procedures",
+        "description": "Coronary artery bypass grafting",
+        "date": "2025-11-03",
+        "value": null,
+        "patch": null
+       },
+       {
+        "id": "cond_0eac548cc801b0aa",
+        "table": "conditions",
+        "description": "History of myocardial infarction",
+        "date": "2025-11-13",
+        "value": null,
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "Acute non-ST segment elevation myocardial infarction + 4 more rows",
+      "when": "2025-10-24",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Clinical ASCVD"
+     },
      {
       "name": "lipid_panel",
-      "label": "Lipid panel",
-      "value": "LDL-C 160 mg/dL (TC 222.4, HDL-C 33)",
       "support": "DOCUMENTED",
-      "source": [
-       "obs_da70d0656b72dbd1",
-       "obs_a9f582dd1e80a740",
-       "obs_7e6196525bb2891f"
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_da70d0656b72dbd1",
+        "table": "observations",
+        "description": "Cholesterol [Mass/volume] in Serum or Plasma",
+        "date": "2025-11-13",
+        "value": "222.4 mg/dL",
+        "patch": null
+       },
+       {
+        "id": "obs_a9f582dd1e80a740",
+        "table": "observations",
+        "description": "Cholesterol in HDL [Mass/volume] in Serum or Plasma",
+        "date": "2025-11-13",
+        "value": "33 mg/dL",
+        "patch": null
+       },
+       {
+        "id": "obs_7e6196525bb2891f",
+        "table": "observations",
+        "description": "Cholesterol in LDL [Mass/volume] in Serum or Plasma by Direct assay",
+        "date": "2025-11-13",
+        "value": "160 mg/dL",
+        "patch": null
+       }
       ],
-      "date": "2025-11-13"
+      "source": null,
+      "flag": null,
+      "extra": "TC 222.4, HDL-C 33",
+      "value": "160 mg/dL",
+      "when": "2025-11-13",
+      "inputs": null,
+      "sep": " ",
+      "text": "LDL-C"
      },
      {
       "name": "sbp",
-      "label": "Systolic BP",
-      "value": "110 mm Hg",
       "support": "DOCUMENTED",
-      "source": [
-       "obs_c9188684dc63f511"
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_c9188684dc63f511",
+        "table": "observations",
+        "description": "Systolic Blood Pressure",
+        "date": "2025-04-18",
+        "value": "110 mm[Hg]",
+        "patch": null
+       }
       ],
-      "date": "2025-04-18"
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "110 mm Hg",
+      "when": "2025-04-18",
+      "inputs": null,
+      "sep": " ",
+      "text": "Systolic BP"
+     },
+     {
+      "name": "smoking",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_a3b99f7d407cd886",
+        "table": "observations",
+        "description": "Tobacco smoking status",
+        "date": "2025-04-18",
+        "value": "Ex-smoker (finding)",
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "Ex-smoker",
+      "when": "2025-04-18",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Smoking"
      },
      {
       "name": "egfr",
-      "label": "eGFR",
-      "value": "84.3 mL/min/1.73 m²",
       "support": "DOCUMENTED",
-      "source": [
-       "obs_13bd22634c5d5eaa"
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_13bd22634c5d5eaa",
+        "table": "observations",
+        "description": "Glomerular filtration rate [Volume Rate/Area] in Serum or Plasma by Creatinine-based formula (MDRD)/1.73 sq M",
+        "date": "2025-04-18",
+        "value": "84.3 mL/min/{1.73_m2}",
+        "patch": "P1"
+       }
       ],
-      "date": "2025-04-18"
+      "source": null,
+      "flag": {
+       "kind": "p1",
+       "text": "The generated record had no eGFR, so patch P1 added one, drawn the way the generator draws eGFR. Any value from 60 to 140 gives the same answer."
+      },
+      "extra": null,
+      "value": "84.3 mL/min/1.73 m²",
+      "when": "2025-04-18",
+      "inputs": null,
+      "sep": " ",
+      "text": "eGFR"
+     },
+     {
+      "name": "diabetes",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "diabetes_codes",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Diabetes"
+     },
+     {
+      "name": "ckd",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "ckd_codes",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "CKD stage 3-4"
+     },
+     {
+      "name": "bp_drugs",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "bp_drugs",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "BP medication"
+     },
+     {
+      "name": "reason",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "reasons_365d",
+      "flag": null,
+      "extra": null,
+      "value": "none in the last 365 days",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Documented reason not to prescribe"
      }
     ],
-    "all_checks_pass": true,
-    "n_claims": 12
+    "n_claims": 12,
+    "forced_fallback": false,
+    "called_prevent": false,
+    "seconds": 650.444
    },
-   "planted": [
+   "verifier": [
     {
-     "text": "Denies muscle aches or weakness.",
-     "type": "distractor_negation",
-     "note_date": "2025-10-24"
+     "round": 1,
+     "ok": false,
+     "n_claims": 5,
+     "n_ok": 5,
+     "failures": [
+      {
+       "check": 4,
+       "check_text": "an input listed as missing, or claimed absent, must really be absent",
+       "kind": "missing",
+       "name": "lipid_panel",
+       "label": "Lipid panel",
+       "ref": "missing[0]",
+       "detail": "lipid_panel is on record"
+      },
+      {
+       "check": 4,
+       "check_text": "an input listed as missing, or claimed absent, must really be absent",
+       "kind": "missing",
+       "name": "sbp",
+       "label": "Systolic BP",
+       "ref": "missing[1]",
+       "detail": "sbp is on record"
+      },
+      {
+       "check": 4,
+       "check_text": "an input listed as missing, or claimed absent, must really be absent",
+       "kind": "missing",
+       "name": "egfr",
+       "label": "eGFR",
+       "ref": "missing[2]",
+       "detail": "egfr is on record"
+      }
+     ]
+    },
+    {
+     "round": 2,
+     "ok": true,
+     "n_claims": 12,
+     "n_ok": 12,
+     "failures": []
     }
    ],
+   "edit": {
+    "condition": "C4",
+    "variant": "negation",
+    "direction": "must_not_change",
+    "kind": "plant",
+    "input": null,
+    "input_label": null,
+    "noun": null,
+    "deleted_rows": 0,
+    "notes_changed": 0,
+    "planted": [
+     {
+      "text": "Denies muscle aches or weakness.",
+      "note_date": "2025-10-24"
+     }
+    ]
+   },
+   "answer_key": {
+    "status": "GAP",
+    "row": "1",
+    "row_info": {
+     "row": "1",
+     "group": "Clinical ASCVD",
+     "class": "1",
+     "rule": "Clinical ASCVD, any age"
+    },
+    "missing": [],
+    "risk_10y": null,
+    "same": true
+   },
    "run": {
     "run_id": "local_flashnext_1119/run",
-    "model_display": "Qwen3.8-Flash-Next, 4-bit GGUF, CPU",
-    "commit": "c3c7841c60711d65de224c903276676b2df444df",
-    "dirty": false,
+    "model_display": "Qwen3.8-Flash-Next (4-bit GGUF)",
+    "where": "cpu",
     "model": "qwen3.8-flash-next-local",
     "revision": "unsloth/Qwen3.8-Flash-Next-GGUF@766911a6b7369840a91dbcd95f9f997acaab6cd6 UD-Q4_K_XL; ik_llama.cpp 81617c6503ef; MTP draft Q8_0 n_max=2; CPU; ctx 32768; context-shift off",
     "temperature": 0,
+    "commit": "c3c7841c60711d65de224c903276676b2df444df",
+    "dirty": false,
+    "finished_utc": "2026-11-19T12:08:17Z",
+    "date": "2026-11-19",
+    "prompts_changed_since": [
+     "task_agent"
+    ],
     "prompts_sha256": {
      "limit": "abab3790d19b3d328f3466d29b093aa64297c4d8a64bdd594dde7c0c6da287e6",
      "reask": "e387fb738616a92ed44939efa69ddc05b0bf811d6cc2150311d0efa58ed5c81d",
@@ -583,10 +601,1285 @@
      "task_agent": "71abe5cb42f58b6e5a1ca9a2b8d689aa73fe68e50de4b6c43e8190aadb7bab9f",
      "task_l1": "2ce646403f895731ae825b2fc9b2bd3b16ba4eb845f2d81e7623044f7f197531"
     },
-    "conventions_sha256": "a6ad3ab5eebf74f989e4c6ab516f86a9d57a93cd286a58575f15b80b8395376f",
-    "finished_utc": "2026-11-19T12:08:17Z"
+    "conventions_sha256": "a6ad3ab5eebf74f989e4c6ab516f86a9d57a93cd286a58575f15b80b8395376f"
    },
-   "from_dirty_tree": false
+   "label": "Gap found",
+   "label_warn": false
+  },
+  {
+   "id": "missing",
+   "chosen_by": "author",
+   "case_id": "case_2eed072b0c09",
+   "system": "A2",
+   "patient": {
+    "sex": "M",
+    "age": 72,
+    "index_date": "2026-10-06"
+   },
+   "answer": {
+    "status": "GAP",
+    "row": "8",
+    "row_info": {
+     "row": "8",
+     "group": "PREVENT ≥ 10%",
+     "class": "1",
+     "rule": "10-year risk ≥ 10%"
+    },
+    "risk_10y": 0.10295,
+    "risks": [
+     {
+      "value": 0.10295,
+      "smoker": 0
+     },
+     {
+      "value": 0.126291,
+      "smoker": 1
+     }
+    ],
+    "missing": [
+     {
+      "name": "smoking",
+      "label": "Smoking status",
+      "lower": "smoking status",
+      "why": "Without it the 10-year risk cannot be computed."
+     }
+    ],
+    "note_for_clinician": "This 72-year-old man has no clinical ASCVD, diabetes or CKD and no active statin, with a latest lipid panel (2025-08-19) of TC 185.8, HDL-C 62.2 and LDL-C 99.1 mg/dL and treated SBP 142 mm Hg, giving a 10-year PREVENT ASCVD risk of 10.3% (12.6% if a current smoker) — at or above the 10% threshold for a class 1 recommendation to start high-intensity statin therapy. No documented reason for not prescribing was found, so this is a GAP; smoking status is missing from the record and should be captured, though the risk exceeds 10% either way.",
+    "lines": [
+     {
+      "name": "risk_10y",
+      "support": "COMPUTED",
+      "verified": true,
+      "action": "risk recomputed from the cited inputs",
+      "rows": [],
+      "source": "prevent_risk",
+      "flag": null,
+      "extra": null,
+      "value": "10.3%",
+      "when": "recomputed",
+      "inputs": "age 72, male, TC 185.8, HDL-C 62.2, SBP 142 treated, non-smoker, no diabetes, eGFR 122, no statin",
+      "sep": " ",
+      "text": "10-year ASCVD risk"
+     },
+     {
+      "name": "lipid_panel",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_0d82c777ef6edf1c",
+        "table": "observations",
+        "description": "Cholesterol [Mass/volume] in Serum or Plasma",
+        "date": "2025-08-19",
+        "value": "185.8 mg/dL",
+        "patch": null
+       },
+       {
+        "id": "obs_6f19234882c8839a",
+        "table": "observations",
+        "description": "Cholesterol in HDL [Mass/volume] in Serum or Plasma",
+        "date": "2025-08-19",
+        "value": "62.2 mg/dL",
+        "patch": null
+       },
+       {
+        "id": "obs_59223e931c85985a",
+        "table": "observations",
+        "description": "Cholesterol in LDL [Mass/volume] in Serum or Plasma by Direct assay",
+        "date": "2025-08-19",
+        "value": "99.1 mg/dL",
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": "TC 185.8, HDL-C 62.2",
+      "value": "99.1 mg/dL",
+      "when": "2025-08-19",
+      "inputs": null,
+      "sep": " ",
+      "text": "LDL-C"
+     },
+     {
+      "name": "sbp",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_1b2fee065dabf374",
+        "table": "observations",
+        "description": "Systolic Blood Pressure",
+        "date": "2026-09-29",
+        "value": "142 mm[Hg]",
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": "on BP medication",
+      "value": "142 mm Hg",
+      "when": "2026-09-29",
+      "inputs": null,
+      "sep": " ",
+      "text": "Systolic BP"
+     },
+     {
+      "name": "statins",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "statins",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Statin"
+     }
+    ],
+    "claims": [
+     {
+      "name": "age",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "72",
+      "when": null,
+      "inputs": null,
+      "sep": " ",
+      "text": "Age"
+     },
+     {
+      "name": "sex",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "male",
+      "when": null,
+      "inputs": null,
+      "sep": ": ",
+      "text": "Sex"
+     },
+     {
+      "name": "statins",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "statins",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Statin"
+     },
+     {
+      "name": "ascvd",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "ascvd_codes",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Clinical ASCVD"
+     },
+     {
+      "name": "diabetes",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "diabetes_codes",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Diabetes"
+     },
+     {
+      "name": "ckd",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "ckd_codes",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "CKD stage 3-4"
+     },
+     {
+      "name": "lipid_panel",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_0d82c777ef6edf1c",
+        "table": "observations",
+        "description": "Cholesterol [Mass/volume] in Serum or Plasma",
+        "date": "2025-08-19",
+        "value": "185.8 mg/dL",
+        "patch": null
+       },
+       {
+        "id": "obs_6f19234882c8839a",
+        "table": "observations",
+        "description": "Cholesterol in HDL [Mass/volume] in Serum or Plasma",
+        "date": "2025-08-19",
+        "value": "62.2 mg/dL",
+        "patch": null
+       },
+       {
+        "id": "obs_59223e931c85985a",
+        "table": "observations",
+        "description": "Cholesterol in LDL [Mass/volume] in Serum or Plasma by Direct assay",
+        "date": "2025-08-19",
+        "value": "99.1 mg/dL",
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": "TC 185.8, HDL-C 62.2",
+      "value": "99.1 mg/dL",
+      "when": "2025-08-19",
+      "inputs": null,
+      "sep": " ",
+      "text": "LDL-C"
+     },
+     {
+      "name": "sbp",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_1b2fee065dabf374",
+        "table": "observations",
+        "description": "Systolic Blood Pressure",
+        "date": "2026-09-29",
+        "value": "142 mm[Hg]",
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": "on BP medication",
+      "value": "142 mm Hg",
+      "when": "2026-09-29",
+      "inputs": null,
+      "sep": " ",
+      "text": "Systolic BP"
+     },
+     {
+      "name": "bp_drugs",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "med_2b30030e9d202e04",
+        "table": "medications",
+        "description": "verapamil hydrochloride 80 MG Oral Tablet [Calan]",
+        "date": "2026-09-29",
+        "value": null,
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "verapamil hydrochloride 80 MG Oral Tablet [Calan]",
+      "when": "2026-09-29",
+      "inputs": null,
+      "sep": ": ",
+      "text": "BP medication"
+     },
+     {
+      "name": "egfr",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_6db42e378e2b47a4",
+        "table": "observations",
+        "description": "Glomerular filtration rate [Volume Rate/Area] in Serum or Plasma by Creatinine-based formula (MDRD)/1.73 sq M",
+        "date": "2026-08-25",
+        "value": "122 mL/min/{1.73_m2}",
+        "patch": "P1"
+       }
+      ],
+      "source": null,
+      "flag": {
+       "kind": "p1",
+       "text": "The generated record had no eGFR, so patch P1 added one, drawn the way the generator draws eGFR. Any value from 60 to 140 gives the same answer."
+      },
+      "extra": null,
+      "value": "122 mL/min/1.73 m²",
+      "when": "2026-08-25",
+      "inputs": null,
+      "sep": " ",
+      "text": "eGFR"
+     },
+     {
+      "name": "smoking",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "smoking",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Smoking status"
+     },
+     {
+      "name": "risk_10y",
+      "support": "COMPUTED",
+      "verified": true,
+      "action": "risk recomputed from the cited inputs",
+      "rows": [],
+      "source": "prevent_risk",
+      "flag": null,
+      "extra": null,
+      "value": "10.3%",
+      "when": "recomputed",
+      "inputs": "age 72, male, TC 185.8, HDL-C 62.2, SBP 142 treated, non-smoker, no diabetes, eGFR 122, no statin",
+      "sep": " ",
+      "text": "10-year ASCVD risk"
+     },
+     {
+      "name": "risk_10y",
+      "support": "COMPUTED",
+      "verified": true,
+      "action": "risk recomputed from the cited inputs",
+      "rows": [],
+      "source": "prevent_risk",
+      "flag": null,
+      "extra": null,
+      "value": "12.6%",
+      "when": "recomputed",
+      "inputs": "age 72, male, TC 185.8, HDL-C 62.2, SBP 142 treated, smoker, no diabetes, eGFR 122, no statin",
+      "sep": " ",
+      "text": "10-year ASCVD risk"
+     },
+     {
+      "name": "reason",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "reasons_365d",
+      "flag": null,
+      "extra": null,
+      "value": "none in the last 365 days",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Documented reason not to prescribe"
+     }
+    ],
+    "n_claims": 14,
+    "forced_fallback": false,
+    "called_prevent": true,
+    "seconds": 196.086
+   },
+   "verifier": [
+    {
+     "round": 1,
+     "ok": true,
+     "n_claims": 14,
+     "n_ok": 14,
+     "failures": []
+    }
+   ],
+   "edit": {
+    "condition": "C2b",
+    "variant": "smoking",
+    "direction": "must_not_change",
+    "kind": "delete",
+    "input": "smoking",
+    "input_label": "smoking status",
+    "noun": "smoking-status entry",
+    "deleted_rows": 68,
+    "notes_changed": 152,
+    "planted": []
+   },
+   "answer_key": {
+    "status": "GAP",
+    "row": "8",
+    "row_info": {
+     "row": "8",
+     "group": "PREVENT ≥ 10%",
+     "class": "1",
+     "rule": "10-year risk ≥ 10%"
+    },
+    "missing": [],
+    "risk_10y": null,
+    "same": true
+   },
+   "run": {
+    "run_id": "gpu_smoke/np8/p3",
+    "model_display": "Qwen3.8-Flash-Next (4-bit GGUF)",
+    "where": "gpu",
+    "model": "qwen3.8-flash-next-gpu",
+    "revision": "unsloth/Qwen3.8-Flash-Next-GGUF@766911a6b7369840a91dbcd95f9f997acaab6cd6 UD-Q4_K_XL (4 files sha256-checked); llama.cpp b12464 d3c3e242 server-cuda image sha256:ae96e52f8b2106ea82bad786ee2d08bb9b0a8c93403df9c27ae1bf065a118089; RunPod Community RTX PRO 6000 Blackwell Server Edition; -np 8 ctx/slot 49152 --no-kv-unified; f16 KV; -b 2048 -ub 2048; MTP off; context-shift off; chat template sha256 12827f24; via local streaming relay",
+    "temperature": 0,
+    "commit": "3b1bed655e34fdcba4674b56f5eb9c254b681c9a",
+    "dirty": false,
+    "finished_utc": null,
+    "date": "2026-11-20",
+    "prompts_changed_since": [],
+    "prompts_sha256": {
+     "limit": "abab3790d19b3d328f3466d29b093aa64297c4d8a64bdd594dde7c0c6da287e6",
+     "reask": "e387fb738616a92ed44939efa69ddc05b0bf811d6cc2150311d0efa58ed5c81d",
+     "repair": "60dfd9c6c27ae2369c82fc8a7b6fe62b3f24ca08c7f2a9ec831eda95e39a234e",
+     "system": "b096d6783512eba9d6174ab017467bacf8f3f20fc8da2ce8fbb79d2a046a2ac3",
+     "task_agent": "4e40a6f3898178f2555a6c5d6bef21e2601e3a13c51eb2d5b6bd537ec8c9bf2a",
+     "task_l1": "2ce646403f895731ae825b2fc9b2bd3b16ba4eb845f2d81e7623044f7f197531"
+    },
+    "conventions_sha256": "a6ad3ab5eebf74f989e4c6ab516f86a9d57a93cd286a58575f15b80b8395376f"
+   },
+   "label": "Data missing",
+   "label_warn": false
+  },
+  {
+   "id": "withdrawn",
+   "chosen_by": "author",
+   "case_id": "case_193a624ff0d0",
+   "system": "A2",
+   "patient": {
+    "sex": "M",
+    "age": 72,
+    "index_date": "2026-10-06"
+   },
+   "answer": {
+    "status": "CANNOT_DETERMINE",
+    "row": null,
+    "row_info": null,
+    "risk_10y": null,
+    "risks": [],
+    "missing": [
+     {
+      "name": "lipid_panel",
+      "label": "Lipid panel",
+      "lower": "lipid panel",
+      "why": "Without it the 10-year risk cannot be computed."
+     }
+    ],
+    "note_for_clinician": "This 72-year-old man has no active statin, no clinical ASCVD, no diabetes and no CKD, but no lipid panel (TC, HDL-C, LDL-C) is on record at any point, so neither an LDL-based rule nor a PREVENT risk can be applied. Obtain a fasting or nonfasting lipid panel to determine whether a statin is indicated; his SBP of 142 mmHg on verapamil and never-smoking status are otherwise documented.",
+    "lines": [
+     {
+      "name": "sbp",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_1b2fee065dabf374",
+        "table": "observations",
+        "description": "Systolic Blood Pressure",
+        "date": "2026-09-29",
+        "value": "142 mm[Hg]",
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": "on BP medication",
+      "value": "142 mm Hg",
+      "when": "2026-09-29",
+      "inputs": null,
+      "sep": " ",
+      "text": "Systolic BP"
+     },
+     {
+      "name": "smoking",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_e2ec0ae2d0837ccd",
+        "table": "observations",
+        "description": "Tobacco smoking status",
+        "date": "2026-09-29",
+        "value": "Never smoked tobacco (finding)",
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "Never smoked tobacco",
+      "when": "2026-09-29",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Smoking"
+     },
+     {
+      "name": "statins",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "statins",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Statin"
+     }
+    ],
+    "claims": [
+     {
+      "name": "age",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "72",
+      "when": null,
+      "inputs": null,
+      "sep": " ",
+      "text": "Age"
+     },
+     {
+      "name": "sex",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "male",
+      "when": null,
+      "inputs": null,
+      "sep": ": ",
+      "text": "Sex"
+     },
+     {
+      "name": "statins",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "statins",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Statin"
+     },
+     {
+      "name": "ascvd",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "ascvd_codes",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Clinical ASCVD"
+     },
+     {
+      "name": "diabetes",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "diabetes_codes",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Diabetes"
+     },
+     {
+      "name": "ckd",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "ckd_codes",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "CKD stage 3-4"
+     },
+     {
+      "name": "lipid_panel",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "lipid_panel",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Lipid panel"
+     },
+     {
+      "name": "sbp",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_1b2fee065dabf374",
+        "table": "observations",
+        "description": "Systolic Blood Pressure",
+        "date": "2026-09-29",
+        "value": "142 mm[Hg]",
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": "on BP medication",
+      "value": "142 mm Hg",
+      "when": "2026-09-29",
+      "inputs": null,
+      "sep": " ",
+      "text": "Systolic BP"
+     },
+     {
+      "name": "smoking",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_e2ec0ae2d0837ccd",
+        "table": "observations",
+        "description": "Tobacco smoking status",
+        "date": "2026-09-29",
+        "value": "Never smoked tobacco (finding)",
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "Never smoked tobacco",
+      "when": "2026-09-29",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Smoking"
+     },
+     {
+      "name": "egfr",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_6db42e378e2b47a4",
+        "table": "observations",
+        "description": "Glomerular filtration rate [Volume Rate/Area] in Serum or Plasma by Creatinine-based formula (MDRD)/1.73 sq M",
+        "date": "2026-08-25",
+        "value": "122 mL/min/{1.73_m2}",
+        "patch": "P1"
+       }
+      ],
+      "source": null,
+      "flag": {
+       "kind": "p1",
+       "text": "The generated record had no eGFR, so patch P1 added one, drawn the way the generator draws eGFR. Any value from 60 to 140 gives the same answer."
+      },
+      "extra": null,
+      "value": "122 mL/min/1.73 m²",
+      "when": "2026-08-25",
+      "inputs": null,
+      "sep": " ",
+      "text": "eGFR"
+     },
+     {
+      "name": "bp_drugs",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "med_2b30030e9d202e04",
+        "table": "medications",
+        "description": "verapamil hydrochloride 80 MG Oral Tablet [Calan]",
+        "date": "2026-09-29",
+        "value": null,
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "verapamil hydrochloride 80 MG Oral Tablet [Calan]",
+      "when": "2026-09-29",
+      "inputs": null,
+      "sep": ": ",
+      "text": "BP medication"
+     }
+    ],
+    "n_claims": 11,
+    "forced_fallback": false,
+    "called_prevent": false,
+    "seconds": 230.537
+   },
+   "verifier": [
+    {
+     "round": 1,
+     "ok": true,
+     "n_claims": 11,
+     "n_ok": 11,
+     "failures": []
+    }
+   ],
+   "edit": {
+    "condition": "C1",
+    "variant": "lipid_panel",
+    "direction": "must_change",
+    "kind": "delete",
+    "input": "lipid_panel",
+    "input_label": "lipid panel",
+    "noun": "lipid result",
+    "deleted_rows": 52,
+    "notes_changed": 13,
+    "planted": []
+   },
+   "answer_key": {
+    "status": "CANNOT_DETERMINE",
+    "row": null,
+    "row_info": null,
+    "missing": [
+     {
+      "name": "lipid_panel",
+      "lower": "lipid panel"
+     }
+    ],
+    "risk_10y": null,
+    "same": true
+   },
+   "run": {
+    "run_id": "gpu_smoke/np8/p1",
+    "model_display": "Qwen3.8-Flash-Next (4-bit GGUF)",
+    "where": "gpu",
+    "model": "qwen3.8-flash-next-gpu",
+    "revision": "unsloth/Qwen3.8-Flash-Next-GGUF@766911a6b7369840a91dbcd95f9f997acaab6cd6 UD-Q4_K_XL (4 files sha256-checked); llama.cpp b12464 d3c3e242 server-cuda image sha256:ae96e52f8b2106ea82bad786ee2d08bb9b0a8c93403df9c27ae1bf065a118089; RunPod Community RTX PRO 6000 Blackwell Server Edition; -np 8 ctx/slot 49152 --no-kv-unified; f16 KV; -b 2048 -ub 2048; MTP off; context-shift off; chat template sha256 12827f24; via local streaming relay",
+    "temperature": 0,
+    "commit": "3b1bed655e34fdcba4674b56f5eb9c254b681c9a",
+    "dirty": false,
+    "finished_utc": null,
+    "date": "2026-11-20",
+    "prompts_changed_since": [],
+    "prompts_sha256": {
+     "limit": "abab3790d19b3d328f3466d29b093aa64297c4d8a64bdd594dde7c0c6da287e6",
+     "reask": "e387fb738616a92ed44939efa69ddc05b0bf811d6cc2150311d0efa58ed5c81d",
+     "repair": "60dfd9c6c27ae2369c82fc8a7b6fe62b3f24ca08c7f2a9ec831eda95e39a234e",
+     "system": "b096d6783512eba9d6174ab017467bacf8f3f20fc8da2ce8fbb79d2a046a2ac3",
+     "task_agent": "4e40a6f3898178f2555a6c5d6bef21e2601e3a13c51eb2d5b6bd537ec8c9bf2a",
+     "task_l1": "2ce646403f895731ae825b2fc9b2bd3b16ba4eb845f2d81e7623044f7f197531"
+    },
+    "conventions_sha256": "a6ad3ab5eebf74f989e4c6ab516f86a9d57a93cd286a58575f15b80b8395376f"
+   },
+   "label": "Alert withdrawn",
+   "label_warn": false,
+   "base": {
+    "case_id": "case_9bb86c75ec21",
+    "status": "GAP",
+    "row": "8",
+    "risk_10y": 0.10295,
+    "same_as_key": true,
+    "run": {
+     "run_id": "gpu_smoke/np8/p4",
+     "model_display": "Qwen3.8-Flash-Next (4-bit GGUF)",
+     "where": "gpu",
+     "model": "qwen3.8-flash-next-gpu",
+     "revision": "unsloth/Qwen3.8-Flash-Next-GGUF@766911a6b7369840a91dbcd95f9f997acaab6cd6 UD-Q4_K_XL (4 files sha256-checked); llama.cpp b12464 d3c3e242 server-cuda image sha256:ae96e52f8b2106ea82bad786ee2d08bb9b0a8c93403df9c27ae1bf065a118089; RunPod Community RTX PRO 6000 Blackwell Server Edition; -np 8 ctx/slot 49152 --no-kv-unified; f16 KV; -b 2048 -ub 2048; MTP off; context-shift off; chat template sha256 12827f24; via local streaming relay",
+     "temperature": 0,
+     "commit": "3b1bed655e34fdcba4674b56f5eb9c254b681c9a",
+     "dirty": false,
+     "finished_utc": null,
+     "date": "2026-11-20",
+     "prompts_changed_since": [],
+     "prompts_sha256": {
+      "limit": "abab3790d19b3d328f3466d29b093aa64297c4d8a64bdd594dde7c0c6da287e6",
+      "reask": "e387fb738616a92ed44939efa69ddc05b0bf811d6cc2150311d0efa58ed5c81d",
+      "repair": "60dfd9c6c27ae2369c82fc8a7b6fe62b3f24ca08c7f2a9ec831eda95e39a234e",
+      "system": "b096d6783512eba9d6174ab017467bacf8f3f20fc8da2ce8fbb79d2a046a2ac3",
+      "task_agent": "4e40a6f3898178f2555a6c5d6bef21e2601e3a13c51eb2d5b6bd537ec8c9bf2a",
+      "task_l1": "2ce646403f895731ae825b2fc9b2bd3b16ba4eb845f2d81e7623044f7f197531"
+     },
+     "conventions_sha256": "a6ad3ab5eebf74f989e4c6ab516f86a9d57a93cd286a58575f15b80b8395376f"
+    }
+   }
   }
- }
+ ],
+ "failures": [
+  {
+   "id": "verifier_passed_wrong_row",
+   "chosen_by": "author",
+   "case_id": "case_2eed072b0c09",
+   "system": "A2",
+   "patient": {
+    "sex": "M",
+    "age": 72,
+    "index_date": "2026-10-06"
+   },
+   "answer": {
+    "status": "DISCUSS",
+    "row": "6",
+    "row_info": {
+     "row": "6",
+     "group": "Older adults",
+     "class": "2b",
+     "rule": "Age 76–79, no ASCVD, no diabetes, LDL-C < 190"
+    },
+    "risk_10y": null,
+    "risks": [],
+    "missing": [
+     {
+      "name": "smoking",
+      "label": "Smoking status",
+      "lower": "smoking status",
+      "why": "Without it the 10-year risk cannot be computed."
+     }
+    ],
+    "note_for_clinician": "At age 72 with no clinical ASCVD, no diabetes and an LDL-C of 99 mg/dL, no class 1 indication applies; a statin decision is a class 2a/2b discussion of primary prevention. A lipid panel from 2025-08-19 and no smoking status on record should be refreshed, and a 10-year PREVENT estimate obtained to inform that discussion.",
+    "lines": [
+     {
+      "name": "age",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "72",
+      "when": null,
+      "inputs": null,
+      "sep": " ",
+      "text": "Age"
+     },
+     {
+      "name": "lipid_panel",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_0d82c777ef6edf1c",
+        "table": "observations",
+        "description": "Cholesterol [Mass/volume] in Serum or Plasma",
+        "date": "2025-08-19",
+        "value": "185.8 mg/dL",
+        "patch": null
+       },
+       {
+        "id": "obs_6f19234882c8839a",
+        "table": "observations",
+        "description": "Cholesterol in HDL [Mass/volume] in Serum or Plasma",
+        "date": "2025-08-19",
+        "value": "62.2 mg/dL",
+        "patch": null
+       },
+       {
+        "id": "obs_59223e931c85985a",
+        "table": "observations",
+        "description": "Cholesterol in LDL [Mass/volume] in Serum or Plasma by Direct assay",
+        "date": "2025-08-19",
+        "value": "99.1 mg/dL",
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": "TC 185.8, HDL-C 62.2",
+      "value": "99.1 mg/dL",
+      "when": "2025-08-19",
+      "inputs": null,
+      "sep": " ",
+      "text": "LDL-C"
+     },
+     {
+      "name": "statins",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "statins",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Statin"
+     }
+    ],
+    "claims": [
+     {
+      "name": "age",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "72",
+      "when": null,
+      "inputs": null,
+      "sep": " ",
+      "text": "Age"
+     },
+     {
+      "name": "sex",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "male",
+      "when": null,
+      "inputs": null,
+      "sep": ": ",
+      "text": "Sex"
+     },
+     {
+      "name": "statins",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "statins",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Statin"
+     },
+     {
+      "name": "ascvd",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "ascvd_codes",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Clinical ASCVD"
+     },
+     {
+      "name": "diabetes",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "diabetes_codes",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Diabetes"
+     },
+     {
+      "name": "lipid_panel",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_0d82c777ef6edf1c",
+        "table": "observations",
+        "description": "Cholesterol [Mass/volume] in Serum or Plasma",
+        "date": "2025-08-19",
+        "value": "185.8 mg/dL",
+        "patch": null
+       },
+       {
+        "id": "obs_6f19234882c8839a",
+        "table": "observations",
+        "description": "Cholesterol in HDL [Mass/volume] in Serum or Plasma",
+        "date": "2025-08-19",
+        "value": "62.2 mg/dL",
+        "patch": null
+       },
+       {
+        "id": "obs_59223e931c85985a",
+        "table": "observations",
+        "description": "Cholesterol in LDL [Mass/volume] in Serum or Plasma by Direct assay",
+        "date": "2025-08-19",
+        "value": "99.1 mg/dL",
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": "TC 185.8, HDL-C 62.2",
+      "value": "99.1 mg/dL",
+      "when": "2025-08-19",
+      "inputs": null,
+      "sep": " ",
+      "text": "LDL-C"
+     },
+     {
+      "name": "ckd",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "ckd_codes",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "CKD stage 3-4"
+     },
+     {
+      "name": "sbp",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_1b2fee065dabf374",
+        "table": "observations",
+        "description": "Systolic Blood Pressure",
+        "date": "2026-09-29",
+        "value": "142 mm[Hg]",
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": "on BP medication",
+      "value": "142 mm Hg",
+      "when": "2026-09-29",
+      "inputs": null,
+      "sep": " ",
+      "text": "Systolic BP"
+     },
+     {
+      "name": "egfr",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "obs_6db42e378e2b47a4",
+        "table": "observations",
+        "description": "Glomerular filtration rate [Volume Rate/Area] in Serum or Plasma by Creatinine-based formula (MDRD)/1.73 sq M",
+        "date": "2026-08-25",
+        "value": "122 mL/min/{1.73_m2}",
+        "patch": "P1"
+       }
+      ],
+      "source": null,
+      "flag": {
+       "kind": "p1",
+       "text": "The generated record had no eGFR, so patch P1 added one, drawn the way the generator draws eGFR. Any value from 60 to 140 gives the same answer."
+      },
+      "extra": null,
+      "value": "122 mL/min/1.73 m²",
+      "when": "2026-08-25",
+      "inputs": null,
+      "sep": " ",
+      "text": "eGFR"
+     },
+     {
+      "name": "smoking",
+      "support": "ABSENT",
+      "verified": true,
+      "action": "query re-run, nothing found",
+      "rows": [],
+      "source": "smoking",
+      "flag": null,
+      "extra": null,
+      "value": "none on record",
+      "when": "re-queried",
+      "inputs": null,
+      "sep": ": ",
+      "text": "Smoking status"
+     },
+     {
+      "name": "bp_drugs",
+      "support": "DOCUMENTED",
+      "verified": true,
+      "action": "row re-read",
+      "rows": [
+       {
+        "id": "med_2b30030e9d202e04",
+        "table": "medications",
+        "description": "verapamil hydrochloride 80 MG Oral Tablet [Calan]",
+        "date": "2026-09-29",
+        "value": null,
+        "patch": null
+       }
+      ],
+      "source": null,
+      "flag": null,
+      "extra": null,
+      "value": "verapamil hydrochloride 80 MG Oral Tablet [Calan]",
+      "when": "2026-09-29",
+      "inputs": null,
+      "sep": ": ",
+      "text": "BP medication"
+     }
+    ],
+    "n_claims": 11,
+    "forced_fallback": false,
+    "called_prevent": false,
+    "seconds": 350.41
+   },
+   "verifier": [
+    {
+     "round": 1,
+     "ok": true,
+     "n_claims": 11,
+     "n_ok": 11,
+     "failures": []
+    }
+   ],
+   "edit": {
+    "condition": "C2b",
+    "variant": "smoking",
+    "direction": "must_not_change",
+    "kind": "delete",
+    "input": "smoking",
+    "input_label": "smoking status",
+    "noun": "smoking-status entry",
+    "deleted_rows": 68,
+    "notes_changed": 152,
+    "planted": []
+   },
+   "answer_key": {
+    "status": "GAP",
+    "row": "8",
+    "row_info": {
+     "row": "8",
+     "group": "PREVENT ≥ 10%",
+     "class": "1",
+     "rule": "10-year risk ≥ 10%"
+    },
+    "missing": [],
+    "risk_10y": null,
+    "same": false
+   },
+   "run": {
+    "run_id": "local_flashnext_1119/run",
+    "model_display": "Qwen3.8-Flash-Next (4-bit GGUF)",
+    "where": "cpu",
+    "model": "qwen3.8-flash-next-local",
+    "revision": "unsloth/Qwen3.8-Flash-Next-GGUF@766911a6b7369840a91dbcd95f9f997acaab6cd6 UD-Q4_K_XL; ik_llama.cpp 81617c6503ef; MTP draft Q8_0 n_max=2; CPU; ctx 32768; context-shift off",
+    "temperature": 0,
+    "commit": "c3c7841c60711d65de224c903276676b2df444df",
+    "dirty": false,
+    "finished_utc": "2026-11-19T12:08:17Z",
+    "date": "2026-11-19",
+    "prompts_changed_since": [
+     "task_agent"
+    ],
+    "prompts_sha256": {
+     "limit": "abab3790d19b3d328f3466d29b093aa64297c4d8a64bdd594dde7c0c6da287e6",
+     "reask": "e387fb738616a92ed44939efa69ddc05b0bf811d6cc2150311d0efa58ed5c81d",
+     "repair": "60dfd9c6c27ae2369c82fc8a7b6fe62b3f24ca08c7f2a9ec831eda95e39a234e",
+     "system": "b096d6783512eba9d6174ab017467bacf8f3f20fc8da2ce8fbb79d2a046a2ac3",
+     "task_agent": "71abe5cb42f58b6e5a1ca9a2b8d689aa73fe68e50de4b6c43e8190aadb7bab9f",
+     "task_l1": "2ce646403f895731ae825b2fc9b2bd3b16ba4eb845f2d81e7623044f7f197531"
+    },
+    "conventions_sha256": "a6ad3ab5eebf74f989e4c6ab516f86a9d57a93cd286a58575f15b80b8395376f"
+   },
+   "label": null,
+   "label_warn": false,
+   "after": {
+    "status": "GAP",
+    "row": "8",
+    "risk_10y": 0.10295,
+    "same_as_key": true,
+    "run": {
+     "run_id": "gpu_smoke/np8/p3",
+     "model_display": "Qwen3.8-Flash-Next (4-bit GGUF)",
+     "where": "gpu",
+     "model": "qwen3.8-flash-next-gpu",
+     "revision": "unsloth/Qwen3.8-Flash-Next-GGUF@766911a6b7369840a91dbcd95f9f997acaab6cd6 UD-Q4_K_XL (4 files sha256-checked); llama.cpp b12464 d3c3e242 server-cuda image sha256:ae96e52f8b2106ea82bad786ee2d08bb9b0a8c93403df9c27ae1bf065a118089; RunPod Community RTX PRO 6000 Blackwell Server Edition; -np 8 ctx/slot 49152 --no-kv-unified; f16 KV; -b 2048 -ub 2048; MTP off; context-shift off; chat template sha256 12827f24; via local streaming relay",
+     "temperature": 0,
+     "commit": "3b1bed655e34fdcba4674b56f5eb9c254b681c9a",
+     "dirty": false,
+     "finished_utc": null,
+     "date": "2026-11-20",
+     "prompts_changed_since": [],
+     "prompts_sha256": {
+      "limit": "abab3790d19b3d328f3466d29b093aa64297c4d8a64bdd594dde7c0c6da287e6",
+      "reask": "e387fb738616a92ed44939efa69ddc05b0bf811d6cc2150311d0efa58ed5c81d",
+      "repair": "60dfd9c6c27ae2369c82fc8a7b6fe62b3f24ca08c7f2a9ec831eda95e39a234e",
+      "system": "b096d6783512eba9d6174ab017467bacf8f3f20fc8da2ce8fbb79d2a046a2ac3",
+      "task_agent": "4e40a6f3898178f2555a6c5d6bef21e2601e3a13c51eb2d5b6bd537ec8c9bf2a",
+      "task_l1": "2ce646403f895731ae825b2fc9b2bd3b16ba4eb845f2d81e7623044f7f197531"
+     },
+     "conventions_sha256": "a6ad3ab5eebf74f989e4c6ab516f86a9d57a93cd286a58575f15b80b8395376f"
+    }
+   }
+  }
+ ]
 }

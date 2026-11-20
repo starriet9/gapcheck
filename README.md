@@ -1,11 +1,21 @@
 # gapcheck
 
-<!-- USER: 3 sentences: question / design / primary result -->
+A care-gap agent that checks its own work.
+
+<!-- USER: your own sentences here if you want them (what it is; after the test, the primary result) -->
+
+![A care-gap alert from a development run: the code verifier rejects the agent's first draft, then the evidence rows it checked](site/figures/card.gif)
+
+<!-- PUBLISH: page URL -->
+[Page](PAGE_URL) · [Protocol](PROTOCOL.md) · [Design](SPEC.md) · [Reproduce](docs/REPRODUCE.md)
 
 **Status:** the protocol is a draft and has not been released, so the test set does not exist and there are no test results. [RUNS.md](RUNS.md) logs each step when it happens.
 
-<!-- PUBLISH: page URL and one-page summary link -->
-[Page](PAGE_URL) · [Protocol](PROTOCOL.md) · [Design](SPEC.md) · [Reproduce](docs/REPRODUCE.md) · One-page summary (PDF)
+## How it works
+
+1. **Reads.** The agent queries a patient's longitudinal record with tools (labs, diagnoses, medications, notes) and computes 10-year risk with the PREVENT equations.
+2. **Claims.** It answers with a status and a list of claims. Each claim cites a record row, a computation, or a confirmed absence.
+3. **Gets checked.** Code re-reads every cited row, recomputes every risk and re-runs every "not on record" query. A failed claim sends the draft back once; if it fails again, no alert is shown. The verifier never sees the answer key. It checks facts and arithmetic, not judgment.
 
 ## How it is tested
 
@@ -25,22 +35,20 @@ Each base patient is a synthetic longitudinal record (Synthea v4.0.0, with the p
 
 C0 is the unedited record. Systems: R0 (the oracle on structured data only), R1 (R0 plus keyword rules on notes), L1 (one model call on the serialized record), A1 (a tool-using agent) and A2 (A1 plus a code verifier that re-checks every cited source and computed risk). The primary outcome, analysis and hypotheses are fixed in [PROTOCOL.md](PROTOCOL.md) before the test set is drawn.
 
-## Found on the way
+## Bugs found in the data source, fixes sent upstream
 
-<!-- USER: 2 sentences -->
-
-Upstream reports to Synthea (status at the time of writing; see each link):
-- [synthetichealth/synthea#1794](https://github.com/synthetichealth/synthea/pull/1794): the wellness eGFR check tests a hypertension code that no module creates any more.
-- [synthetichealth/synthea#1793](https://github.com/synthetichealth/synthea/issues/1793): comment on the kidney-panel branch conditions.
+Synthea is the open-source generator behind the synthetic patients (status at the time of writing; see each link):
+- [synthetichealth/synthea#1794](https://github.com/synthetichealth/synthea/pull/1794): patients with hypertension never got a kidney-function result; the wellness check tested a diagnosis code that no module has created since 2019.
+- [synthetichealth/synthea#1795](https://github.com/synthetichealth/synthea/pull/1795): kidney function was one CKD stage off, and end-stage patients got normal values (from the discussion in [#1793](https://github.com/synthetichealth/synthea/issues/1793)).
 <!-- PUBLISH: add PR 2 and PR 3 only after they are posted -->
+
+<!-- USER: 1-2 sentences -->
 
 ## Limits
 
 - Synthetic patients (Synthea v4.0.0) with disclosed patches. The mix of test cases is designed, so no count is a prevalence.
 - Ground truth is the guideline as encoded in a decision table, not clinical judgment. GAP is a prompt for review, not a finding of poor care.
-- Only the PREVENT base equations are used, without albuminuria, HbA1c or zip code.
-- No base patient is a current smoker (smoking enters only through edits); notes are templated and favor keyword rules; lipid and eGFR values are generator values.
-- Statin initiation only: no dose intensity, CAC or Lp(a) rules. Research prototype, not medical advice.
+- Notes are templated and favor keyword rules; lipid and eGFR values are generator values. Research prototype, not medical advice.
 
 The full list is in [SPEC sec. 11](SPEC.md#11-limits-fixed-text-for-readme-dashboard-and-write-up).
 

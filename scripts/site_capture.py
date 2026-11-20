@@ -12,9 +12,12 @@ for the duration of the run, because the CLI does not open file: URLs.
 Nothing outside this machine is contacted. One named browser session is
 opened and closed again; other sessions are left alone.
 
-GIF: the card at phone width (360 CSS px, device scale 2, so 720 px wide),
-three beats (original record, edited record, the verifier catch), reduced
-motion, same frame size for every beat, looping. Target < 2 MB.
+GIF: the alert card at phone width (360 CSS px, device scale 2, so 720 px
+wide), one beat per tab (3 s each), reduced motion, same frame size for every
+beat, looping. Target < 2 MB. og: the first screen at 1200 x 630.
+shots: phone 375 and 360 px (light and dark), desktop 1280 px: the first
+screen, the full page, each card tab, and the full page with JavaScript off;
+each line of output reports whether the page scrolls sideways.
 """
 from __future__ import annotations
 
@@ -30,8 +33,8 @@ import threading
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SESSION = "claude-gapcheck-gif"
-BEATS_MS = (3000, 3000, 4500)
+SESSION = "claude-gapcheck-v2"
+BEATS_MS = (3000, 3000, 3000)
 
 
 def serve(directory: Path) -> tuple[socketserver.TCPServer, int]:
@@ -63,14 +66,14 @@ def run_js(body: str, params: dict, work: Path) -> str:
 CTX = """
 const ctx = await page.context().browser().newContext({
   viewport: { width: P.width, height: P.height }, deviceScaleFactor: P.scale,
-  colorScheme: P.scheme, reducedMotion: 'reduce' });
+  colorScheme: P.scheme, reducedMotion: 'reduce', javaScriptEnabled: P.js !== false });
 const pg = await ctx.newPage();
 await pg.goto(P.url, { waitUntil: 'load' });
 """
 
 GIF_JS = CTX + """
-await pg.addStyleTag({ content: 'header.top, footer, main > :not(#card), .card-note, details.all' +
-  ' { display: none !important; } main { padding-top: 10px; }' });
+await pg.addStyleTag({ content: 'header.top, footer, .body, .hero-text { display: none !important; }' +
+  ' .hero { padding-top: 10px !important; display: block !important; }' });
 const card = pg.locator('#card');
 const heights = [];
 for (let i = 0; i < P.states; i++) {
@@ -93,30 +96,27 @@ return JSON.stringify({ heights, h });
 
 SHOTS_JS = CTX + """
 const total = await pg.evaluate(() => document.documentElement.scrollHeight);
+const sw = await pg.evaluate(() => document.documentElement.scrollWidth);
+const fold = await pg.evaluate(() => {
+  const r = document.querySelector('.checked');
+  return r ? Math.round(r.getBoundingClientRect().bottom + window.scrollY) : null; });
 const out = [];
+await pg.screenshot({ path: P.prefix + '_screen1.png' });
+out.push(P.prefix + '_screen1.png');
 if (P.full) {
   await pg.screenshot({ path: P.prefix + '_full.png', fullPage: true });
   out.push(P.prefix + '_full.png');
 }
-for (let y = 0, k = 1; y < total && k <= P.maxScreens; y += P.height, k++) {
-  await pg.evaluate(v => window.scrollTo(0, v), y);
-  await pg.waitForTimeout(80);
-  const p = P.prefix + '_screen' + String(k).padStart(2, '0') + '.png';
-  await pg.screenshot({ path: p });
-  out.push(p);
-}
-const sw = await pg.evaluate(() => document.documentElement.scrollWidth);
-const states = [];
 if (P.cardStates) {
   for (let i = 0; i < P.cardStates; i++) {
     await pg.evaluate(n => window.gapcheckCard.show(n), i);
-    const p = P.prefix + '_card' + (i + 1) + '.png';
+    const p = P.prefix + '_tab' + (i + 1) + '.png';
     await pg.locator('#card').screenshot({ path: p });
-    states.push(p);
+    out.push(p);
   }
 }
 await ctx.close();
-return JSON.stringify({ total, scrollWidth: sw, width: P.width, files: out.concat(states) });
+return JSON.stringify({ total, scrollWidth: sw, width: P.width, checkedBottom: fold, files: out });
 """
 
 
@@ -156,7 +156,7 @@ def main() -> None:
         cli("open", "about:blank", cwd=work)
         if a.what == "gif":
             out = Path(a.out or ROOT / "site" / "figures" / "card.gif").resolve()
-            r = run_js(GIF_JS, {"url": base + "?static", "width": 360, "height": 800, "scale": 2,
+            r = run_js(GIF_JS, {"url": base, "width": 360, "height": 800, "scale": 2,
                                 "scheme": "light", "states": len(BEATS_MS), "dir": str(work)}, work)
             frames = [work / f"frame{i}.png" for i in range(len(BEATS_MS))]
             ffmpeg_gif(frames, BEATS_MS, out, work)
@@ -164,25 +164,28 @@ def main() -> None:
         elif a.what == "og":
             out = Path(a.out or ROOT / "site" / "figures" / "og.png").resolve()
             run_js(CTX + "await pg.screenshot({ path: P.out }); await ctx.close(); return 'ok';",
-                   {"url": base + "?static", "width": 1200, "height": 630, "scale": 1,
+                   {"url": base, "width": 1200, "height": 630, "scale": 1,
                     "scheme": "light", "out": str(out)}, work)
             print(out)
         else:
             # the browser runs in another working directory: paths must be absolute
             out = Path(a.out or ROOT / "private" / "page_preview").resolve()
             out.mkdir(parents=True, exist_ok=True)
-            for name, w, h, scheme, full, cards in (("phone375_light", 375, 812, "light", True, 3),
-                                                    ("phone375_dark", 375, 812, "dark", False, 3),
-                                                    ("phone360_light", 360, 780, "light", False, 0),
-                                                    ("desktop1280_light", 1280, 900, "light", True, 0),
-                                                    ("desktop1280_dark", 1280, 900, "dark", False, 0)):
-                r = run_js(SHOTS_JS, {"url": base + "?static", "width": w, "height": h, "scale": 1,
+            for name, w, h, scheme, full, cards, js in (
+                    ("phone375_light", 375, 812, "light", True, 3, True),
+                    ("phone375_dark", 375, 812, "dark", True, 3, True),
+                    ("phone360_light", 360, 740, "light", True, 0, True),
+                    ("phone375_light_nojs", 375, 812, "light", True, 0, False),
+                    ("desktop1280_light", 1280, 860, "light", True, 0, True),
+                    ("desktop1280_dark", 1280, 860, "dark", False, 0, True)):
+                r = run_js(SHOTS_JS, {"url": base, "width": w, "height": h, "scale": 1 if w > 500 else 2,
                                       "scheme": scheme, "prefix": str(out / name), "full": full,
-                                      "maxScreens": 12 if w < 500 else 4, "cardStates": cards}, work)
+                                      "cardStates": cards, "js": js}, work)
                 info = json.loads(json.loads(r.split("### Result")[1].split("\n")[1]))
                 flag = "OK" if info["scrollWidth"] <= info["width"] else "HORIZONTAL SCROLL"
                 print(f"{name}: page height {info['total']} px, scrollWidth {info['scrollWidth']} "
-                      f"({flag}), {len(info['files'])} files")
+                      f"({flag}), verifier band ends at y={info['checkedBottom']} of a {h} px screen, "
+                      f"{len(info['files'])} files")
     finally:
         try:
             cli("close", cwd=work)

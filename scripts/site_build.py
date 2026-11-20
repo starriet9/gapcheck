@@ -1,25 +1,29 @@
 """Build the project page (pages/index.html) from repository files.
 
 Usage:
-  python scripts/site_build.py [--out pages] [--strict]
+  python scripts/site_build.py [--out pages] [--strict] [--results FILE]
 
-Inputs (all in the repository; nothing is fetched):
-  site/config.json      title, subtitle, links, which limits to show
+Inputs (all in the repository; nothing is fetched, at build time or by the page):
+  site/config.json      page text that is not the author's prose: title, subtitle,
+                        section text, the test steps, links, limits to show
   site/user_text.md     sentences the author writes (placeholders until then)
-  site/log.json         the dated log (at most 10 rows)
-  site/events.json      public upstream events with server timestamps
-  site/card.json   the twin-patient card (scripts/site_card.py)
-  site/score.json  score file of the pre-registered test run (written by
-                        scripts/score_runs.py; aggregate numbers only); if it is
-                        absent the page is in its preview state
+  site/log.json         the timeline (at most 6 rows shown)
+  site/events.json      public upstream events with server timestamps and state
+                        (scripts/site_events.py --refresh)
+  site/upstream.json    the upstream findings; an item whose pull request is not
+                        posted yet is not shown
+  site/card.json        the alert card (scripts/site_card.py)
+  site/score.json       score file of the pre-registered test run (scripts/score_runs.py;
+                        aggregate numbers only). If it is absent the page is in its
+                        before-results state; the section order is the same.
   SPEC.md, PROTOCOL.md, RUNS.md, Makefile, git history
 
 Output: one self-contained HTML file (CSS and JS inline, no external requests)
-plus the images it or the README refer to. The page has no build timestamp,
-so the same inputs give the same bytes.
+plus the images it or the README refer to. No build timestamp, so the same
+inputs give the same bytes.
 
 --strict (use before publishing) stops if an author placeholder is left, a
-log row is unresolved, or a listed file is missing from the repository.
+timeline row does not resolve, or a listed file is missing from the repository.
 """
 from __future__ import annotations
 
@@ -37,6 +41,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
 PROBLEMS: list[str] = []  # reported at the end; fatal with --strict
+MAX_TIMELINE = 6
 
 
 def problem(msg: str) -> None:
@@ -54,12 +59,12 @@ def inline_md(text: str) -> str:
     t = re.sub(r"`([^`]+)`", r"<code>\1</code>", t)
     t = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", t)
     t = re.sub(r"(?<![\w*])\*([^*\s][^*]*)\*(?!\w)", r"<em>\1</em>", t)
-    t = re.sub(r"\[([^\]]+)\]\((https?://[^)\s]+)\)", r'<a href="\2">\1</a>', t)
+    t = re.sub(r"\[([^\]]+)\]\(((?:https?://|#)[^)\s]+)\)", r'<a href="\2">\1</a>', t)
     return t
 
 
 def autolink_refs(html: str) -> str:
-    html = re.sub(r"arXiv (\d{4}\.\d{4,5})", r'<a href="https://arxiv.org/abs/\1">arXiv \1</a>', html)
+    html = re.sub(r"arXiv[ :](\d{4}\.\d{4,5})", r'<a href="https://arxiv.org/abs/\1">arXiv \1</a>', html)
     html = re.sub(r"doi:(10\.\d{4,9}/[^\s,;)]+[^\s,;).])", r'<a href="https://doi.org/\1">doi:\1</a>', html)
     return html
 
@@ -71,8 +76,8 @@ def slug(heading: str) -> str:
     return s.replace(" ", "-")
 
 
-def nice_date(d: date) -> str:
-    return f"{d.strftime('%b')} {d.day}"
+def nice_date(d: date, year: bool = False) -> str:
+    return f"{d.strftime('%b')} {d.day}" + (f", {d.year}" if year else "")
 
 
 def parse_ts(s: str) -> datetime:
@@ -87,6 +92,28 @@ def git(*args: str) -> str:
 def read(rel: str) -> str | None:
     p = ROOT / rel
     return p.read_text() if p.exists() else None
+
+
+def pct1(x: float | None) -> str:
+    if x is None:
+        return "n/a"
+    s = f"{100 * x:.1f}"
+    return "0.0" if s in ("-0.0", "0.0") else s.replace("-", "−")
+
+
+def signed(x: float) -> str:
+    s = f"{100 * x:+.1f}"
+    return s.replace("-", "−")
+
+
+def join_and(xs: list[str]) -> str:
+    xs = list(xs)
+    if len(xs) <= 1:
+        return "".join(xs)
+    return ", ".join(xs[:-1]) + " and " + xs[-1]
+
+
+NUM_WORD = {2: "Both", 3: "All three", 4: "All four", 5: "All five"}
 
 
 class Repo:
@@ -112,9 +139,13 @@ class Repo:
     def find(self, prefix: str) -> tuple[str, datetime] | None:
         hits = [(s, w) for s, w, subj in self.log if subj.startswith(prefix)]
         if len(hits) != 1:
-            problem(f"log: commit subject {prefix!r} matched {len(hits)} commits")
+            problem(f"timeline: commit subject {prefix!r} matched {len(hits)} commits")
             return hits[0] if hits else None
         return hits[0]
+
+    def by_sha(self, sha: str) -> tuple[str, datetime] | None:
+        hits = [(s, w) for s, w, _ in self.log if s.startswith(sha)]
+        return hits[0] if len(hits) == 1 else None
 
 
 def tracked(path: str) -> bool:
@@ -167,29 +198,11 @@ def spec_systems(spec: str) -> list[tuple[str, str]]:
     return out
 
 
-def hypotheses(spec: str, protocol: str | None) -> tuple[list[str], str]:
-    if protocol:
-        hs = re.findall(r"^- \*\*(H\d)\.\*\* (.+)$", protocol, re.M)
-        if hs:
-            return [f"**{h}.** {t}" for h, t in hs], "PROTOCOL.md"
-    hs = re.findall(r"^- (H\d): (.+)$", spec, re.M)
-    if not hs:
-        raise SystemExit("no hypotheses found in PROTOCOL.md or SPEC.md")
-    return [f"**{h}.** {t}" for h, t in hs], "SPEC.md"
-
-
-def expected_result(spec: str) -> str:
-    m = re.search(r"^\*\*Expected result\.\*\* (.+)$", spec, re.M)
-    if not m:
-        raise SystemExit("SPEC.md: no 'Expected result' paragraph")
-    return m.group(1)
-
-
-def planned_cases(spec: str) -> str:
+def planned_cases(spec: str) -> int:
     m = re.search(r"about (\d[\d,]*) test cases", spec)
     if not m:
         raise SystemExit("SPEC.md: no 'about N test cases'")
-    return m.group(1)
+    return int(m.group(1).replace(",", ""))
 
 
 def prior_work(spec: str) -> tuple[list[str], str, str]:
@@ -239,305 +252,458 @@ def user_sections(text: str) -> dict[str, str]:
     return out
 
 
-def user_block(sections: dict[str, str], key: str, tag: str = "div") -> str:
+def user_filled(sections: dict[str, str], key: str) -> bool:
+    body = sections.get(key, "")
+    return bool(body) and not re.fullmatch(r"<!--\s*USER:.*?-->", body, re.S)
+
+
+def user_block(sections: dict[str, str], key: str, cls: str = "") -> str:
     body = sections.get(key, "")
     hint = re.fullmatch(r"<!--\s*USER:\s*(.*?)\s*-->", body, re.S)
     if hint or not body:
-        h = hint.group(1) if hint else key
+        h = " ".join((hint.group(1) if hint else key).split())
         problem(f"author placeholder left: site/user_text.md ## {key}")
-        return f'<!-- USER: {e(h)} --><{tag} class="user">{e(h)}</{tag}>'
+        return f'<!-- USER: {e(h)} --><div class="user" data-slot="{e(key)}">{e(h)}</div>'
     paras = [p.strip() for p in re.split(r"\n\s*\n", body) if p.strip()]
-    return "".join(f"<p>{inline_md(' '.join(p.split()))}</p>" for p in paras)
+    c = f' class="{cls}"' if cls else ""
+    return "".join(f"<p{c}>{inline_md(' '.join(p.split()))}</p>" for p in paras)
+
+
+# ---------------------------------------------------------------- icons
+ICONS = """<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<symbol id="i-ok" viewBox="0 0 16 16"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="i-no" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+<symbol id="i-more" viewBox="0 0 16 16"><path d="M6 3.5l4.5 4.5L6 12.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>"""
+
+
+def icon(name: str, cls: str = "") -> str:
+    return f'<svg class="i {cls}" aria-hidden="true" focusable="false"><use href="#i-{name}"/></svg>'
 
 
 # ---------------------------------------------------------------- card
-STATUS = {"GAP": "GAP", "CANNOT_DETERMINE": "CANNOT DETERMINE", "DOCUMENTED_REASON": "DOCUMENTED REASON",
-          "NOT_INDICATED": "NOT INDICATED", "ON_THERAPY": "ON THERAPY", "DISCUSS": "DISCUSS"}
-SEX = {"M": "man", "F": "woman"}
+PILL = {"GAP": "Statin gap", "CANNOT_DETERMINE": "No call", "DOCUMENTED_REASON": "Reason documented",
+        "NOT_INDICATED": "Not indicated", "ON_THERAPY": "On a statin", "DISCUSS": "Discuss"}
+STATUS_WORDS = {"GAP": "STATIN GAP", "CANNOT_DETERMINE": "NO CALL", "DOCUMENTED_REASON": "REASON DOCUMENTED",
+                "NOT_INDICATED": "NOT INDICATED", "ON_THERAPY": "ON A STATIN", "DISCUSS": "DISCUSS"}
+SEX = {"M": "Man", "F": "Woman"}
+WHERE = {"cpu": "a CPU workstation", "gpu": "one rented GPU"}
+PROMPT_NAME = {"task_agent": "agent task", "task_l1": "single-call task", "system": "system",
+               "repair": "repair", "reask": "re-ask", "limit": "round-limit"}
 
 
-def short_id(x: str) -> str:
-    return x if len(x) <= 12 else x[:10] + "…"
+def risk_band(r: float) -> str:
+    if r >= 0.10:
+        return "at or above 10%"
+    if r >= 0.05:
+        return "between 5% and 10%"
+    if r >= 0.03:
+        return "between 3% and 5%"
+    return "below 3%"
 
 
-def src_text(ln: dict) -> str:
-    s = ln.get("source")
-    if isinstance(s, list):
-        ids = [x for x in s if x != "demographics"]
-        if not ids:
-            return "demographics"
-        more = f" +{len(ids) - 1}" if len(ids) > 1 else ""
-        return f'<span title="{e(", ".join(ids))}">{e(short_id(ids[0]))}{more}</span>'
-    if ln.get("support") == "ABSENT" and s:
-        return f"checked: {e(s)}"
-    return e(s or "")
-
-
-def line_html(ln: dict, deleted_note: str = "") -> str:
-    if ln.get("value") is None:
+def row_desc(ri: dict | None) -> str:
+    if not ri:
         return ""
-    cls = " deleted" if ln.get("deleted") else (" blocked" if ln.get("blocked") else "")
-    lab = f'<span class="lab">{e(ln["label"])}</span> '
-    if ln.get("deleted"):
-        meta = f'<strong>deleted</strong>{e(deleted_note)} · was {src_text(ln)}'
-        val = (f'<div>{lab}<del><span class="val">{e(ln["value"])}</span></del>'
-               f'<span class="sr"> (deleted)</span></div>')
-    elif ln.get("blocked"):
-        meta = "no lipid panel, so PREVENT has no input" if ln["name"] == "risk_10y" else ""
-        val = f'<div>{lab}<span class="val">{e(ln["value"])}</span></div>'
+    return f"row {ri['row']}" + (f", class {ri['class']}" if ri.get("class") else "")
+
+
+def summary_line(a: dict) -> str:
+    st, ri = a["status"], a.get("row_info") or {}
+    row = a.get("row")
+    risk = f"{100 * a['risk_10y']:.1f}%" if a.get("risk_10y") is not None else None
+    if st == "GAP":
+        why = {"1": "Clinical ASCVD", "2": "LDL-C 190 mg/dL or higher", "3": "Diabetes at 40 to 75",
+               "3b": "CKD stage 3 or 4 at 40 to 75"}.get(row)
+        if why is None and risk:
+            why = f"10-year risk {risk}"
+        return f"{why or ri.get('group', 'Gap')}, no statin on record."
+    if st == "CANNOT_DETERMINE":
+        miss = [m["lower"] for m in a["missing"]]
+        return ("Cannot determine: " + join_and(miss) + " not on record.") if miss else "Cannot determine."
+    if st == "DISCUSS":
+        return (f"10-year risk {risk}: discuss a statin." if risk and row in ("10", "11a")
+                else f"{ri.get('rule') or ri.get('group', '')}: discuss a statin.")
+    if st == "NOT_INDICATED":
+        return f"No statin indicated ({ri.get('rule') or ri.get('group', '')})."
+    if st == "DOCUMENTED_REASON":
+        return "Would be a gap; a reason not to prescribe is documented."
+    return "On a statin."
+
+
+def low(label: str) -> str:
+    """A label inside a sentence: 'Lipid panel' -> 'lipid panel'; 'eGFR', 'CKD stage 3-4' and
+    'Systolic BP' keep their abbreviations."""
+    words = label.split(" ")
+    if words and words[0][:1].isupper() and not words[0].isupper():
+        words[0] = words[0][0].lower() + words[0][1:]
+    return " ".join(words)
+
+
+def failures_text(fails: list[dict]) -> str:
+    groups: dict[tuple, list] = {}
+    for f in fails:
+        groups.setdefault((f["check"], f["kind"]), []).append(f)
+    out = []
+    for (chk, kind), xs in groups.items():
+        names = [low(x["label"] or "") for x in xs]
+        n = len(xs)
+        if chk == 4 and kind == "missing":
+            tail = f"{NUM_WORD.get(n, 'All')} are on record." if n > 1 else "It is on record."
+            out.append(f"It listed {join_and(names)} as missing. {tail}")
+        elif chk == 4:
+            out.append(f"It said {join_and(names)} {'are' if n > 1 else 'is'} not on record. "
+                       f"{'They are' if n > 1 else 'It is'}.")
+        elif chk == 1:
+            out.append(f"A record row it cited for {join_and(names)} does not hold that value.")
+        elif chk == 2:
+            out.append("It left out an input that its own decision row needs.")
+        elif chk == 3:
+            out.append("A risk it reported could not be reproduced from the inputs it cited.")
+        else:
+            out.append(f"Check {chk} failed.")
+    return " ".join(out)
+
+
+def checked_band(t: dict) -> str:
+    a, rounds = t["answer"], t["verifier"]
+    lines = []
+    n_risk = sum(1 for c in a["claims"] if c["support"] == "COMPUTED" and c["name"] == "risk_10y")
+    multi = len(rounds) > 1
+    for r in rounds:
+        if not r["ok"]:
+            lines.append(f'<li class="chk rej">{icon("no")}<span><strong>Draft {r["round"]} rejected.</strong> '
+                         f'{e(failures_text(r["failures"]))}</span></li>')
+        else:
+            head = f"Draft {r['round']}: " if multi else ""
+            risk = (" Both risk values recomputed." if n_risk == 2 else
+                    " The risk was recomputed." if n_risk == 1 else "")
+            lines.append(f'<li class="chk ok">{icon("ok")}<span><strong>{e(head)}{r["n_ok"]} of '
+                         f'{r["n_claims"]} claims match the record.</strong>{e(risk)}</span></li>')
+    if a.get("forced_fallback"):
+        lines.append(f'<li class="chk rej">{icon("no")}<span><strong>No alert.</strong> After a failed '
+                     f'repair the answer falls back to cannot determine.</span></li>')
+    if not rounds:
+        lines.append('<li class="chk">Not checked: the agent gave no valid first answer.</li>')
+    return (f'<div class="checked"><p class="band">Checked by code</p>'
+            f'<ul class="chks">{"".join(lines)}</ul></div>')
+
+
+def ev_row(ln: dict, risks: list[dict], spec_p1: str, p1_egfr: bool = False) -> str:
+    val = ""
+    if ln.get("value"):
+        val = f'{e(ln.get("sep", " "))}<b>{e(ln["value"])}</b>'
+    extra = f'<span class="ev-extra">{e(ln["extra"])}</span>' if ln.get("extra") else ""
+    when = ln.get("when") or ""
+    mark = (f'{icon("ok", "okc")}<span class="sr">verified</span>' if ln.get("verified") else
+            f'{icon("no", "noc")}<span class="sr">failed a check</span>' if ln.get("verified") is False else "")
+    det = []
+    rows = ln.get("claim_rows") or ln.get("rows") or []
+    if rows:
+        rows = sorted(rows, key=lambda r: (r.get("date") or "", r["id"]))
+        lis = "".join(
+            f'<li><code>{e(r["id"])}</code> {e(r["description"] or "")}'
+            f'{(" · " + e(r["value"])) if r.get("value") else ""}{(" · " + e(r["date"])) if r.get("date") else ""}'
+            f'{" · added by patch P1" if r.get("patch") == "P1" else ""}</li>'
+            for r in rows[:4])
+        more = f'<li>+ {len(rows) - 4} more rows</li>' if len(rows) > 4 else ""
+        det.append(f'<p>Record row{"s" if len(rows) > 1 else ""} cited:</p><ul class="rows">{lis}{more}</ul>')
+    if ln["support"] == "COMPUTED":
+        if len(risks) == 2 and ln["name"] == "risk_10y":
+            v = sorted(risks, key=lambda r: r["smoker"] or 0)
+            det.append(f'<p>PREVENT, computed twice: {pct1(v[0]["value"])}% as a non-smoker, '
+                       f'{pct1(v[1]["value"])}% as a smoker.</p>')
+        if ln.get("inputs"):
+            det.append(f'<p>Inputs: {e(ln["inputs"])}.</p>')
+            if p1_egfr and "eGFR" in ln["inputs"]:
+                det.append(f'<p class="flag">The eGFR was added by <a href="{e(spec_p1)}">patch P1</a>: '
+                           f'the generated record had none. Any value from 60 to 140 gives the same answer.</p>')
+    if ln["support"] == "ABSENT" and ln.get("source"):
+        det.append(f'<p>Fixed query: <code>{e(ln["source"])}</code>.</p>')
+    if ln.get("flag") and ln["flag"]["kind"] == "p1":
+        det.append(f'<p class="flag">{e(ln["flag"]["text"])} <a href="{e(spec_p1)}">Patches</a>.</p>')
+    det.append(f'<p class="meta">{e(ln["support"])} · verifier: {e(ln.get("action") or "")}</p>')
+    return (f'<li><details><summary><span class="ev-name">{e(ln["text"])}{val}{extra}</span>'
+            f'<span class="ev-when">{e(when)}</span>{mark}{icon("more", "chev")}</summary>'
+            f'<div class="ev-more">{"".join(det)}</div></details></li>')
+
+
+def missing_block(t: dict) -> str:
+    a = t["answer"]
+    if not a["missing"]:
+        return '<p class="miss">Nothing that changes the answer.</p>'
+    out = []
+    risks = a.get("risks") or []
+    both = len(risks) == 2 and {r["smoker"] for r in risks} == {0, 1}
+    for m in a["missing"]:
+        if m["name"] == "smoking" and both:
+            v = sorted(risks, key=lambda r: r["smoker"])
+            same = risk_band(v[0]["value"]) == risk_band(v[1]["value"])
+            tail = ""
+            if same:
+                tail = (f" Both are {risk_band(v[0]['value'])}, so "
+                        + ("the gap stands." if a["status"] == "GAP" else "the answer is the same either way."))
+            out.append(f'<p class="miss"><strong>Smoking status.</strong> The agent computed the risk both '
+                       f'ways: {pct1(v[0]["value"])}% if non-smoker, {pct1(v[1]["value"])}% if smoker.{e(tail)}</p>')
+        else:
+            out.append(f'<p class="miss"><strong>{e(m["label"])}.</strong> {e(m.get("why") or "")}</p>')
+    return "".join(out)
+
+
+def edit_text(ed: dict) -> str:
+    must = {"must_not_change": " The answer must not change.",
+            "must_change": " The answer must change."}.get(ed.get("direction"), "")
+    if ed["kind"] == "delete":
+        notes = f"; mentions removed from {ed['notes_changed']} notes" if ed["notes_changed"] else ""
+        return (f"Test edit: every {ed['noun']} was deleted from this record on purpose "
+                f"({ed['deleted_rows']} rows{notes}).{must}")
+    if ed["kind"] == "plant":
+        p = ed["planted"][0]
+        return f"Test edit: one sentence was added to a note on purpose: “{p['text']}”{must}"
+    if ed["kind"] == "move":
+        return f"Test edit: one value was moved across a threshold.{must}"
+    return "Unedited record."
+
+
+def key_line(t: dict) -> str:
+    k = t["answer_key"]
+    if k["status"] == "CANNOT_DETERMINE":
+        desc = "cannot determine, " + join_and([m["lower"] for m in k["missing"]]) + " missing"
     else:
-        parts = [f'<span class="tag">{e(ln["support"])}</span>', src_text(ln)]
-        if ln.get("date"):
-            parts.append(e(ln["date"]))
-        meta = " · ".join(p for p in parts if p)
-        val = f'<div>{lab}<span class="val">{e(ln["value"])}</span></div>'
-    return f'<li class="{cls.strip()}">{val}<div class="meta">{meta}</div></li>' 
+        desc = row_desc(k["row_info"])
+    if k["same"]:
+        return f'<p class="key">Same as the code answer key ({e(desc)}).</p>'
+    return (f'<p class="key warn"><strong>Differs from the code answer key</strong>: '
+            f'{e(STATUS_WORDS[k["status"]])} ({e(desc)}).</p>')
 
 
-def pill(status: str, extra: str = "") -> str:
-    return f'<span class="pill {e(status)}{extra}">{e(STATUS.get(status, status))}</span>'
+def prov_text(t: dict, kind: str = "Development record") -> str:
+    r = t["run"]
+    d = date.fromisoformat(r["date"]) if r.get("date") else None
+    bits = [f"{r['model_display']} on {WHERE[r['where']]}" + (f", {nice_date(d)}" if d else "")]
+    if r.get("prompts_changed_since"):
+        names = [PROMPT_NAME.get(x, x) for x in r["prompts_changed_since"]]
+        bits.append(f"with an earlier version of the {join_and(names)} prompt")
+    if r.get("dirty"):
+        bits.append("from code that was not yet committed")
+    return f"{kind}, not a test result. " + ", ".join(bits) + ". Example chosen by the author."
 
 
-def agent_line(a: dict | None) -> str:
-    if not a:
-        return '<p class="agent">Agent on this record: not run yet.</p>'
-    same = "same as the answer key" if a["same_as_answer_key"] else "differs from the answer key"
-    row = f', {e(a["row_text"])}' if a.get("row_text") else ""
-    miss = f'; missing: {e(", ".join(a["missing"]))}' if a.get("missing") else ""
-    rounds = a.get("verifier_rounds") or []
-    ver = ""
-    if rounds:
-        ver = "; verifier: " + ("all checks passed" if rounds[0]["ok"] else
-                                f"check {', '.join(map(str, rounds[0]['failed_checks']))} failed, then "
-                                + ("repaired" if rounds[-1]["ok"] else "forced to CANNOT DETERMINE"))
-    return (f'<p class="agent">Agent ({e(a["system"])}, development run) on this record: '
-            f'<strong>{e(STATUS.get(a["status"], a["status"]))}</strong>{row}{miss}{ver} ({same}).</p>')
+def who(p: dict) -> str:
+    return f'{SEX.get(p["sex"], p["sex"])}, {p["age"]} · synthetic'
 
 
-def who(p: dict, prefix: str = "Synthetic patient") -> str:
-    return f'{prefix}, {SEX.get(p["sex"], p["sex"])}, {p["age"]}'
+def claims_list(t: dict, spec_p1: str) -> str:
+    a = t["answer"]
+    lis = []
+    for c in a["claims"]:
+        mark = (f'{icon("ok", "okc")}<span class="sr">verified</span>' if c.get("verified") else
+                f'{icon("no", "noc")}<span class="sr">failed a check</span>' if c.get("verified") is False else "")
+        val = f"{e(c.get('sep', ' '))}{e(c['value'])}" if c.get("value") else ""
+        flag = (f' <span class="flag">(added by <a href="{e(spec_p1)}">patch P1</a>; any value from '
+                f'60 to 140 gives the same answer)</span>' if c.get("flag") else "")
+        lis.append(f'<li>{mark}<span>{e(c["text"])}{val}{flag} '
+                   f'<span class="tag">{e(c["support"])}</span></span></li>')
+    return (f'<details class="sub"><summary>All {len(a["claims"])} claims in the final answer</summary>'
+            f'<ul class="claims">{"".join(lis)}</ul></details>')
 
 
-def card_html(card: dict) -> str:
-    st = card["states"]
-    s1, s2, s3 = st["original"], st["edited"], st["caught"]
-    names = {"lipid_panel": "Lipid panel", "sbp": "Systolic BP", "smoking": "Smoking status"}
-    deleted_name = names.get(s2["variant"], s2["variant"])
-    tabs = [("original", "Original record"), ("edited", f"{deleted_name} deleted")]
-    if s3:
-        tabs.append(("caught", "Caught by the verifier"))
+def panel_html(t: dict, spec_p1: str) -> str:
+    a = t["answer"]
+    warn = " warn" if t.get("label_warn") else ""
+    pill = f'<span class="pill">{e(PILL[a["status"]])}</span>'
+    head = (f'<div class="alert-head">{pill}<span class="who">{e(who(t["patient"]))}</span></div>'
+            f'<p class="summary{warn}">{e(summary_line(a))}</p>')
+    p1 = any(c.get("flag") for c in a["claims"] if c["name"] == "egfr")
+    ev = "".join(ev_row(ln, a.get("risks") or [], spec_p1, p1) for ln in a["lines"])
+    matters = f'<p class="sec">What matters</p><ul class="ev">{ev}</ul>' if ev else ""
+    base = ""
+    if t.get("base"):
+        b = t["base"]
+        risk = f", risk {pct1(b['risk_10y'])}%" if b.get("risk_10y") is not None else ""
+        base = (f'<p class="before">Before the edit, on the unedited record, the same agent said: '
+                f'<strong>{e(STATUS_WORDS[b["status"]])}</strong>{e(risk)}.</p>')
+    note = ""
+    if a.get("note_for_clinician"):
+        note = (f'<details class="sub"><summary>Agent&rsquo;s note to the clinician</summary>'
+                f'<blockquote>{e(a["note_for_clinician"])}</blockquote></details>')
+    return (head + checked_band(t) + matters
+            + f'<p class="sec">What&rsquo;s missing</p>{missing_block(t)}{base}'
+            + f'<p class="edit">{e(edit_text(t["edit"]))}</p>'
+            + note + claims_list(t, spec_p1) + key_line(t)
+            + f'<p class="prov">{e(prov_text(t))}</p>')
 
-    def all_lines(s, title):
-        rows = "".join(line_html(x) for x in s["all_lines"])
-        return f'<details class="all"><summary>{e(title)} ({len(s["all_lines"])})</summary><ul class="lines">{rows}</ul></details>'
 
-    # state 1
-    k1 = s1["answer_key"]
-    p1 = (f'<p class="who">{e(who(s1["patient"]))}. Original record.</p>'
-          f'<div class="verdict"><span class="k">Answer key</span>{pill(k1["status"])}'
-          f'<span class="row">{e(k1["row_text"] or "")}</span></div>'
-          f'<p class="sec">What matters</p><ul class="lines">'
-          + "".join(line_html(x) for x in s1["lines"]) + "</ul>"
-          '<p class="sec">What\'s missing</p><div class="missing"><p>Nothing that decides the answer.</p></div>'
-          + agent_line(s1["agent"]) + all_lines(s1, "Every input the answer key read"))
-    # state 2
-    k2 = s2["answer_key"]
-    note = f" ({s2['deleted_rows']} rows)" if s2["deleted_rows"] else ""
-    notes = (f", and its mentions in {s2['scrubbed_notes']} notes" if s2["scrubbed_notes"] else "")
-    miss = "".join(f"<p>{e(t)}</p>" for t in s2["missing_text"]) or "<p>—</p>"
-    p2 = (f'<p class="who">Same patient. Every {e(deleted_name.lower())} result deleted: '
-          f'{s2["deleted_rows"]} record rows{e(notes)}.</p>'
-          f'<div class="verdict"><span class="k">Answer key</span>{pill(k2["status"])}'
-          f'<span class="row">missing: {e(", ".join(m.replace("_", " ") for m in k2["missing"]))}</span>'
-          f'<span class="was">Original record: {e(STATUS[k1["status"]])}</span></div>'
-          f'<p class="sec">What matters</p><ul class="lines">'
-          + "".join(line_html(x, note) for x in s2["lines"]) + "</ul>"
-          f'<p class="sec">What\'s missing</p><div class="missing">{miss}</div>'
-          + agent_line(s2["agent"]))
-    panels = [p1, p2]
-    dwell = [3000, 3000]
-    # state 3
-    if s3:
-        f = s3["first"]
-        plant = s3.get("planted") or []
-        edit = (f' Edit {e(s3["condition"])} (must not change the answer): a note now says '
-                f'&ldquo;{e(plant[0]["text"])}&rdquo;' if plant else "")
-        cites = " · ".join(
-            f'{e(x["label"])} {e(x["support"])}'
-            + (f' ({len(x["source"])} rows)' if isinstance(x["source"], list) and len(x["source"]) > 1 else "")
-            for x in f["lines"])
-        # one block per (check, kind); the names of the failed claims listed together
-        groups: dict[tuple, list] = {}
-        for x in s3["failed"]:
-            groups.setdefault((x["check"], x["kind"]), []).append(x)
-        fails = ""
-        for (chk, kind), xs in groups.items():
-            what = "Listed as missing" if kind == "missing" else "Claim"
-            names = ", ".join(x["label"] for x in xs)
-            n = len(xs)
-            found = all("is on record" in x["detail"] for x in xs)
-            tail = (": each is on record" if n > 1 else ": it is on record") if found else ""
-            fails += (f'<div class="fail">{what}: <strong>{e(names)}</strong>'
-                      f'<span class="small">Verifier check {chk} failed{" for all " + str(n) if n > 1 else ""}'
-                      f'{e(tail)}. Check {chk}: {e(card["checks"][str(chk)])}.</span></div>')
-        r = s3["repaired"]
-        k3 = s3["answer_key"]
-        model = s3["run"]["model_display"]
-        rep = "".join(
-            f'<li><span class="lab">{e(x["label"])}</span> <span class="val">{e(x["value"])}</span> '
-            f'<span class="meta">{e(x["support"])} · {src_text(x)}</span></li>' for x in r["lines"])
-        p3 = (f'<p class="who">{e(who(s3["patient"], "Another synthetic patient"))}.{edit}</p>'
-              f'<div class="verdict"><span class="k">Agent&rsquo;s first answer</span>{pill(f["status"])}'
-              f'<span class="row">{e(f["row_text"] or "")}</span></div>'
-              f'<p class="small cites">Cites: {cites}</p>{fails}'
-              f'<p class="step">The agent is told only the check number and the claim, and gets one '
-              f'repair round.</p>'
-              f'<div class="verdict"><span class="k">After repair</span>{pill(r["status"])}'
-              f'<span class="row">{e(r["row_text"] or "")}</span></div>'
-              f'<ul class="lines tight">{rep}</ul>'
-              f'<p class="agent">{"All checks pass" if r["all_checks_pass"] else "Checks still fail"} '
-              f'({r["n_claims"]} claims). Answer key: <strong>{e(STATUS[k3["status"]])}</strong>, '
-              f'{e(k3["row_text"] or "")}.</p>'
-              f'<p class="agent">{e(card["label"])} Model: {e(model)}, temperature '
-              f'{e(s3["run"]["temperature"])}.</p>')
-        panels.append(p3)
-        dwell.append(7000)
+def card_html(card: dict, spec_p1: str) -> str:
+    if card.get("schema") != 2:
+        raise SystemExit("site/card.json is not schema 2: run scripts/site_card.py")
+    tabs = card["tabs"]
     tab_html = "".join(
-        f'<button type="button" role="tab" class="tab" id="tab-{k}" aria-controls="state-{k}" '
-        f'aria-selected="{"true" if n == 0 else "false"}" tabindex="{0 if n == 0 else -1}">{e(lab)}</button>'
-        for n, (k, lab) in enumerate(tabs))
-    panel_html = "".join(
-        f'<section class="state" id="state-{k}" role="tabpanel" aria-labelledby="tab-{k}" '
-        f'data-dwell="{dwell[n]}"><h3 class="state-title">{n + 1}. {e(lab)}</h3>{panels[n]}</section>'
-        for n, (k, lab) in enumerate(tabs))
-    rules = "".join(f"<li>{e(v)}</li>" for v in card["rules"].values())
-    return (f'<div class="card" id="card" aria-label="Example: one synthetic patient, before and after an edit">'
-            f'<div class="tabs" role="tablist" aria-label="Card states">{tab_html}</div>'
-            f'{panel_html}'
-            f'<div class="card-note"><div class="note-row"><span>Development case set '
-            f'{e(card["provenance"]["case_set"])}, not the test set.</span>'
-            f'<button type="button" class="pause" aria-pressed="false">Pause</button></div>'
-            f'<details><summary>How these examples were picked</summary><ul class="plain">{rules}</ul></details></div>'
-            f'</div>')
+        f'<button type="button" role="tab" class="tab{" warn" if t.get("label_warn") else ""}" '
+        f'id="tab-{e(t["id"])}" aria-controls="panel-{e(t["id"])}" '
+        f'aria-selected="{"true" if n == 0 else "false"}" tabindex="{0 if n == 0 else -1}">{e(t["label"])}</button>'
+        for n, t in enumerate(tabs))
+    panels = "".join(
+        f'<section class="panel" id="panel-{e(t["id"])}" role="tabpanel" aria-labelledby="tab-{e(t["id"])}">'
+        f'<h3 class="panel-title">{n + 1}. {e(t["label"])}</h3>{panel_html(t, spec_p1)}</section>'
+        for n, t in enumerate(tabs))
+    return (f'<div class="card" id="card" aria-label="Example care-gap alerts from development runs">'
+            f'<div class="tabs" role="tablist" aria-label="Example alerts">{tab_html}</div>{panels}</div>')
+
+
+def failure_html(t: dict, spec_p1: str, tabs: list[dict] = ()) -> str:
+    """A folded 'where it failed' entry built from a real trace (site/card.json failures)."""
+    a, k = t["answer"], t["answer_key"]
+    ri = a.get("row_info") or {}
+    age = t["patient"]["age"]
+    rule = ri.get("rule") or ri.get("group") or ""
+    m = re.search(r"[Aa]ge[s]? (\d+)\s*[–-]\s*(\d+)", rule)
+    off = m and not int(m.group(1)) <= age <= int(m.group(2))
+    s1 = (f"The agent answered {STATUS_WORDS[a['status']]} by row {a['row']} ({rule})"
+          + (f", but the patient is {age}" if off else "")
+          + (", and it never called the risk calculator." if not a.get("called_prevent") else "."))
+    v = t["verifier"]
+    s2 = ""
+    if v and all(r["ok"] for r in v):
+        last = v[-1]
+        s2 = (f" Every claim it made was on record, so all {last['n_claims']} passed the verifier: "
+              f"the verifier checks facts and arithmetic, not which row applies.")
+    key = "cannot determine" if k["status"] == "CANNOT_DETERMINE" else row_desc(k["row_info"])
+    s3 = f" The code answer key says {STATUS_WORDS[k['status']]} ({key})."
+    s4 = ""
+    if t.get("after"):
+        af = t["after"]
+        later = ("with a revised agent task prompt" if
+                 (af["run"].get("prompts_sha256") or {}).get("task_agent") !=
+                 (t["run"].get("prompts_sha256") or {}).get("task_agent") else "")
+        s4 = (f" A later run {later} answered {STATUS_WORDS[af['status']]}"
+              + (f" by row {af['row']}" if af.get("row") else "")
+              + (", the same as the answer key" if af["same_as_key"] else ""))
+        s4 = s4.replace("run  answered", "run answered")
+        tab = next((x for x in tabs if x["case_id"] == t["case_id"]
+                    and x["run"]["run_id"] == af["run"]["run_id"]), None)
+        s4 += f" (the \u201c{tab['label']}\u201d example above)." if tab else "."
+    return (f'<p class="small">{e(who(t["patient"]))}. {e(edit_text(t["edit"]))}</p>'
+            f'<p>{e(s1 + s2 + s3 + s4)}</p>'
+            f'<p class="prov">{e(prov_text(t))}</p>')
 
 
 # ---------------------------------------------------------------- page parts
-def strip_html(cfg: dict, repo: Repo, fields: dict, runs: dict) -> tuple[str, bool]:
+def steps_html(cfg: dict, repo: Repo, fields: dict, runs: dict) -> tuple[str, dict]:
+    """The test's steps with their dates from RUNS.md; a step not done is a hollow dot."""
+    done = {}
     items = []
-    released = False
-    for st in cfg["strip"]:
+    for st in cfg["test_steps"]:
         when, url = None, None
-        if st["from"] == "git":
-            sha, when = repo.first_commit()
-            url = repo.commit_url(sha)
-        elif "run_row" in st:
+        if "run_row" in st:
             row = runs.get(st["run_row"])
             fin = row[5] if row and len(row) > 5 else None
             if not is_pending(fin):
-                when = parse_ts(fin) if "T" in fin else datetime.fromisoformat(fin[:10])
+                when = parse_ts(fin) if "T" in fin else datetime.fromisoformat(fin[:10]).replace(tzinfo=timezone.utc)
                 url = repo.blob("RUNS.md", st.get("anchor", ""))
+        elif "commit_field" in st:
+            v = field(fields, st["done_field"])
+            c = field(fields, st["commit_field"])
+            if not is_pending(v):
+                hit = repo.by_sha(c.strip("` ")) if c and not is_pending(c) else None
+                when = hit[1] if hit else None
+                url = repo.blob("RUNS.md", st.get("anchor", ""))
+                if when is None:
+                    when = "done"
         else:
             v = field(fields, st["date_field"])
             if not is_pending(v):
                 when = parse_ts(v.strip("` "))
-                u = field(fields, st["url_field"])
-                url = u.strip("<>` ") if u and not is_pending(u) else repo.blob("RUNS.md")
-        if st["key"] == "protocol" and when:
-            released = True
-        lab = st["label"]
+                u = field(fields, st.get("url_field", "")) if st.get("url_field") else None
+                url = u.strip("<>` ") if u and not is_pending(u) else repo.blob("RUNS.md", st.get("anchor", ""))
+        done[st["key"]] = when
+        lab = e(st["label"])
         if when:
+            d = "" if when == "done" else f' <time datetime="{when.date().isoformat()}">{nice_date(when.date())}</time>'
             items.append(f'<li class="done"><span class="dot" aria-hidden="true"></span>'
-                         f'<a href="{e(url)}">{e(lab[0].upper() + lab[1:] if not items else lab)} '
-                         f'<time datetime="{when.date().isoformat()}">{nice_date(when.date())}</time></a></li>')
+                         f'<a href="{e(url)}">{lab}{d}</a><span class="sr"> (done)</span></li>')
         else:
-            items.append(f'<li class="pend"><span class="dot" aria-hidden="true"></span>'
-                         f'{e(lab)}: pending</li>')
-    note = ("" if released else
-            '<p class="strip-note">Protocol: draft, not yet frozen. Dates are UTC; each links to its record.</p>')
-    if released:
-        note = '<p class="strip-note">Dates are UTC; each links to its record.</p>'
-    return f'<ol class="strip" aria-label="Timeline">{"".join(items)}</ol>{note}', released
+            items.append(f'<li><span class="dot" aria-hidden="true"></span>{lab}'
+                         f'<span class="sr"> (not yet)</span></li>')
+    return f'<ol class="steps" aria-label="Test steps">{"".join(items)}</ol>', done
 
 
-def log_html(log: dict, events: dict, repo: Repo, cfg: dict) -> str:
+def timeline_html(log: dict, events: dict, repo: Repo, fields: dict, runs: dict) -> list[tuple]:
+    """Rows (date, html); a row whose date comes from RUNS.md is left out until it is filled."""
     rows = []
     for n, r in enumerate(log["rows"]):
-        when, links, stamp = None, [], ""
+        when, links = None, []
+        if "runs_field" in r:
+            v = field(fields, r["runs_field"])
+            if is_pending(v):
+                continue
+            when = parse_ts(v.strip("` "))
+        if "run_row" in r:
+            row = runs.get(r["run_row"])
+            fin = row[5] if row and len(row) > 5 else None
+            if is_pending(fin):
+                continue
+            when = parse_ts(fin) if "T" in fin else datetime.fromisoformat(fin[:10]).replace(tzinfo=timezone.utc)
         for ln in r.get("links", []):
             if "commit" in ln:
                 hit = repo.find(ln["commit"])
                 if hit:
                     links.append(f'<a href="{e(repo.commit_url(hit[0]))}">{e(ln["label"])}</a>')
                     when = when or hit[1]
+            elif "first_commit" in ln:
+                sha, w = repo.first_commit()
+                links.append(f'<a href="{e(repo.commit_url(sha))}">{e(ln["label"])}</a>')
+                when = when or w
             elif "event" in ln:
                 ev = events.get(ln["event"])
                 if not ev:
-                    problem(f"log: unknown event {ln['event']}")
+                    problem(f"timeline: unknown event {ln['event']}")
                     continue
-                t = parse_ts(ev["created_at"])
                 links.append(f'<a href="{e(ev["url"])}">{e(ln["label"])}</a>')
-                stamp = f' <span class="small">({t.strftime("%H:%M")} UTC, GitHub)</span>'
-                when = t
+                when = when or parse_ts(ev["created_at"])
             elif "path" in ln:
                 if not tracked(ln["path"]):
-                    problem(f"log: {ln['path']} is not tracked")
+                    problem(f"timeline: {ln['path']} is not tracked")
                 links.append(f'<a href="{e(repo.blob(ln["path"]))}">{e(ln["label"])}</a>')
+            elif "url" in ln:
+                links.append(f'<a href="{e(ln["url"])}">{e(ln["label"])}</a>')
         if r.get("date"):
             typed = date.fromisoformat(r["date"])
             if when and when.date() != typed:
-                problem(f"log row {n + 1}: typed date {typed} differs from its record {when.date()}")
+                problem(f"timeline row {n + 1}: typed date {typed} differs from its record {when.date()}")
             when = when or datetime(typed.year, typed.month, typed.day, tzinfo=timezone.utc)
-        if "user" in r:
-            problem(f"author placeholder left: site/log.json row {n + 1}")
-            text = f'<!-- USER: {e(r["user"])} --><div class="user">{e(r["user"])}</div>'
-        else:
-            text = inline_md(r["text"])
-        rows.append((when, n, text, links, stamp))
-    if len(rows) > 10:
-        raise SystemExit(f"site/log.json has {len(rows)} rows; the page shows at most 10")
-    far = datetime(9999, 1, 1, tzinfo=timezone.utc)
-    rows.sort(key=lambda x: (x[0] or far, x[1]))
-    trs = []
-    for when, _, text, links, stamp in rows:
-        d = (f'<time datetime="{when.date().isoformat()}">{nice_date(when.date())}</time>' if when else "&mdash;")
+        if when is None:
+            problem(f"timeline row {n + 1}: no date")
+            continue
         ls = (" " + " · ".join(links)) if links else ""
-        trs.append(f'<tr><td class="d">{d}</td><td>{text}{ls}{stamp}</td></tr>')
-    return (f'<table class="log"><caption class="sr">Dated log, UTC</caption><tbody>{"".join(trs)}</tbody></table>'
-            f'<p class="disclose">{e(cfg["ai_disclosure"])}</p>')
+        rows.append((when, n, f"{inline_md(r['text'])}{ls}"))
+    rows.sort(key=lambda x: (x[0], x[1]))
+    if len(rows) > MAX_TIMELINE:
+        problem(f"timeline has {len(rows)} rows; the page shows at most {MAX_TIMELINE}")
+    return rows
 
 
-def upstream_html(events: dict, me: str) -> str:
-    """One item per upstream issue or PR, with each dated event under it.
-
-    Labels come from the event data: the kind, and who wrote it (`user`,
-    `issue_user` from the GitHub API). A comment by the issue's author on an
-    issue opened by someone else is labelled as a reply from the issue author.
-    """
-    groups: dict[tuple, list] = {}
-    for ev in sorted(events.values(), key=lambda x: x["created_at"]):
-        groups.setdefault((ev["repo"], ev["number"]), []).append(ev)
-    items = []
-    for (repo, num), evs in sorted(groups.items(), key=lambda kv: kv[1][0]["created_at"]):
-        lines = []
-        for ev in evs:
-            t = parse_ts(ev["created_at"])
-            if ev["kind"] == "pull_request":
-                kind = "Pull request opened"
-            elif ev.get("user") and ev.get("user") == ev.get("issue_user") and ev["user"] != me:
-                kind = "Reply from the issue author"
+def upstream_html(items: list[dict], events: dict) -> str:
+    out = []
+    for it in items:
+        ev = events.get(it.get("event") or "")
+        if not ev:
+            continue  # not posted yet
+        state = "merged" if ev.get("merged_at") else ev.get("state", "")
+        chk = f" (checked {nice_date(date.fromisoformat(ev['checked_at']))})" if ev.get("checked_at") else ""
+        meta = [f'<a href="{e(ev["url"])}">PR #{ev["number"]}</a> · {e(state)}{e(chk)}']
+        tail = ""
+        if it.get("reply"):
+            rev = events.get(it["reply"]["event"])
+            if not rev:
+                problem(f"upstream: unknown reply event {it['reply']['event']}")
             else:
-                kind = "Comment"
-            stamp = f'{nice_date(t.date())} {t.strftime("%H:%M")} UTC'
-            lines.append(f'<a href="{e(ev["url"])}">{kind}</a>, {stamp}')
-        head = evs[0]
-        state = "merged" if any(x.get("merged_at") for x in evs) else head.get("state")
-        chk = max((x["checked_at"] for x in evs if x.get("checked_at")), default=None)
-        kind = "pull request" if head["kind"] == "pull_request" else "issue"
-        status = f" · {kind} {state}, checked {nice_date(date.fromisoformat(chk))}" if chk else ""
-        items.append(f'<li><strong>{e(repo)}#{num}</strong>{e(status)}'
-                     f'<br><span class="small">{e(head["title"])}</span>'
-                     f'<br>{"<br>".join(lines)}</li>')
-    return f'<ul class="plain">{"".join(items)}</ul>'
+                tail = f' {e(it["reply"]["text"])} <a href="{e(rev["url"])}">(his reply)</a>'
+        detail = f'<p class="up-d">{inline_md(it["detail"])}</p>' if it.get("detail") else ""
+        note = f'<p class="up-d small">{inline_md(it["note"])}</p>' if it.get("note") else ""
+        out.append(f'<li><p class="up-f">{inline_md(it["finding"])}</p>{detail}'
+                   f'<p class="up-m">{"".join(meta)}.{tail}</p>{note}</li>')
+    return f'<ul class="up">{"".join(out)}</ul>'
 
 
 def conditions_html(conds: dict) -> str:
@@ -555,7 +721,7 @@ def conditions_html(conds: dict) -> str:
                   f'<span class="small">Applied to: {inline_md(conds[c]["applied"])}.</span></li>'
                   for c in ("C1", "C2a", "C2b", "C3a", "C3b", "C4", "C5"))
     return (f'<p class="small"><strong>C0 {e(c0["name"])}</strong>: no edit; correct is the answer-key label.</p>'
-            + "".join(out) + '<details class="all"><summary>What each edit does</summary>'
+            + "".join(out) + '<details class="sub"><summary>What each edit does</summary>'
             f'<ul class="plain">{det}</ul></details>')
 
 
@@ -567,47 +733,77 @@ def files_html(cfg: dict, repo: Repo) -> str:
         else:
             if not f.get("pending_text"):
                 problem(f"files: {f['path']} is not in the repository yet")
-            lis.append(f'<li>{e(f["label"])} <span class="pend">({e(f.get("pending_text", "pending"))})</span></li>')
-    return f'<ul class="plain files">{"".join(lis)}</ul>'
+            lis.append(f'<li>{e(f["label"])} <span class="muted">({e(f.get("pending_text", "later"))})</span></li>')
+    return f'<ul class="plain">{"".join(lis)}</ul>'
 
 
-def signed(x: float, nd: int = 1) -> str:
-    return f"{x:+.{nd}f}".replace("-", "\u2212")
+def count_tile(big: dict, label: str, other: dict | None = None, other_label: str = "",
+               complement: bool = False) -> str:
+    k, n = big["k"], big["n"]
+    rate, ci = big.get("rate"), big.get("ci") or [None, None]
+    if complement:
+        k = n - k
+        rate = None if rate is None else 1 - rate
+        ci = [None if ci[1] is None else 1 - ci[1], None if ci[0] is None else 1 - ci[0]]
+    ci_t = f", 95% CI {pct1(ci[0])} to {pct1(ci[1])}" if ci[0] is not None else ""
+    rate_t = f"({pct1(rate)}%{ci_t})" if rate is not None else ""
+    side = ""
+    if other:
+        ok = other["n"] - other["k"] if complement else other["k"]
+        side = f'<span class="vs">{e(other_label)}: {ok} of {other["n"]}</span>'
+    return (f'<li><span class="big">{k} <span class="of">of</span> {n}</span>'
+            f'<span class="txt">{e(label)} <span class="rate">{e(rate_t)}</span>{side}</span></li>')
 
 
-def ci_text(ci, nd: int = 1) -> str:
-    lo, hi = ci
-    if lo is None:
-        return "no interval"
-    return f"95% CI {signed(100 * lo, nd)} to {signed(100 * hi, nd)}"
-
-
-def results_block(res: dict, user: dict, fig_svg: str) -> str:
-    """Result section (results state). Numbers come only from the score file: its
-    `headline` block (PROTOCOL sec. 10, written by scripts/score_runs.py)."""
-    head = res.get("headline")
-    if not head:
-        raise SystemExit("score file has no 'headline' block: re-score with scripts/score_runs.py")
+def results_block(res: dict, user: dict, fig_svg: str, cfg: dict, fields: dict,
+                  run_date: date | None, fails_html: str) -> str:
+    head = res.get("headline") or {}
     tiles = []
+    c1 = head.get("c1_correct") or {}
+    if "A2" in c1:
+        tiles.append(count_tile(c1["A2"], cfg["result_tiles"]["c1"], c1.get("L1"), "Single model call"))
+    else:
+        problem("results: no C1 counts for A2")
+    ch = head.get("changed_when_must_not") or {}
+    if "A2" in ch:
+        tiles.append(count_tile(ch["A2"], cfg["result_tiles"]["kept"], ch.get("L1"), "Single model call",
+                                complement=True))
+    else:
+        problem("results: no answer-change counts for A2")
+    v = res.get("verifier_A2")
+    if v:
+        lab = cfg["result_tiles"]["verifier"].format(repaired=v["repaired"], forced=v["forced"])
+        tiles.append(count_tile(v["rejected"], lab))
+    else:
+        problem("results: no verifier counts for A2")
     p = head.get("primary")
+    prim = ""
     if p:
         d = p["difference"]
-        tiles.append(f'<li><strong>A2 &minus; L1: {signed(100 * d["est"])} points</strong> '
-                     f'({ci_text(d["ci"])}) in macro-averaged exact-status accuracy; '
-                     f'A2 {100 * p["A2"]["est"]:.1f}%, L1 {100 * p["L1"]["est"]:.1f}%.</li>')
+        ci = d.get("ci") or [None, None]
+        prim = (f'<p class="primary"><strong>Primary outcome (pre-registered):</strong> exact-status accuracy '
+                f'averaged over the eight test conditions, agent with verifier {pct1(p["A2"]["est"])}% '
+                f'against single call {pct1(p["L1"]["est"])}%, difference {signed(d["est"])} points '
+                f'(95% CI {signed(ci[0]) if ci[0] is not None else "n/a"} to '
+                f'{signed(ci[1]) if ci[1] is not None else "n/a"}).</p>')
     else:
         problem("results: no primary outcome (A2 or L1 missing from the score file)")
-    for key, lab in (("answered_anyway", "Answered anyway with the deciding input deleted (C1)"),
-                     ("changed_when_must_not", "Changed when it must not (C2a, C2b, C3b, C4)")):
-        parts = [f'{sy} {v["k"]} of {v["n"]}' for sy, v in head.get(key, {}).items()]
-        if parts:
-            tiles.append(f"<li>{e(lab)}: {e('; '.join(parts))}.</li>")
-        else:
-            problem(f"results: headline {key} is empty")
-    return (f'<ul class="plain">{"".join(tiles)}</ul>'
-            f'<figure>{fig_svg}<figcaption>Figure 1. Percent correct by condition and system, '
-            f'95% cluster-bootstrap intervals. Open squares: correct by construction.</figcaption></figure>'
-            + user_block(user, "result_sentences"))
+    model = field(fields, "Model repository")
+    gpu = field(fields, "GPU, provider")
+    bits = ["Test set", "one run"]
+    if model and not is_pending(model):
+        bits.append(model.split(",")[0].strip("` ").split("@")[0].split("/")[-1]
+                    + (f" on {gpu.split(',')[0].strip('` ')}" if gpu and not is_pending(gpu) else ""))
+    if run_date:
+        bits.append(nice_date(run_date, year=True))
+    fig = (f'<details class="sub"><summary>Accuracy by condition (Figure 1)</summary>'
+           f'<figure>{fig_svg}<figcaption>Figure 1. Percent correct by condition and system, 95% cluster-'
+           f'bootstrap intervals. R0 and R1 contain the answer key, so they are correct by construction on '
+           f'C0, C1, C2a, C2b and C5 (open squares).</figcaption></figure></details>')
+    return (f'<p>{e(cfg["test_post"].format(n=res["n_cases"], p=res.get("n_patients") or "?"))}</p>'
+            f'<ul class="tiles">{"".join(tiles)}</ul>{prim}'
+            + user_block(user, "result")
+            + f'<p class="small muted">{e(" · ".join(bits))}</p>{fig}{fails_html}')
 
 
 def load_figure1():
@@ -617,97 +813,163 @@ def load_figure1():
     return mod
 
 
+def fold(id_: str, title: str, body: str) -> str:
+    return (f'<details class="fold" id="{e(id_)}"><summary><span>{e(title)}</span>{icon("more", "chev")}'
+            f'</summary><div class="fold-body">{body}</div></details>')
+
+
 # ---------------------------------------------------------------- page
 def build(out_dir: Path, res_p: Path | None = None) -> Path:
     cfg = json.loads((SITE / "config.json").read_text())
     card = json.loads((SITE / "card.json").read_text())
     log = json.loads((SITE / "log.json").read_text())
     events = {x["id"]: x for x in json.loads((SITE / "events.json").read_text())["events"]}
+    upstream = json.loads((SITE / "upstream.json").read_text())
     user = user_sections((SITE / "user_text.md").read_text())
     res_p = res_p or SITE / "score.json"
     results = json.loads(res_p.read_text()) if res_p.exists() else None
     spec, protocol, runs_text = read("SPEC.md"), read("PROTOCOL.md"), read("RUNS.md")
     repo = Repo(cfg)
     fields, runs = runs_md(runs_text)
-    strip, released = strip_html(cfg, repo, fields, runs)
+    steps, done = steps_html(cfg, repo, fields, runs)
+    released = bool(done.get("protocol"))
+    run_end = done.get("run") if isinstance(done.get("run"), datetime) else None
     fig1 = load_figure1()
 
-    n_cases = (str(results["n_cases"]) if results else planned_cases(spec))
-    subtitle = cfg["subtitle"].format(planned="" if released else "planned ", n_cases=n_cases)
-    hyps, hyp_src = hypotheses(spec, protocol)
-    limits, limits_anchor = spec_limits(spec, cfg["limits_pick"])
-    conds = spec_conditions(spec)
-    systems = spec_systems(spec)
-    refs, prior, prior_anchor = prior_work(spec)
-    targets = make_targets(read("Makefile"))
-    has = lambda p: tracked(p)  # noqa: E731
+    sha0, first = repo.first_commit()
+    f0 = first.date()
+    spec_p1 = repo.blob("SPEC.md", slug(re.search(r"^### (4\.1 [^\n]+)", spec, re.M).group(1)))
 
-    proto_label = "Protocol" if released else "Protocol (draft)"
-    nav = [f'<a href="{e(repo.blob("PROTOCOL.md"))}">{proto_label}</a>' if has("PROTOCOL.md") else
-           f'<a href="{e(repo.blob("SPEC.md"))}">Design</a>',
-           f'<a href="{e(repo.url)}">Code</a>']
-    if has(cfg["summary_pdf"]):
-        nav.append(f'<a href="{e(repo.blob(cfg["summary_pdf"]))}">One-page summary (PDF)</a>')
+    # hero
+    if results and run_end:
+        end = run_end.date()
+        span = (f"{nice_date(f0)}–{end.day}" if end.month == f0.month else
+                f"{nice_date(f0)}–{nice_date(end)}")
+        eyebrow = cfg["eyebrow_post"].format(span=span, year=end.year)
+    else:
+        eyebrow = cfg["eyebrow_pre"].format(first=nice_date(f0, year=True))
+    nav = [f'<a href="{e(repo.url)}">Code</a>', f'<a href="{e(repo.blob("PROTOCOL.md"))}">Protocol</a>']
+    if tracked(cfg["summary_pdf"]):
+        nav.append(f'<a href="{e(repo.blob(cfg["summary_pdf"]))}">Summary (PDF)</a>')
+    hero = (f'<section class="hero" aria-labelledby="h-title"><div class="hero-text">'
+            f'<p class="eyebrow">{" · ".join(f"<span>{e(x)}</span>" for x in eyebrow.split(" · "))}</p>'
+            f'<h1 id="h-title">{e(cfg["title"])}</h1>'
+            f'<p class="sub">{e(cfg["subtitle"])}</p>'
+            f'<p class="hero-links"><a href="#how">How it works</a> · <a href="#test">The test</a> · '
+            f'<a href="#upstream">Fixes sent upstream</a></p></div>'
+            f'<div class="hero-card">{card_html(card, spec_p1)}</div></section>')
 
-    hook = (f'<h1>{e(cfg["title"])}</h1><p class="sub">{e(subtitle)}</p>{strip}'
-            f'{card_html(card)}<p class="under">{e(card["footer"])}</p>')
+    # 2. how it works
+    how = "".join(f'<li><strong>{e(h)}</strong> {inline_md(t)}</li>' for h, t in cfg["how_it_works"])
+    how_sec = (f'<section class="s" id="how" aria-labelledby="h-how"><h2 id="h-how">How it works</h2>'
+               f'<ol class="how">{how}</ol><p class="note">{e(cfg["how_it_works_note"])}</p></section>')
 
-    found = (f'<section class="s" id="found" aria-labelledby="h-found"><h2 id="h-found">Found on the way</h2>'
-             f'{user_block(user, "found_on_the_way")}{upstream_html(events, repo.url.rstrip("/").split("/")[-2])}</section>')
-
+    # 3. the test / results
+    fails = card.get("failures") or []
+    fails_body = "".join(failure_html(t, spec_p1, card["tabs"]) for t in fails)
     if results:
         svg = fig1.render(results, inline=True)
-        result = (f'<section class="s" id="result" aria-labelledby="h-result"><h2 id="h-result">Result</h2>'
-                  f'{results_block(results, user, svg)}</section>')
+        fail_fold = (f'<details class="sub"><summary>Where it failed: {len(fails)} record{"s" if len(fails) != 1 else ""}</summary>'
+                     f'{fails_body}</details>' if fails else "")
+        test_body = results_block(results, user, svg, cfg, fields, run_end.date() if run_end else None,
+                                  fail_fold)
     else:
-        svg = fig1.render(None, inline=True)
-        src = (f'<a href="{e(repo.blob(hyp_src))}">{e(hyp_src)}</a>'
-               + ("" if released or hyp_src != "PROTOCOL.md" else " (draft, not yet frozen)"))
-        result = (f'<section class="s" id="predictions" aria-labelledby="h-pred">'
-                  f'<h2 id="h-pred">Predictions, written before the run</h2>'
-                  f'<p class="small">Hypotheses as stated in {src}; each is reported either way.</p>'
-                  f'<ul class="plain hyp">{"".join(f"<li>{inline_md(h)}</li>" for h in hyps)}</ul>'
-                  f'<p><strong>Expected result.</strong> {inline_md(expected_result(spec))}</p>'
-                  f'<figure>{svg}<figcaption>Figure 1, empty. {e(cfg["figure_caption_preview"])}</figcaption></figure>'
-                  f'<p class="small">{e(cfg["preview_note"])}</p></section>')
+        n = planned_cases(spec)
+        test_body = (f'<p class="lead">{e(cfg["test_lead"])}</p>'
+                     f'<p>{e(cfg["test_pre"].format(n=f"{round(n, -2):,}"))}</p>{steps}'
+                     f'<p class="small muted">{e(cfg["test_steps_note_released" if released else "test_steps_note"])}'
+                     f' <a href="{e(repo.blob("RUNS.md"))}">RUNS.md</a></p>')
+    test_sec = (f'<section class="s" id="test" aria-labelledby="h-test"><h2 id="h-test">Does it hold up?</h2>'
+                f'{test_body}</section>')
 
-    sys_html = "".join(f"<li><strong>{s}</strong> {inline_md(t)}</li>" for s, t in systems)
+    # 4. timeline
+    rows = timeline_html(log, events, repo, fields, runs)
+    if results and run_end:
+        n_days = (run_end.date() - f0).days + 1
+        tl_title = f"First commit to tested result: {n_days} days"
+    else:
+        tl_title = f"Started {nice_date(f0)}"
+    tl = "".join(f'<li><time datetime="{w.date().isoformat()}">{nice_date(w.date())}</time>'
+                 f'<span>{h}</span></li>' for w, _, h in rows[:MAX_TIMELINE])
+    if user_filled(user, "how_fast"):
+        fast = user_block(user, "how_fast", "disclose")
+        if not re.search(r"\bAI\b", user.get("how_fast", "")):
+            problem("how_fast does not mention AI; the AI disclosure sentence is no longer on the page")
+    else:
+        fast = user_block(user, "how_fast") + f'<p class="disclose">{e(cfg["ai_disclosure"])}</p>'
+    tl_sec = (f'<section class="s" id="timeline" aria-labelledby="h-tl"><h2 id="h-tl">{e(tl_title)}</h2>'
+              f'<ol class="tl">{tl}</ol>{fast}</section>')
+
+    # 5. upstream
+    up_sec = (f'<section class="s" id="upstream" aria-labelledby="h-up"><h2 id="h-up">{e(cfg["upstream_title"])}</h2>'
+              f'<p>{e(cfg["upstream_intro"])}</p>{upstream_html(upstream["items"], events)}'
+              f'{user_block(user, "upstream")}</section>')
+
+    # 6. deployability
+    dep = f'<p>{e(cfg["deploy_text"])}</p>'
+    if results and results.get("cost"):
+        c = results["cost"]
+        dep += (f'<p class="dep">{e(cfg["deploy_post"].format(s=round(c["gpu_seconds_per_case"]), c=f"{c['usd_per_case']:.3f}"))}</p>')
+    elif cfg.get("deploy_dev_timing"):
+        dep += f'<p class="dep">{e(cfg["deploy_dev_timing"])}</p>'
+    dep_sec = (f'<section class="s" id="deploy" aria-labelledby="h-dep"><h2 id="h-dep">Runs where the data lives</h2>'
+               f'{dep}</section>')
+
+    # 7. rigor line
+    rel_url = field(fields, "GitHub Release URL")
+    links = {"protocol": (rel_url.strip("<>` ") if released and rel_url and not is_pending(rel_url)
+                          else repo.blob("PROTOCOL.md")),
+             "beacon": repo.blob("RUNS.md", "2-beacon-pulse-and-test-seed"),
+             "oracle": repo.blob("reports/oracle_rules.md"), "reproduce": repo.blob("docs/REPRODUCE.md")}
+    rig = []
+    for it in cfg["rigor"]:
+        text = it["text_released"] if (released and "text_released" in it) else it["text"]
+        rig.append(f'<a href="{e(links[it["link"]])}">{e(text)}</a>')
+    rigor = f'<p class="rigor">{" · ".join(rig)}</p>'
+
+    # 8-9
+    next_sec = (f'<section class="s s-tight" id="next" aria-labelledby="h-next"><h2 id="h-next">Next</h2>'
+                f'{user_block(user, "next")}</section>')
+    author = (f'<section class="s s-tight" id="author" aria-labelledby="h-author"><h2 id="h-author">Author</h2>'
+              f'{user_block(user, "author")}</section>')
+
+    # folded
+    conds, systems = spec_conditions(spec), spec_systems(spec)
     m = re.search(r"Ground truth comes from [^.]+\. No LLM grades any output\.", spec)
     if not m:
         raise SystemExit("SPEC.md sec. 1: ground-truth sentence not found")
-    tested = (f'<section class="s" id="how" aria-labelledby="h-how"><h2 id="h-how">How it is tested</h2>'
-              f'<p>{inline_md(m.group(0))} '
-              f'<a href="{e(repo.blob("reports/oracle_rules.md"))}">The table, with guideline quotes</a>.</p>'
-              f'<details class="all fold"><summary>The edits: three must change the answer, four must not'
-              f'</summary>{conditions_html(conds)}</details>'
-              f'<details class="all fold"><summary>The five systems</summary><ul class="plain">{sys_html}</ul>'
-              f'</details></section>')
-
-    log_sec = (f'<section class="s" id="log" aria-labelledby="h-log"><h2 id="h-log">Log</h2>'
-               f'{log_html(log, events, repo, cfg)}</section>')
-    lim = (f'<section class="s" id="limits" aria-labelledby="h-lim"><h2 id="h-lim">Limits</h2>'
-           f'<ul class="plain">{"".join(f"<li>{inline_md(x)}</li>" for x in limits)}</ul>'
-           f'<p class="small"><a href="{e(repo.blob("SPEC.md", limits_anchor))}">All limits (SPEC sec. 11)</a></p></section>')
+    sys_html = "".join(f"<li><strong>{s}</strong> {inline_md(t)}</li>" for s, t in systems)
+    tested = (f'<p>{inline_md(m.group(0))} <a href="{e(repo.blob("reports/oracle_rules.md"))}">'
+              f'The decision table, with guideline quotes</a>.</p>{conditions_html(conds)}'
+              f'<h3>The five systems</h3><ul class="plain">{sys_html}</ul>')
+    targets = make_targets(read("Makefile"))
     cmds = [t for t in cfg["make_targets"] if t in targets]
-    cmd_html = (f'<pre><code>{e(chr(10).join(f"make {t}" for t in cmds))}</code></pre>' if cmds else
-                '<p class="small">Commands: pending.</p>')
-    repro = (f'<section class="s" id="files" aria-labelledby="h-files"><h2 id="h-files">Reproduce and files</h2>'
-             f'{cmd_html}{files_html(cfg, repo)}</section>')
+    cmd_html = (f'<pre><code>{e(chr(10).join(f"make {t}" for t in cmds))}</code></pre>' if cmds else "")
+    limits, lim_anchor = spec_limits(spec, cfg["limits_folded"])
+    lim = (f'<ul class="plain">{"".join(f"<li>{inline_md(x)}</li>" for x in limits)}</ul>'
+           f'<p class="small"><a href="{e(repo.blob("SPEC.md", lim_anchor))}">All limits (SPEC sec. 11)</a></p>')
+    refs, prior, prior_anchor = prior_work(spec)
     refs_html = "".join(f"<li>{autolink_refs(inline_md(r))}</li>" for r in refs)
-    prior_sec = (f'<section class="s" id="prior" aria-labelledby="h-prior"><h2 id="h-prior">Prior work</h2>'
-                 f'<p>{autolink_refs(inline_md(prior))}</p><ul class="plain refs">{refs_html}</ul>'
-                 f'<p class="small"><a href="{e(repo.blob("SPEC.md", prior_anchor))}">What this adds (SPEC sec. 2)</a></p></section>')
-    author = (f'<section class="s" id="author" aria-labelledby="h-author"><h2 id="h-author">Author</h2>'
-              f'{user_block(user, "author")}</section>')
+    prior_body = (f'<p>{autolink_refs(inline_md(prior))}</p><ul class="plain refs">{refs_html}</ul>'
+                  f'<p class="small"><a href="{e(repo.blob("SPEC.md", prior_anchor))}">What this adds (SPEC sec. 2)</a></p>')
+    folds = [fold("more-tested", "How it is tested", tested)]
+    if not results and fails:
+        folds.append(fold("more-failed", cfg["failed_title_pre"], fails_body))
+    folds += [fold("more-files", "Reproduce and files", cmd_html + files_html(cfg, repo)),
+              fold("more-limits", "Limits", lim), fold("more-prior", "Prior work", prior_body)]
+    more = f'<section class="more" aria-label="More detail">{"".join(folds)}</section>'
 
-    order = ([found, result, tested, log_sec, lim, repro, prior_sec, author] if not results else
-             [result, tested, found, log_sec, lim, repro, prior_sec, author])
+    footer = (f'<footer><div class="wrap"><p>{e(cfg["footer"])} '
+              f'<a href="{e(repo.blob("SPEC.md", lim_anchor))}">All limits</a>.</p>'
+              f'<p class="muted">This page is generated from the repository by <code>scripts/site_build.py</code>; '
+              f'it loads nothing from other sites.</p></div></footer>')
 
     css = (SITE / "style.css").read_text()
     js = (SITE / "card.js").read_text()
     og_img = (f'<meta property="og:image" content="{e(cfg["pages_url"])}og.png">'
               if (out_dir / "og.png").exists() or (SITE / "figures" / "og.png").exists() else "")
     state = "results" if results else "preview"
+    desc = cfg["subtitle"]
     html = f"""<!doctype html>
 <html lang="en" data-state="{state}">
 <head>
@@ -715,10 +977,11 @@ def build(out_dir: Path, res_p: Path | None = None) -> Path:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:,">
 <title>gapcheck: {e(cfg["title"])}</title>
-<meta name="description" content="{e(subtitle)}">
+<meta name="description" content="{e(desc)}">
+<meta name="color-scheme" content="light dark">
 <meta property="og:type" content="website">
 <meta property="og:title" content="{e(cfg["title"])}">
-<meta property="og:description" content="{e(subtitle)}">
+<meta property="og:description" content="{e(desc)}">
 <meta property="og:url" content="{e(cfg["pages_url"])}">
 {og_img}
 <meta name="twitter:card" content="summary_large_image">
@@ -726,13 +989,24 @@ def build(out_dir: Path, res_p: Path | None = None) -> Path:
 {css}</style>
 </head>
 <body>
+{ICONS}
 <a class="skip" href="#main">Skip to content</a>
 <header class="top"><div class="wrap"><a class="brand" href="{e(cfg["pages_url"])}">gapcheck</a><nav aria-label="Links">{" · ".join(nav)}</nav></div></header>
 <main id="main" class="wrap">
-{hook}
-{chr(10).join(order)}
+{hero}
+<div class="body">
+{how_sec}
+{test_sec}
+{tl_sec}
+{up_sec}
+{dep_sec}
+{rigor}
+{next_sec}
+{author}
+{more}
+</div>
 </main>
-<footer><div class="wrap">Synthetic patients (Synthea). Ground truth is the guideline as encoded here, not clinical judgment. Research prototype, not medical advice. This page is generated from the repository by <code>scripts/site_build.py</code>.</div></footer>
+{footer}
 <script>
 {js}</script>
 </body>

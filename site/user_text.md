@@ -6,11 +6,17 @@ USER placeholder comment is shown as a marked placeholder, and
 Plain paragraphs; [text](url) links and *emphasis* work. Keep it short.
 -->
 
-## found_on_the_way
-<!-- USER: Two sentences, your own words: what you found in the data generator while building this, and what you did about it. -->
+## how_fast
+<!-- USER: One sentence under the timeline: how this was built so fast (you directed AI coding agents; the design, protocol and review are yours). Until you write it, the page shows the sentence "Code was written with AI coding agents; the design, protocol and review are mine." Your sentence replaces it, so keep the AI part in it. -->
 
-## result_sentences
-<!-- USER: Three sentences reading the pre-registered result; one says where the agent lost. Shown only once results exist. -->
+## upstream
+<!-- USER: One or two sentences under the upstream fixes: what you learned from this work, or why you fixed it. -->
+
+## result
+<!-- USER: Two sentences under the test numbers: one reading the numbers, one saying where the agent lost. Shown only once results exist. -->
+
+## next
+<!-- USER: One sentence. You may keep the default: "Next: the same test on real clinical notes (MIMIC-IV-Note, local model only)." -->
 
 ## author
-<!-- USER: Two lines: your name and degrees; how this method connects to your earlier work. Then a contact line. -->
+<!-- USER: Two lines: your name and degrees, and one line on how your clinical work leads to this. Then a contact line. -->
