@@ -477,8 +477,9 @@ def key_line(t: dict) -> str:
             f'{e(STATUS_WORDS[k["status"]])} ({e(desc)}).</p>')
 
 
-def prov_text(t: dict, kind: str = "Development record") -> str:
+def prov_text(t: dict) -> str:
     r = t["run"]
+    kind = "Test record, one run" if t.get("record") == "test" else "Development record, not a test result"
     d = date.fromisoformat(r["date"]) if r.get("date") else None
     bits = [f"{r['model_display']} on {WHERE[r['where']]}" + (f", {nice_date(d)}" if d else "")]
     if r.get("prompts_changed_since"):
@@ -486,7 +487,7 @@ def prov_text(t: dict, kind: str = "Development record") -> str:
         bits.append(f"with an earlier version of the {join_and(names)} prompt")
     if r.get("dirty"):
         bits.append("from code that was not yet committed")
-    return f"{kind}, not a test result. " + ", ".join(bits) + ". Example chosen by the author."
+    return f"{kind}. " + ", ".join(bits) + ". Example chosen by the author."
 
 
 def who(p: dict) -> str:

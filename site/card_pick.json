@@ -1,5 +1,5 @@
 {
- "_help": "The examples on the page's alert card, chosen by the author (scripts/site_card.py reads this). Each tab names a case of the case set, a run (the run_id in its manifest under data/runs) and a system. A tab with label_by_status takes its label from the agent's actual status. base_case_id/base_run_id: the unedited record of the same patient, shown as 'before the edit'. failures: folded 'where it failed' entries, built the same way; after_run_id is a later run of the same case. 'where' (cpu or gpu) overrides what the backend string says.",
+ "_help": "The examples on the page's alert card, chosen by the author (scripts/site_card.py reads this). Each tab names a case of the case set, a run (the run_id in its manifest under data/runs) and a system. A tab with label_by_status takes its label from the agent's actual status. base_case_id/base_run_id: the unedited record of the same patient, shown as 'before the edit'. \"record\": \"development\" (default) or \"test\" sets the provenance line. failures: folded 'where it failed' entries, built the same way; after_run_id is a later run of the same case. 'where' (cpu or gpu) overrides what the backend string says.",
  "case_set": "data/cases/dev_s20261120_utc_n10",
  "tabs": [
   {"id": "gap", "label": "Gap found", "case_id": "case_3f2531b19843",

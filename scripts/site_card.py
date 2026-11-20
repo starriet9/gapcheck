@@ -459,6 +459,7 @@ def build_item(spec: dict, case_dir: str, by_id: dict, runs: dict, case_sha: str
         if f.exists():
             first = {r["case_id"]: r for r in read_jsonl(f)}.get(case["case_id"])
     item = {"id": spec["id"], "chosen_by": spec.get("chosen_by", "author"),
+            "record": spec.get("record", "development"),
             "case_id": case["case_id"], "system": system,
             "patient": patient_view(case_dir, case),
             **build_answer(case_dir, case, run, rec, first),

@@ -13,6 +13,7 @@
   {
    "id": "gap",
    "chosen_by": "author",
+   "record": "development",
    "case_id": "case_3f2531b19843",
    "system": "A2",
    "patient": {
@@ -609,6 +610,7 @@
   {
    "id": "missing",
    "chosen_by": "author",
+   "record": "development",
    "case_id": "case_2eed072b0c09",
    "system": "A2",
    "patient": {
@@ -1075,6 +1077,7 @@
   {
    "id": "withdrawn",
    "chosen_by": "author",
+   "record": "development",
    "case_id": "case_193a624ff0d0",
    "system": "A2",
    "patient": {
@@ -1466,6 +1469,7 @@
   {
    "id": "verifier_passed_wrong_row",
    "chosen_by": "author",
+   "record": "development",
    "case_id": "case_2eed072b0c09",
    "system": "A2",
    "patient": {
