@@ -101,6 +101,20 @@ def test_unsupported_claims_interval():
     assert u["ci"][0] == 0.0 and 0 < u["ci"][1] < 0.05
 
 
+def test_passes_all_checks_share():
+    """Beside outcome 6: final answers whose audit passes all four checks; a case without
+    an answer (no audit) is not in the denominator."""
+    cl = _cases()
+    d = score.Design(cl)
+    recs = {c["case_id"]: {**_rec(c["expected_status"]), "audit": {"ok": True, "unsupported": [0, 4]}}
+            for c in cl}
+    recs["0-C0"]["audit"] = {"ok": False, "unsupported": [0, 4]}
+    recs["1-C0"] = {"schema_valid": False, "output": None, "audit": None}
+    a = score.secondary(d, recs, None, d.weights(200, 2))["passes_all_checks"]
+    assert a["n"] == len(cl) - 1 and a["k"] == len(cl) - 2
+    assert a["ci"][0] < a["rate"] <= a["ci"][1] <= 1.0
+
+
 # ---------------------------------------------------------------- answer change
 def test_answer_change_counts_invalid_or_missing_as_changed():
     ok, bad = _rec("GAP"), {"schema_valid": False, "output": None}

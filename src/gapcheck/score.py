@@ -460,6 +460,14 @@ def secondary(design: Design, recs: dict[str, dict], case_dir: str | Path | None
         boot = (W @ b_cl) / (W @ t_cl)
     out["unsupported_claims"] = {**_prop(int(bad.sum()), int(tot.sum())),
                                  "ci": _ci(boot) if tot.sum() else [None, None]}
+    # beside it: final answers that pass all four checks (the run's audit of the final
+    # answer; A2's pass or are forced, by construction). Cases without an answer are out.
+    has, passed = np.zeros(len(cs), bool), np.zeros(len(cs), bool)
+    for k, c in enumerate(cs):
+        a = (recs.get(c["case_id"]) or {}).get("audit")
+        if a is not None and "ok" in a:
+            has[k], passed[k] = True, bool(a["ok"])
+    out["passes_all_checks"] = _boot_prop(design, has, passed, W)
     # cost and fallbacks
     rs = [recs[c["case_id"]] for c in cs if c["case_id"] in recs]
     for key in ("tool_calls", "model_calls", "seconds"):

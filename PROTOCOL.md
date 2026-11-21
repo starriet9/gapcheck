@@ -138,17 +138,17 @@ R0 and R1 contain the oracle, so they are correct by construction on C0, C1, C2a
 
 All systems get the same conventions page (decision table, encoding choices, input rules, code lists, reason taxonomy) and return the same output schema (`SPEC.md` sec. 6.1). The verifier checks provenance and arithmetic only (`SPEC.md` sec. 6.2): cited rows and quotes exist and match; the inputs required by the row the system itself names are covered; each computed risk is reproduced within 0.1 percentage point; each absence claim is confirmed by a fixed query. It never evaluates the decision table and never reads the ledger. On failure the system is told only the number of the failed check and the index of the claim.
 
-A reply that is not one schema-valid JSON object gets one re-ask. A case with no valid output after that, or with a request the server rejects, is scored as incorrect for that system.
+A reply that is not one schema-valid JSON object gets one re-ask; the re-ask may use the rounds of tool calls left in the same limit. A case with no valid output after that, or with a request the server rejects, is scored as incorrect for that system.
 
 **Harness settings** (the task prompts state the same limits to the model):
 
 | Setting | Value |
 |---|---|
-| A1 rounds of tool calls (`max_steps`) | `[FILL: 16 or 8, chosen on the development set by a rule written before that run (RUNS.md)]` |
-| Round counter: after each round of tool calls in A1 and in the A2 repair, one message "Round k of N used." (`round_counter`) | `[FILL: proposed on]` |
-| A2 repair rounds of tool calls (`repair_steps`) | `[FILL: proposed 8]` |
-| L1 rounds of `prevent_risk` calls (`l1_tool_rounds`) | `[FILL: proposed 2]` |
-| Tool page size | `[FILL: proposed 20]` |
+| A1 rounds of tool calls (`max_steps`) | 8, chosen over 16 on the development set by a rule written before that run (`RUNS.md` sec. 8) |
+| Round counter: after each round of tool calls in A1 and in the A2 repair, one message "Round k of N used." (`round_counter`) | on |
+| A2 repair rounds of tool calls (`repair_steps`) | 8 |
+| L1 rounds of `prevent_risk` calls (`l1_tool_rounds`) | 2 |
+| Tool page size | 20 |
 | L1 serialization | As in `SPEC.md` sec. 6: demographics; conditions and procedures by code; medications by drug; allergies; the last three values of each observation code on the conventions page; notes within 365 days before index |
 
 **L1 build stop.** Before any model call, every test case is checked: each row the oracle uses and each planted sentence must be inside the L1 serialization, and the prompt must fit the served context. If a prompt does not fit, the served context length is raised until every test case fits, before any model call; this is logged in `RUNS.md` and is not a deviation. If the model cannot serve that length, the cases that do not fit are scored as incorrect for L1 and counted, and the primary analysis is repeated without them as a deviation.
