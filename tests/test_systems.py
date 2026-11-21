@@ -585,20 +585,17 @@ def test_repair_prompt_says_rerun_prevent_risk():
              "result. A COMPUTED claim's inputs must all be DOCUMENTED; do not compute a risk from a "
              "value that is not in the record.")
     rep = systems.prompt("repair")
-    assert rep.endswith(" " + added) and rep.count("{failures}") == 1
+    assert (" " + added + " ") in rep and rep.count("{failures}") == 1
     assert "{" not in rep.format(failures="check 3")
 
 
-def test_repair2_set_adds_the_unneeded_risk_rule():
-    """Prompt set repair2 changes only the repair prompt: the default text plus two sentences
-    that use the conventions page's own words (no condition, edit or answer key)."""
+def test_repair_prompt_has_the_unneeded_risk_rule():
+    """The repair prompt ends with the two sentences of the kept candidate "repair2" (RUNS.md
+    sec. 8), in the conventions page's own words (no condition, edit or answer key)."""
     added = ('If a failed claim is a COMPUTED risk and the row you give does not list risk_10y '
              'under "Required claims per benefit_group", or the status is CANNOT_DETERMINE, '
              'delete that claim and set risk_10y to null. A failed check on a claim your row '
              'does not need never changes the status or the row.')
-    rep2 = systems.prompt("repair", "repair2")
-    assert rep2 == systems.prompt("repair") + " " + added
+    assert systems.prompt("repair").endswith(" " + added)
     assert "Required claims per benefit_group" in conventions.render()
-    for r in systems.PROMPTS:
-        if r != "repair":
-            assert systems.prompt(r, "repair2") == systems.prompt(r)
+    assert set(systems.PROMPT_SETS) == {"default"}

@@ -171,7 +171,7 @@ A reply that is not one schema-valid JSON object gets one re-ask; the re-ask may
 | `src/gapcheck/serialize.py` | `[FILL]` |
 | `src/gapcheck/score.py` | `[FILL]` |
 
-Prompts were developed on the development sets only.
+Prompts were developed on the development sets only. The repair prompt was revised once on the development set, by a rule written before that run (`RUNS.md` sec. 8).
 
 ## 6. Model: selection rule and decoding settings
 
