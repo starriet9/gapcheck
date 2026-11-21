@@ -58,9 +58,12 @@ PROMPTS = ("system", "task_l1", "task_agent", "reask", "repair", "limit", "round
 # Named prompt sets: role -> file (stem in prompts/) used in its place. A role
 # not listed uses its own file.
 # The candidate sets tried in the local pilot ("plan", "plan2") were frozen
-# into the default files; their history is in git.
+# into the default files; their history is in git. "repair2" is the repair
+# candidate of the second GPU dev run (RUNS.md sec. 8): kept, it replaces
+# repair.txt and the set is removed.
 PROMPT_SETS: dict[str, dict[str, str]] = {
     "default": {},
+    "repair2": {"repair": "repair2"},
 }
 SYSTEMS = ("R0", "R1", "L1", "A1", "A2")
 

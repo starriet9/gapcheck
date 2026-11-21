@@ -93,3 +93,23 @@ Entry format: date; run; commit; what failed; which case ids had no output; how 
 | `score.json` sha256 | pending |
 | Figure 1 file and sha256 | pending |
 | Date the results were first published | pending |
+
+## 8. Development-set runs before the release
+
+Runs on the development set `dev_s20261120_utc_n10` (200 cases) that choose a setting. Each rule was written before its run. Development accuracy is not a result (`PROTOCOL.md` sec. 10); the outputs are released with the rest.
+
+**dev1 (2026-11-21), `max_steps` 16 (D) against 8 (T).** One GPU session, configuration D (L1, A1, A2; 16 rounds) then T (A1, A2; 8 rounds), the same cases, round counter on. Rule (all five must hold to choose 8): (1) A1 and A2 correct counts each T ≥ D − 3; (2) C3a A2 correct T ≥ D − 2; (3) A1 answers with missing claims in T ≤ 4; (4) cases with r_req > 6 in D ≤ 2; (5) schema-invalid plus forced fallbacks outside C1 in T ≤ D + 2. Outcome: all five held; `max_steps` = 8. For (4), 3 cases had no r_req because the A1 loop ended after a text-only turn (the re-ask then had no tool rounds, a harness defect fixed in 12e665a); they were counted as not late; the same cases had r_req 2 under 8 rounds.
+
+**T2 (2026-11-22), repair prompt candidate `repair2`.** In dev1, repairs turned correct C2a answers into CANNOT_DETERMINE after the verifier rejected a risk computed from a value not in the record, on a row that needs no risk. Candidate: prompt set `repair2`, the repair prompt plus two sentences (delete such a risk claim; a failed check on a claim the row does not need never changes the status or the row). Run: A1 and A2 on all 200 cases, `max_steps` 8, round counter on, `repair_steps` 8, with the re-ask fix (12e665a); L1 is not run again. Rule, written before the run (all seven must hold to keep `repair2`):
+
+| # | Rule |
+|---|---|
+| V1 | Cases with A1 correct and A2 wrong ≤ 2 |
+| V2 | Of `case_7052a1f791e2` and `case_f9c8a915a027`, those with A1 correct and the first draft rejected: at least one has A2 correct |
+| V3 | C2a: A2 correct ≥ A1 correct − 1 |
+| V4 | All cases: A2 correct ≥ A1 correct − 1 |
+| V5 | Forced fallbacks outside C1 plus A2 schema-invalid ≤ 5, and 0 check-2 failures after repair |
+| V6 | C1: A2 correct ≥ A1 correct |
+| V7 | A1 correct ≥ 185 |
+
+If any fails, or the run does not finish, the current `repair.txt` is kept and there is no third run; if only V7 fails, the run is not used to decide (same outcome). Either way `max_steps` stays 8. Kept, `repair2` replaces `repair.txt` before the release. Checked but not part of the rule: no case gets the tool-limit error before its 8 rounds are used.
