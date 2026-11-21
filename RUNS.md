@@ -112,4 +112,6 @@ Runs on the development set `dev_s20261120_utc_n10` (200 cases) that choose a se
 | V6 | C1: A2 correct ≥ A1 correct |
 | V7 | A1 correct ≥ 185 |
 
+2026-11-22, before the run: V2 holds if neither case qualifies (the rule is about repairs of rejected correct drafts). The rule is computed by the dev kit's `judge_t2.py`; on the dev1 T run it gives V1 5, V2 0 of 2, V3 −4, V4 −3, V5 5 and 0, V6 equal, V7 189, as counted by hand.
+
 If any fails, or the run does not finish, the current `repair.txt` is kept and there is no third run; if only V7 fails, the run is not used to decide (same outcome). Either way `max_steps` stays 8. Kept, `repair2` replaces `repair.txt` before the release. Checked but not part of the rule: no case gets the tool-limit error before its 8 rounds are used.
