@@ -16,7 +16,7 @@ Test: take synthetic longitudinal records, make controlled edits, and check whet
 
 Hypotheses, reported whatever the result:
 
-- **H1.** A2 (agent with code verifier) is more accurate than L1 (one call on the serialized record) on the primary outcome (sec. 7).
+- **H1.** A2 (agent with a code verifier) is more accurate than L1 (one call on the serialized record) on the primary outcome (sec. 7).
 - **H2.** On C3a, C3b and C4 together (the conditions that plant a sentence in a note), A2 is more accurate than the keyword baseline R1. Measure: exact-status accuracy macro-averaged over those three conditions, A2 minus R1, paired.
 - **H3.** A2 has a lower C1 fabricated-certainty rate than A1, and its over-abstention rate is not more than 5 percentage points higher than A1's in C2a and in C2b.
 
@@ -249,7 +249,7 @@ All pre-specified, all with 95% intervals from the same bootstrap, all on run 1 
 3. C1 fabricated-certainty rate: a schema-valid status other than CANNOT_DETERMINE although the deciding input is absent. C2a and C2b over-abstention rates: status CANNOT_DETERMINE.
 4. C5 pair consistency: both members of a pair correct.
 5. C3a miss rate (status other than DOCUMENTED_REASON). Answer-change rate in C2a, C2b, C3b and C4, each and pooled: the status differs from the same system's status on the same patient's C0 case; an invalid or missing output on either case counts as changed. C3a citation overlap with the planted sentence.
-6. Unsupported-claim rate: share of DOCUMENTED and ABSENT claims in final answers that fail verifier check 1 or 4.
+6. Unsupported-claim rate: share of DOCUMENTED and ABSENT claims in final answers that fail verifier check 1 or 4. Beside it, the share of final answers that pass all four verifier checks, for L1, A1 and A2 (A2's answers pass or are forced, by construction).
 7. Run-to-run stability: share of cases with the same status in runs 1, 2 and 3, for L1, A1 and A2 (sec. 11).
 8. Tool calls, tokens and seconds per case; schema-invalid outputs; forced fallbacks per condition; parser failures; verifier first-round rejections by check number, and how many were repaired or forced; cost per case: GPU-hours times the hourly rate, divided by the number of cases.
 9. Sensitivity analyses (sec. 9).
@@ -273,6 +273,10 @@ Counts are written with their denominator first and then the rate: "k of n (p%, 
 Display. Results are shown first as three rows that follow one example patient's edits: record as is (C0), one sentence added to a note (C3a) and lipid panel deleted (C1, any deciding input). On the two structured-data rows the agent (A2) gives "k of n" and the rule column is labelled as the answer key, not scored, because the rule is correct there by construction. The note row gives "k of n" for the rule (R0), the keyword rule (R1) and the agent (A2). Results are not shown as a bar chart of the five systems.
 
 Wherever A2's result on a condition is shown, the number of A2's forced fallbacks on that condition is shown with it. A forced CANNOT_DETERMINE is correct on C1 and incorrect on every other condition.
+
+Wherever A2's accuracy is shown, A1's (the same run before verification) is shown with it, and the difference A2 − A1 on the primary outcome is reported wherever H1 is reported. The condition on which A2 is weakest is named directly under the three rows, with k of n and its forced fallbacks.
+
+Wording. A2 is called an agent with a code verifier, not self-checking or self-correcting: code re-checks the cited rows, quotes and computed risks, and the model gets one repair. An answer that passes the checks is described as having its evidence re-checked, not as correct; the verifier does not evaluate the decision table.
 
 Examples shown with the results are chosen by the author and labelled as such. All outputs are released (sec. 15).
 

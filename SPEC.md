@@ -242,7 +242,7 @@ On failure the system is told only the number of the failed check and the index 
 3. C1 fabricated-certainty rate (a definite status although the deciding input is absent). C2a and C2b over-abstention rates.
 4. C5 pair consistency (both members correct).
 5. C3a miss rate; answer-change rates in C2a, C2b, C3b and C4, each and pooled (an invalid or missing output on either case counts as changed; `PROTOCOL.md` sec. 8); C3a citation overlap.
-6. Unsupported-claim rate: share of DOCUMENTED and ABSENT claims failing verifier checks 1 or 4.
+6. Unsupported-claim rate: share of DOCUMENTED and ABSENT claims failing verifier checks 1 or 4. Beside it, the share of final answers passing all four verifier checks, for L1, A1 and A2 (A2's pass or are forced, by construction).
 7. Run-to-run stability: share of cases with identical status across the three runs of L1, A1 and A2.
 8. Tool calls, tokens and seconds per case; schema-invalid outputs; forced fallbacks per condition; tool-call parser failures (`PROTOCOL.md` sec. 6).
 9. Sensitivity analyses S-A and S-C.
