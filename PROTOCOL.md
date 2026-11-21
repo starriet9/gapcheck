@@ -144,7 +144,7 @@ A reply that is not one schema-valid JSON object gets one re-ask. A case with no
 
 | Setting | Value |
 |---|---|
-| A1 rounds of tool calls (`max_steps`) | `[FILL: proposed 16]` |
+| A1 rounds of tool calls (`max_steps`) | `[FILL: 16 or 8, chosen on the development set by a rule written before that run (RUNS.md)]` |
 | Round counter: after each round of tool calls in A1 and in the A2 repair, one message "Round k of N used." (`round_counter`) | `[FILL: proposed on]` |
 | A2 repair rounds of tool calls (`repair_steps`) | `[FILL: proposed 8]` |
 | L1 rounds of `prevent_risk` calls (`l1_tool_rounds`) | `[FILL: proposed 2]` |
