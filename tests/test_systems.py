@@ -352,6 +352,45 @@ def test_tool_call_after_limit_is_answered_and_reasked_truthfully(env):
     assert a1["error"] == "a tool call after the tool limit"
 
 
+def _scripted(*replies):
+    it = iter(replies)
+    return MockBackend(lambda m, t: next(it))
+
+
+def test_reask_before_the_limit_keeps_the_rounds_left(env):
+    """A text-only turn before the limit ends the loop without JSON. The re-ask goes on
+    with the rounds left and the counter goes on counting (GPU dev run: with no rounds
+    in the re-ask, every lookup got the limit error after 1 of 16 rounds)."""
+    b = _scripted(Response("", [ToolCall("c1", "get_allergies", {})]),
+                  Response("Now let me check the labs."),
+                  Response("", [ToolCall("c2", "get_allergies", {})]),
+                  Response(json.dumps(ABSTAIN)))
+    a1, _ = systems.run_agent(env, b, systems.Settings(max_steps=3, round_counter=True),
+                              verify=False)
+    assert a1["schema_valid"] and a1["error"] is None
+    refused = {"error": "tool limit reached"}
+    assert [t["result"] != refused for t in a1["trace"] if t["type"] == "tool"] == [True, True]
+    users = [(t["kind"], t["content"]) for t in a1["trace"] if t["type"] == "user"]
+    assert [k for k, _ in users] == ["round_counter", "reask", "round_counter"]
+    assert [c for k, c in users if k == "round_counter"] == ["Round 1 of 3 used.",
+                                                             "Round 2 of 3 used."]
+    assert all(_well_formed(c["messages"]) for c in b.calls)
+
+
+def test_reask_at_the_limit_has_no_rounds(env):
+    """After a reply at the limit, the re-ask has no rounds left, as before."""
+    b = _scripted(Response("", [ToolCall("c1", "get_allergies", {})]),
+                  Response("Now let me check the labs."),
+                  Response("", [ToolCall("c2", "get_allergies", {})]),
+                  Response(json.dumps(ABSTAIN)))
+    a1, _ = systems.run_agent(env, b, systems.Settings(max_steps=1), verify=False)
+    assert a1["schema_valid"]
+    refused = {"error": "tool limit reached"}
+    assert [t["result"] == refused for t in a1["trace"] if t["type"] == "tool"] == [False, True]
+    assert [t["kind"] for t in a1["trace"] if t["type"] == "user"] == ["reask", "limit"]
+    assert all(_well_formed(c["messages"]) for c in b.calls)
+
+
 def test_task_prompts_state_the_harness_limits(env):
     """The round budget a model reads is the limit the harness enforces (A1: max_steps, L1:
     l1_tool_rounds), and the prompts carry the stop rule (with parallel calls and a stop

@@ -214,24 +214,26 @@ def _refuse_calls(calls, messages: list[dict], run: Run) -> None:
 
 def converse(backend: Backend, messages: list[dict], tools: list[dict], env: CaseEnv,
              max_rounds: int, run: Run, notice_at: int = 0,
-             prompt_set: str = "default", counter: bool = False) -> str | None:
-    """Model turns until a reply without tool calls. After `max_rounds` rounds, tool calls
-    get an error and the limit prompt once; a further tool call gets the error too and
-    ends with None. With `notice_at` = N > 0, the round that leaves N rounds is followed
-    by the rounds-left notice (one user message after that round's tool results); with
-    `counter`, every round is followed by the round counter."""
+             prompt_set: str = "default", counter: bool = False,
+             used: int = 0) -> tuple[str | None, int]:
+    """Model turns until a reply without tool calls; returns (reply text, rounds used).
+    The count starts at `used` (rounds already used in this loop). After `max_rounds`
+    rounds, tool calls get an error and the limit prompt once; a further tool call gets
+    the error too and ends with None. With `notice_at` = N > 0, the round that leaves N
+    rounds is followed by the rounds-left notice (one user message after that round's
+    tool results); with `counter`, every round is followed by the round counter."""
     allowed = {t["name"] for t in tools}
-    rounds, over = 0, False
+    rounds, over = used, False
     while True:
         r = backend.chat(messages, tools or None)
         run.model(r)
         messages.append(r.message())
         if not r.tool_calls:
-            return r.text
+            return r.text, rounds
         if rounds >= max_rounds:
             _refuse_calls(r.tool_calls, messages, run)
             if over:
-                return None
+                return None, rounds
             over = True
             msg = prompt("limit", prompt_set)
             messages.append({"role": "user", "content": msg})
@@ -256,12 +258,15 @@ def converse(backend: Backend, messages: list[dict], tools: list[dict], env: Cas
 
 def answer(backend, messages, tools, env, max_rounds, run, notice_at: int = 0,
            prompt_set: str = "default", counter: bool = False) -> tuple[dict | None, str | None]:
-    """Converse, parse and validate; one re-ask on an invalid reply. A request the
-    server rejects (BackendError, e.g. context overflow) ends with no answer and no
-    re-ask: a longer conversation would be rejected too."""
+    """Converse, parse and validate; one re-ask on an invalid reply. The re-ask goes on
+    with the rounds of tool calls left in the same limit (none left after a reply at the
+    limit), so a text-only turn before the limit does not end the search; the round
+    counter and the rounds-left notice go on counting. A request the server rejects
+    (BackendError, e.g. context overflow) ends with no answer and no re-ask: a longer
+    conversation would be rejected too."""
     try:
-        text = converse(backend, messages, tools, env, max_rounds, run, notice_at, prompt_set,
-                        counter)
+        text, used = converse(backend, messages, tools, env, max_rounds, run, notice_at,
+                              prompt_set, counter)
         out, err = parse_answer(text)
         if out is not None:
             return out, None
@@ -270,7 +275,8 @@ def answer(backend, messages, tools, env, max_rounds, run, notice_at: int = 0,
         msg = prompt("reask", prompt_set).format(error=err)
         messages.append({"role": "user", "content": msg})
         run.user("reask", msg)
-        text = converse(backend, messages, tools, env, 0, run, prompt_set=prompt_set)
+        text, _ = converse(backend, messages, tools, env, max_rounds, run, notice_at,
+                           prompt_set, counter, used=used)
     except BackendError as e:
         run.trace.append({"type": "error", "error": str(e)})
         return None, f"backend: {e}"
