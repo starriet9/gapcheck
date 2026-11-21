@@ -1,6 +1,6 @@
 # gapcheck
 
-A care-gap agent that checks its own work.
+A care-gap agent. No alert until code re-checks the evidence.
 
 <!-- USER: your own sentences here if you want them (what it is; after the test, the primary result) -->
 
@@ -14,8 +14,8 @@ A care-gap agent that checks its own work.
 ## How it works
 
 1. **Reads.** The agent queries a patient's longitudinal record with tools (labs, diagnoses, medications, notes) and computes 10-year risk with the PREVENT equations.
-2. **Claims.** It answers with a status and a list of claims. Each claim cites a record row, a computation, or a confirmed absence.
-3. **Gets checked.** Code re-reads every cited row, recomputes every risk and re-runs every "not on record" query. A failed claim sends the draft back once; if it fails again, no alert is shown. The verifier never sees the answer key. It checks facts and arithmetic, not judgment.
+2. **Claims.** It answers with a status and a list of claims. Each claim cites a record row, a risk calculation, or a "not on record" query.
+3. **Gets checked.** Code re-reads every cited row, recomputes every risk and re-runs every "not on record" query. A failed claim sends the draft back once; if it fails again, no alert is shown. The verifier never sees the answer key. It re-checks the cited evidence and the arithmetic, not the guideline decision.
 
 ## How it is tested
 

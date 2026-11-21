@@ -170,6 +170,21 @@ p { margin: 0 0 12px; }
 .rate { display: block; font-size: 13.5px; color: var(--muted); }
 .vs { display: block; font-size: 13.5px; color: var(--ink-2); }
 .primary { font-size: 15.5px; }
+.rows3 { width: 100%; border-collapse: collapse; margin: 12px 0 8px; font-size: 15px; }
+.rows3 th, .rows3 td { text-align: left; vertical-align: top; padding: 8px 10px 8px 0; border-top: 1px solid var(--line); }
+.rows3 thead th { font-size: 13.5px; font-weight: 650; color: var(--ink-2); border-top: 0; }
+.rows3 tbody th { font-weight: 650; }
+.rows3 tbody th .small { display: block; font-weight: 400; }
+.rows3 .rl, .rows3 .ff { display: block; }
+.rows3 td { font-variant-numeric: tabular-nums; }
+.weak { font-size: 15px; margin: 6px 0 12px; }
+@media (max-width: 39.99rem) {
+  .rows3 thead { display: none; }
+  .rows3, .rows3 tbody, .rows3 tr, .rows3 th, .rows3 td { display: block; }
+  .rows3 tr { border-top: 1px solid var(--line); padding: 8px 0; }
+  .rows3 th, .rows3 td { border-top: 0; padding: 2px 0; }
+  .rows3 td::before { content: attr(data-l) ": "; color: var(--muted); }
+}
 figure { margin: 8px 0; }
 figure svg { width: 100%; max-width: 30rem; height: auto; display: block; }
 figure svg text { font-family: var(--sans); }
@@ -206,7 +221,7 @@ footer p { margin: 0 0 6px; max-width: 40rem; }
 
 @media (min-width: 40rem) {
   body { font-size: 17px; line-height: 1.6; }
-  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 20px; }
   .tiles li { display: block; padding: 0; }
   .big { display: block; font-size: 48px; margin-bottom: 8px; }
 }

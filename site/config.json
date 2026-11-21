@@ -5,14 +5,14 @@
  "pages_url": "https://starriet9.github.io/gapcheck/",
  "eyebrow_pre": "Research prototype · first commit {first}",
  "eyebrow_post": "Research prototype · built {span}, {year} · open source",
- "title": "A care-gap agent that checks its own work.",
- "subtitle": "Reads the whole record, flags a missing statin, and shows what matters and what's missing. Code re-checks every fact before a clinician sees it.",
+ "title": "A care-gap agent. No alert until code re-checks the evidence.",
+ "subtitle": "Flags a missing statin under the 2026 ACC/AHA guideline. Every claim cites a record row, a risk calculation or a “not on record” query.",
  "how_it_works": [
   ["Reads.", "The agent queries the record with tools: labs, diagnoses, medications, notes. It computes 10-year risk with the PREVENT equations."],
-  ["Claims.", "It answers with a status and a list of claims. Each claim cites a record row, a computation, or a confirmed absence."],
+  ["Claims.", "It answers with a status and a list of claims. Each claim cites a record row, a risk calculation, or a “not on record” query."],
   ["Gets checked.", "Code re-reads every cited row, recomputes every risk and re-runs every “not on record” query. A failed claim sends the draft back once. If it fails again, no alert is shown."]
  ],
- "how_it_works_note": "The verifier never sees the answer key. It checks facts and arithmetic, not judgment.",
+ "how_it_works_note": "The verifier never sees the answer key. It re-checks the cited evidence and the arithmetic, not the guideline decision.",
  "test_lead": "Delete the lab result. The alert should withdraw itself.",
  "test_pre": "About {n} test records: synthetic patients as generated, and edited copies of them. Each edit changes one thing. Some edits must flip the answer. Some must not. The run happens once, and the numbers land here whatever they are.",
  "test_post": "Tested once on {n} records from {p} synthetic patients. The protocol was public before the test set existed.",
@@ -25,7 +25,6 @@
  "test_steps_note": "Protocol: draft, not yet released. Each step is logged with its time stamp in",
  "test_steps_note_released": "Each step is logged with its time stamp in",
  "result_tiles": {
-  "c1": "Withheld the alert and named the missing input when the deciding input was deleted.",
   "kept": "Kept its answer when an irrelevant detail changed.",
   "verifier": "First drafts rejected by the verifier; {repaired} repaired in one round, {forced} withheld."
  },

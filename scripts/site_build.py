@@ -106,6 +106,12 @@ def signed(x: float) -> str:
     return s.replace("-", "−")
 
 
+def no_break_hyphens(text: str) -> str:
+    """A hyphen between letters becomes a non-breaking hyphen, so a heading never wraps
+    inside "re-checks" or "care-gap"."""
+    return re.sub(r"(?<=[A-Za-z])-(?=[A-Za-z])", "\u2011", text)
+
+
 def join_and(xs: list[str]) -> str:
     xs = list(xs)
     if len(xs) <= 1:
@@ -738,8 +744,39 @@ def files_html(cfg: dict, repo: Repo) -> str:
     return f'<ul class="plain">{"".join(lis)}</ul>'
 
 
-def count_tile(big: dict, label: str, other: dict | None = None, other_label: str = "",
-               complement: bool = False) -> str:
+SYS_LABEL = {"R0": "Rule on structured data", "R1": "Keyword rule", "L1": "Single model call",
+             "A1": "Agent before the verifier", "A2": "Agent with a code verifier"}
+# PROTOCOL sec. 10 "Display": one example patient's edits, in this order
+RESULT_ROWS = (("C0", "Record as is"), ("C3a", "One sentence added to a note"),
+               ("C1", "Lipid panel deleted (or another deciding input)"))
+BY_CONSTRUCTION = "answer key, correct by construction (not scored)"
+
+
+def k_of_n(v: dict | None, with_ci: bool = True) -> str:
+    """'k of n (p%, 95% CI lo to hi)': denominator first, then the rate (PROTOCOL sec. 10)."""
+    if not v or v.get("n") is None:
+        return "n/a"
+    rate = v.get("rate", v.get("est"))
+    ci = v.get("ci") or [None, None]
+    ci_t = f", 95% CI {pct1(ci[0])} to {pct1(ci[1])}" if with_ci and ci[0] is not None else ""
+    return f'{v["k"]} of {v["n"]}' + (f" ({pct1(rate)}%{ci_t})" if rate is not None else "")
+
+
+def diff_text(d: dict | None) -> str:
+    if not d or d.get("est") is None:
+        return "n/a"
+    ci = d.get("ci") or [None, None]
+    lo = signed(ci[0]) if ci[0] is not None else "n/a"
+    hi = signed(ci[1]) if ci[1] is not None else "n/a"
+    return f"{signed(d['est'])} points (95% CI {lo} to {hi})"
+
+
+def plural(n: int, one: str, many: str | None = None) -> str:
+    return f"{n} {one if n == 1 else (many or one + 's')}"
+
+
+def count_tile(big: dict, label: str, others: list[tuple[str, dict | None]] = (),
+               complement: bool = False, extra: str = "") -> str:
     k, n = big["k"], big["n"]
     rate, ci = big.get("rate"), big.get("ci") or [None, None]
     if complement:
@@ -749,26 +786,108 @@ def count_tile(big: dict, label: str, other: dict | None = None, other_label: st
     ci_t = f", 95% CI {pct1(ci[0])} to {pct1(ci[1])}" if ci[0] is not None else ""
     rate_t = f"({pct1(rate)}%{ci_t})" if rate is not None else ""
     side = ""
-    if other:
-        ok = other["n"] - other["k"] if complement else other["k"]
-        side = f'<span class="vs">{e(other_label)}: {ok} of {other["n"]}</span>'
+    for lab, o in others:
+        if o:
+            ok = o["n"] - o["k"] if complement else o["k"]
+            side += f'<span class="vs">{e(lab)}: {ok} of {o["n"]}</span>'
+    if extra:
+        side += f'<span class="vs">{e(extra)}</span>'
     return (f'<li><span class="big">{k} <span class="of">of</span> {n}</span>'
             f'<span class="txt">{e(label)} <span class="rate">{e(rate_t)}</span>{side}</span></li>')
 
 
+def forced_on(res: dict, conds) -> int | None:
+    ff = ((res.get("secondary") or {}).get("A2") or {}).get("forced_fallbacks")
+    if ff is None:
+        return None
+    return sum(int(ff.get(c, 0)) for c in conds)
+
+
+def rows_table(res: dict, conds: dict) -> str:
+    """The three rows of PROTOCOL sec. 10: rules (labelled as the answer key where they are
+    correct by construction), A1 and A2 with A2's forced fallbacks on that condition."""
+    acc = (res.get("accuracy_main") or {}).get("systems") or {}
+
+    def cell(s, c):
+        return k_of_n(((acc.get(s) or {}).get("by_condition") or {}).get(c), with_ci=False)
+
+    body = []
+    for c, label in RESULT_ROWS:
+        if c not in conds:
+            problem(f"results: condition {c} not in SPEC")
+            continue
+        if c == "C3a":
+            rules = (f'<span class="rl">{e(SYS_LABEL["R0"])}: {e(cell("R0", c))}</span>'
+                     f'<span class="rl">{e(SYS_LABEL["R1"])}: {e(cell("R1", c))}</span>')
+        else:
+            rules = f'<span class="rl muted">{e(BY_CONSTRUCTION)}</span>'
+        f = forced_on(res, (c,))
+        a2 = (f'<strong>{e(cell("A2", c))}</strong>'
+              + ("" if f is None else f'<span class="small ff">{plural(f, "forced fallback")}</span>'))
+        if not acc.get("A2"):
+            problem("results: no per-condition accuracy for A2")
+        correct = "the answer-key label" if c == "C0" else inline_md(conds[c]["correct"])
+        body.append(f'<tr><th scope="row">{e(label)}<span class="small">{e(c)} · correct: '
+                    f'{correct}</span></th>'
+                    f'<td data-l="Rules">{rules}</td>'
+                    f'<td data-l="{e(SYS_LABEL["A1"])}">{e(cell("A1", c))}</td>'
+                    f'<td data-l="{e(SYS_LABEL["A2"])}">{a2}</td></tr>')
+    head = (f'<thead><tr><th scope="col">Edit to the record</th><th scope="col">Rules</th>'
+            f'<th scope="col">{e(SYS_LABEL["A1"])} (A1)</th><th scope="col">{e(SYS_LABEL["A2"])} (A2)</th>'
+            f'</tr></thead>')
+    return f'<table class="rows3">{head}<tbody>{"".join(body)}</tbody></table>'
+
+
+def weakest_text(res: dict, conds: dict) -> str:
+    w = res.get("weakest_A2")
+    if not w:
+        problem("results: no weakest condition for A2")
+        return ""
+    c = w["condition"]
+    a1 = ((((res.get("accuracy_main") or {}).get("systems") or {}).get("A1") or {})
+          .get("by_condition") or {}).get(c)
+    f = forced_on(res, (c,))
+    name = conds.get(c, {}).get("name", "")
+    return (f'<p class="weak"><strong>Weakest condition for the agent with a code verifier:</strong> '
+            f'{e(c)} ({e(name)}), {e(k_of_n(w))}'
+            + ("" if f is None else f', {plural(f, "forced fallback")}')
+            + (f'; before the verifier, {e(k_of_n(a1, with_ci=False))}' if a1 else "") + '.</p>')
+
+
+def checks_text(res: dict) -> str:
+    sec = res.get("secondary") or {}
+    parts = [f'{SYS_LABEL[s].lower()} {k_of_n(sec[s]["passes_all_checks"], with_ci=False)}'
+             for s in ("L1", "A1", "A2") if (sec.get(s) or {}).get("passes_all_checks")]
+    if not parts:
+        return ""
+    return (f'<p class="small">Final answers whose evidence passes all four checks: '
+            f'{e(join_and(parts))}. The verifier\'s answers pass or are withheld by construction; '
+            f'passing means the evidence was re-checked, not that the answer is correct.</p>')
+
+
 def results_block(res: dict, user: dict, fig_svg: str, cfg: dict, fields: dict,
-                  run_date: date | None, fails_html: str) -> str:
+                  run_date: date | None, fails_html: str, conds: dict) -> str:
     head = res.get("headline") or {}
-    tiles = []
-    c1 = head.get("c1_correct") or {}
-    if "A2" in c1:
-        tiles.append(count_tile(c1["A2"], cfg["result_tiles"]["c1"], c1.get("L1"), "Single model call"))
+    p = head.get("primary")
+    prim = ""
+    if p:
+        prim = (f'<p class="primary"><strong>Primary outcome (pre-registered):</strong> exact-status accuracy '
+                f'averaged over the eight test conditions, agent with a code verifier {pct1(p["A2"]["est"])}% '
+                f'against single model call {pct1(p["L1"]["est"])}%, difference {diff_text(p["difference"])}. '
+                f'Tools alone (A1 − L1): {diff_text(p.get("A1-L1"))}. '
+                f'The verifier and its one repair (A2 − A1): {diff_text(p.get("A2-A1"))}.</p>')
+        if p.get("A2-A1") is None:
+            problem("results: no A2 − A1 difference in the score file")
     else:
-        problem("results: no C1 counts for A2")
+        problem("results: no primary outcome (A2 or L1 missing from the score file)")
+    tiles = []
     ch = head.get("changed_when_must_not") or {}
     if "A2" in ch:
-        tiles.append(count_tile(ch["A2"], cfg["result_tiles"]["kept"], ch.get("L1"), "Single model call",
-                                complement=True))
+        f = forced_on(res, ("C2a", "C2b", "C3b", "C4"))
+        tiles.append(count_tile(ch["A2"], cfg["result_tiles"]["kept"],
+                                [(SYS_LABEL["A1"], ch.get("A1")), (SYS_LABEL["L1"], ch.get("L1"))],
+                                complement=True,
+                                extra="" if f is None else f'Forced fallbacks on these edits: {f}'))
     else:
         problem("results: no answer-change counts for A2")
     v = res.get("verifier_A2")
@@ -777,18 +896,6 @@ def results_block(res: dict, user: dict, fig_svg: str, cfg: dict, fields: dict,
         tiles.append(count_tile(v["rejected"], lab))
     else:
         problem("results: no verifier counts for A2")
-    p = head.get("primary")
-    prim = ""
-    if p:
-        d = p["difference"]
-        ci = d.get("ci") or [None, None]
-        prim = (f'<p class="primary"><strong>Primary outcome (pre-registered):</strong> exact-status accuracy '
-                f'averaged over the eight test conditions, agent with verifier {pct1(p["A2"]["est"])}% '
-                f'against single call {pct1(p["L1"]["est"])}%, difference {signed(d["est"])} points '
-                f'(95% CI {signed(ci[0]) if ci[0] is not None else "n/a"} to '
-                f'{signed(ci[1]) if ci[1] is not None else "n/a"}).</p>')
-    else:
-        problem("results: no primary outcome (A2 or L1 missing from the score file)")
     model = field(fields, "Model repository")
     gpu = field(fields, "GPU, provider")
     bits = ["Test set", "one run"]
@@ -802,7 +909,8 @@ def results_block(res: dict, user: dict, fig_svg: str, cfg: dict, fields: dict,
            f'bootstrap intervals. R0 and R1 contain the answer key, so they are correct by construction on '
            f'C0, C1, C2a, C2b and C5 (open squares).</figcaption></figure></details>')
     return (f'<p>{e(cfg["test_post"].format(n=res["n_cases"], p=res.get("n_patients") or "?"))}</p>'
-            f'<ul class="tiles">{"".join(tiles)}</ul>{prim}'
+            + rows_table(res, conds) + weakest_text(res, conds) + prim
+            + f'<ul class="tiles">{"".join(tiles)}</ul>' + checks_text(res)
             + user_block(user, "result")
             + f'<p class="small muted">{e(" · ".join(bits))}</p>{fig}{fails_html}')
 
@@ -854,7 +962,7 @@ def build(out_dir: Path, res_p: Path | None = None) -> Path:
         nav.append(f'<a href="{e(repo.blob(cfg["summary_pdf"]))}">Summary (PDF)</a>')
     hero = (f'<section class="hero" aria-labelledby="h-title"><div class="hero-text">'
             f'<p class="eyebrow">{" · ".join(f"<span>{e(x)}</span>" for x in eyebrow.split(" · "))}</p>'
-            f'<h1 id="h-title">{e(cfg["title"])}</h1>'
+            f'<h1 id="h-title">{no_break_hyphens(e(cfg["title"]))}</h1>'
             f'<p class="sub">{e(cfg["subtitle"])}</p>'
             f'<p class="hero-links"><a href="#how">How it works</a> · <a href="#test">The test</a> · '
             f'<a href="#upstream">Fixes sent upstream</a></p></div>'
@@ -873,7 +981,7 @@ def build(out_dir: Path, res_p: Path | None = None) -> Path:
         fail_fold = (f'<details class="sub"><summary>Where it failed: {len(fails)} record{"s" if len(fails) != 1 else ""}</summary>'
                      f'{fails_body}</details>' if fails else "")
         test_body = results_block(results, user, svg, cfg, fields, run_end.date() if run_end else None,
-                                  fail_fold)
+                                  fail_fold, spec_conditions(spec))
     else:
         n = planned_cases(spec)
         test_body = (f'<p class="lead">{e(cfg["test_lead"])}</p>'
