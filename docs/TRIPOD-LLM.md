@@ -42,9 +42,9 @@ Reporting guideline: Gallifant J, et al. The TRIPOD-LLM reporting guideline for 
 | 10 | Preprocessing before summarization | No (summarization tasks only) | – | Not applicable |
 | 11 | Instruction tuning or alignment | No (M, D only; none done) | – | Not applicable |
 | 12 | Compute | Yes | `SPEC.md` sec. 10 (plan); `RUNS.md` sec. 5 (GPU-hours, cost); secondary outcome 8 (tool calls, tokens, seconds and cost per case) | With results |
-| 13 | Ethics approval and consent | Yes | Synthetic records only; no human participants or patient data; no ethics review was sought. Stated in the README, section Ethics, funding and conflicts | Planned |
-| 14a | Funding and role of funders | Yes | README, section Ethics, funding and conflicts | Planned |
-| 14b | Conflicts of interest | Yes | README, section Ethics, funding and conflicts | Planned |
+| 13 | Ethics approval and consent | Yes | Synthetic records only; no human participants or patient data; no ethics review was sought. Stated in the README, section Ethics, funding and conflicts | At tag |
+| 14a | Funding and role of funders | Yes | README, section Ethics, funding and conflicts | At tag |
+| 14b | Conflicts of interest | Yes | README, section Ethics, funding and conflicts | At tag |
 | 14c | Protocol access | H only; answered | `PROTOCOL.md` at the release tag; release URL in `RUNS.md` sec. 1 | At tag |
 | 14d | Registration | H only; answered | Not in a trial or study registry. Time-stamped by a tagged commit and a GitHub Release; the test seed comes from a public randomness beacon pulse after the release (`PROTOCOL.md` sec. 13). Any external registration is listed in `RUNS.md` sec. 1 | At tag |
 | 14e | Data availability | Yes | `SPEC.md` sec. 8: test set, augmentation and edit ledgers, model outputs and traces are released; generator data is public domain | With results |
