@@ -278,8 +278,17 @@ def test_tag_and_runner_fix_rules(tmp_path):
     subprocess.run(["git", *GIT_ID, "tag", "-a", "-m", "t", "v1"], cwd=r, check=True)
     assert session.tag_check("v1", base, cwd=r) == (base, [])
     assert session.tag_check("nope", base, cwd=r)[1]
-    c1 = commit(r, {"RUNS.md": "test set sha256", "results/a.json": "{}", "DEVIATIONS.md": "None"}, "after tag")
+    c1 = commit(r, {"RUNS.md": "test set sha256", "results/a.json": "{}", "DEVIATIONS.md": "None",
+                    "README.md": "release link", "pages/index.html": "ticks", "site/log.json": "{}"}, "after tag")
     assert session.tag_check("v1", c1, cwd=r) == (base, [])
+    assert session.AFTER_TAG == ("RUNS.md", "DEVIATIONS.md", "results/", "README.md", "pages/", "site/")
+    for files in ({"PROTOCOL.md": "x"}, {"SPEC.md": "x"}, {"configs/run1.json": "{}"}, {"gpu/session.py": "2"},
+                  {"scripts/s.py": "x"}, {"pages2/x": "x"}, {"docs/x.md": "x"}):
+        subprocess.run(["git", "reset", "-q", "--hard", c1], cwd=r, check=True)
+        bad = commit(r, files, "blocked after the tag")
+        probs = session.tag_check("v1", bad, cwd=r)[1]
+        assert probs and list(files)[0] in probs[0], files
+    subprocess.run(["git", "reset", "-q", "--hard", c1], cwd=r, check=True)
     c2 = commit(r, {"src/gapcheck/a.py": "2"}, "harness")
     c3 = commit(r, {"src/gapcheck/a.py": "1"}, "reverted")  # same tree as c1, but a commit touched src
     for c in (c2, c3):
@@ -329,3 +338,32 @@ def test_gpu_check_summary_has_no_account_data(tmp_path):
         assert p.returncode == rc, (cloud, avail, p.stdout)
         line = p.stdout.strip()
         assert "community" in line and "secure" in line and "balance" not in line and "pods" not in line
+
+
+def test_run2_and_run3_differ_from_run1_only_in_sampling():
+    r1 = session.load_config(REPO / "configs" / "run1.json")
+    for n, seed in (("run2", 2), ("run3", 3)):
+        c = session.load_config(REPO / "configs" / f"{n}.json")
+        assert sorted(k for k in r1 if r1[k] != c[k]) == ["_help", "decoding", "name"] and c["name"] == n
+        assert c["decoding"] == {**r1["decoding"], "temperature": 0.7, "top_p": 0.8, "top_k": 20, "seed": seed}
+        assert c["client"]["concurrency"] == 1 and c["systems"] == ["L1", "A1", "A2"]
+
+
+def test_text_written_to_run_files_is_scrubbed(tmp_path, monkeypatch):
+    sess = tmp_path / "data" / "runs" / "s"
+    (sess / "logs").mkdir(parents=True)
+    monkeypatch.setattr(session, "SESS", sess)
+    msg = f"error: FileNotFoundError: {session.REPO}/data/cases/x/manifest.json under {Path.home()}/y"
+    assert session.scrub(msg) == "error: FileNotFoundError: data/cases/x/manifest.json under ~/y"
+    assert session.scrub(str(session.REPO)) == "."
+    session.timeline(msg)
+    session.save_state({"status": msg, "launches": [{"warnings": [msg]}]})
+    for f in (sess / "logs" / "timeline.txt", sess / "session.json"):
+        text = f.read_text()
+        assert str(session.REPO) not in text and str(Path.home()) not in text and "data/cases/x" in text
+    # files under a run directory (finished cases, aborted attempts) are scrubbed in place
+    d = sess / "run1" / "aborted" / "c1.t.rc1"
+    d.mkdir(parents=True)
+    (d / "manifest.json").write_text(json.dumps({"note": msg}))
+    queue_run.scrub_tree(sess, d)
+    assert str(session.REPO) not in (d / "manifest.json").read_text()

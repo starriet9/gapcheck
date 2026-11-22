@@ -1,0 +1,71 @@
+{
+ "_help": "Run 2 (PROTOCOL.md sec. 11, secondary outcome 7, run-to-run stability): identical to configs/run1.json except the name and the sampling: temperature 0.7, top_p 0.8, top_k 20 (the model card's non-thinking values) and seed 2. gpu/session.py --config configs/run2.json, with its own run directory and the same tag rule as run 1.",
+ "name": "run2",
+ "systems": ["L1", "A1", "A2"],
+ "case_split": "test",
+ "run": {
+  "max_steps": 8,
+  "round_counter": true,
+  "rounds_left_notice": 0,
+  "prompt_set": "default",
+  "repair_steps": 8,
+  "l1_tool_rounds": 2,
+  "page_size": 20,
+  "context_limit": 45056,
+  "chars_per_token": 2.26
+ },
+ "decoding": {
+  "temperature": 0.7,
+  "top_p": 0.8,
+  "top_k": 20,
+  "seed": 2,
+  "max_tokens": 4096,
+  "extra": {"chat_template_kwargs": {"enable_thinking": false}, "parallel_tool_calls": true}
+ },
+ "client": {
+  "concurrency": 1,
+  "request_timeout_s": 1800,
+  "case_timeout_s": 2400,
+  "max_attempts": 2,
+  "max_total_attempts": 4,
+  "fail_limit": 4,
+  "accept_http_4xx": [400]
+ },
+ "server": {
+  "slots": 8,
+  "ctx_per_slot": 49152,
+  "extra_args": "--no-cache-idle-slots",
+  "alias": "qwen3.8-flash-next-gpu"
+ },
+ "model": {
+  "repo": "unsloth/Qwen3.8-Flash-Next-GGUF",
+  "revision": "766911a6b7369840a91dbcd95f9f997acaab6cd6",
+  "quant": "UD-Q4_K_XL",
+  "base_model": "Qwen/Qwen3.8-Flash-Next",
+  "files": [
+   {"name": "Qwen3.8-Flash-Next-UD-Q4_K_XL-00001-of-00004.gguf", "bytes": 10946624,
+    "sha256": "4448186216b3af4cc558bbce2c3213f01608f8f8b2e5267a9767971dd3ec8082", "download_ranges": 1},
+   {"name": "Qwen3.8-Flash-Next-UD-Q4_K_XL-00002-of-00004.gguf", "bytes": 49859583136,
+    "sha256": "3f342f1c1580473f1ee94ddd5b28206e8c07a70fa1a366f59d1d6c922919a6c9", "download_ranges": 8},
+   {"name": "Qwen3.8-Flash-Next-UD-Q4_K_XL-00003-of-00004.gguf", "bytes": 49376141504,
+    "sha256": "56758f40269cad5cd9b0d3d6fbae0f40f6d5be6de49e4ab392dbe83157d9cbd3", "download_ranges": 8},
+   {"name": "Qwen3.8-Flash-Next-UD-Q4_K_XL-00004-of-00004.gguf", "bytes": 12087983520,
+    "sha256": "753bda48b98ba4f1636134a90a967de1b2d3908a236c026e464777342e53510a", "download_ranges": 2}
+  ],
+  "chat_template": {
+   "source": "metadata key tokenizer.chat_template of the first file, extracted on the pod",
+   "bytes": 9993,
+   "sha256": "12827f24b742ea4e80cdc12dbcf9622227056b9f797252a3149263d4f9aaadce"
+  }
+ },
+ "engine": "llama.cpp llama-server b12464 (commit d3c3e242), CUDA server image",
+ "image": "ghcr.io/ggml-org/llama.cpp@sha256:ae96e52f8b2106ea82bad786ee2d08bb9b0a8c93403df9c27ae1bf065a118089",
+ "gpu": {
+  "id": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+  "cloud": "COMMUNITY",
+  "min_cuda": "12.8",
+  "min_ram_gb": 60,
+  "min_vcpu": 8,
+  "disk_gb": 150
+ }
+}

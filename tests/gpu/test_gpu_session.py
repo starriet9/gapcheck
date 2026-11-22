@@ -20,8 +20,14 @@ so commits, tags and worktrees never touch this repository.
                            with it when src/gapcheck/ changed; allowed when only gpu/ changed,
                            logged as a deviation, and the parts at two commits merge
   rehearsal             -> development cases only, under data/runs/rehearsal/ only
-  real-run refusals     -> no tag, a commit after the tag that touches more than RUNS.md,
-                           DEVIATIONS.md or results/, no API key: refused before any network
+  real-run refusals     -> no tag, a commit after the tag that touches more than the run
+                           records, README.md, pages/ or site/, no API key: refused before any
+                           network
+  run 2                 -> --config configs/run2.json: every request carries temperature 0.7,
+                           top_p 0.8, top_k 20 and seed 2 (run 1: temperature 0, seed 1, neither
+                           top_p nor top_k)
+  scrubbed messages     -> a stop message holding the absolute repository path reaches the
+                           timeline with the path made relative
 
 They need the development case set (built by `make cases`); without it they are skipped.
 """
@@ -58,10 +64,11 @@ def git(repo: Path, *a: str) -> str:
 
 @pytest.fixture
 def repo(tmp_path):
-    """A git repository with this working tree's tracked files and the dev case set."""
+    """A git repository with this working tree's files (tracked, and untracked but not ignored)
+    and the dev case set."""
     r = tmp_path / "repo"
-    for f in subprocess.run(["git", "ls-files", "-z"], cwd=REPO, capture_output=True, text=True,
-                            check=True).stdout.split("\0"):
+    for f in subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard"], cwd=REPO,
+                            capture_output=True, text=True, check=True).stdout.split("\0"):
         src = REPO / f
         if f and src.is_file():
             (r / f).parent.mkdir(parents=True, exist_ok=True)
@@ -144,7 +151,8 @@ def stop_after_first_case(repo: Path, d: Path, c: list[str], ids: list[str]) -> 
 
 def release_files(d: Path) -> list[Path]:
     out = []
-    for line in (d / "RELEASE.txt").read_text().split("\n\nNot for release")[0].splitlines()[2:]:
+    listed = (d / "RELEASE.txt").read_text().split("\n\nNot for release")[0].split("\n\n", 1)[1]
+    for line in listed.splitlines():
         f = d / line.split("\t")[0].rstrip("/")
         out += [x for x in f.rglob("*") if x.is_file()] if f.is_dir() else [f]
     return out
@@ -197,6 +205,40 @@ def test_complete_run_is_scored(repo, run_dir):
         assert led[0]["id"] not in text, f  # pod ids stay in ledger.json and the full logs
         assert not re.search(r'"(balance0|balance_end|balance_drop|pods_end)"', text), f
     assert "pod#1" in (run_dir / "logs" / "timeline.txt").read_text()
+    # run 1 sends temperature 0 and seed 1, and no top_p or top_k
+    reqs = [json.loads(x) for x in (run_dir / "logs" / "fake_requests.jsonl").read_text().splitlines()]
+    assert reqs and all((r["temperature"], r["seed"], r["top_p"], r["top_k"], r["max_tokens"]) ==
+                        (0, 1, None, None, 4096) for r in reqs)
+
+
+def test_run2_sends_its_sampling_settings(repo):
+    port = session.free_port()
+    d = repo / "data" / "runs" / "dry2"
+    try:
+        p = run(repo, cmd(repo, d, port, 12, 2, "--config", "configs/run2.json"))
+        assert p.returncode == 0, p.stdout[-3000:]
+        stt = json.loads((d / "status.json").read_text())
+        assert stt["run"] == "run2" and stt["complete"] and stt["scored"]
+        reqs = [json.loads(x) for x in (d / "logs" / "fake_requests.jsonl").read_text().splitlines()]
+        assert reqs and all((r["temperature"], r["top_p"], r["top_k"], r["seed"], r["max_tokens"]) ==
+                            (0.7, 0.8, 20, 2, 4096) for r in reqs), reqs[:3]
+        man = json.loads((d / "run2" / "merged" / "manifest.json").read_text())
+        assert man["backend"]["top_p"] == 0.8 and man["backend"]["extra"]["top_k"] == 20
+        assert man["settings"] == RUN1["run"]  # the harness settings are run 1's
+        assert "backend_run2.json" in (d / "RELEASE.txt").read_text()
+    finally:
+        cleanup(d)
+
+
+def test_stop_messages_are_scrubbed(repo):
+    (repo / "data" / "cases" / "empty").mkdir(parents=True)  # no manifest: the preflight stops
+    d = repo / "data" / "runs" / "scrub"
+    c = cmd(repo, d, session.free_port(), 12, 2)
+    c[c.index("--cases") + 1] = str(repo / "data" / "cases" / "empty")  # an absolute path in the message
+    p = run(repo, c)
+    assert p.returncode != 0 and str(repo / "data" / "cases" / "empty") in p.stdout  # the full log keeps it
+    tl = (d / "logs" / "timeline.txt").read_text()
+    assert "case set data/cases/empty: no readable manifest.json" in tl and str(repo) not in tl, tl
 
 
 def test_budget_stop_is_not_scored_and_resumes(repo, run_dir):
@@ -324,6 +366,11 @@ def test_exhausted_attempts_get_a_record_and_the_run_is_scored(repo, run_dir):
     assert man["n_cases"] == n and not man["mismatch"]
     assert json.loads((merged / "score.json").read_text())["n_cases"] == n
     assert "attempts exhausted (4)" in (run_dir / "logs" / "timeline.txt").read_text()
+    # the failed attempts are kept and released, without local paths
+    aborted = sorted((run_dir / "run1" / "aborted").glob(f"{bad}.*"))
+    assert len(aborted) == 4 and "run1/aborted/" in (run_dir / "RELEASE.txt").read_text()
+    for f in release_files(run_dir):
+        assert str(repo) not in f.read_text(errors="replace"), f
     phase = json.loads((run_dir / "run1" / "phase.json").read_text())
     assert all(phase["tasks"][x]["attempts"] == 1 for x in ids if x != bad)  # the others ran once
     assert not left_running(run_dir)

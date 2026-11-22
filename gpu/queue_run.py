@@ -38,7 +38,8 @@ after checking that every part ran the same commit, prompts, settings and backen
 `git_equiv`, parts at different commits are accepted when it says their code is the same
 (gpu/session.py: a logged runner fix that leaves the harness, scripts and config alone).
 Error texts kept in phase.json and in exhausted records have the repository and home paths
-replaced by relative ones.
+replaced by relative ones, and so do the files of every finished case and of every attempt set
+aside in <run>/aborted/ (both are released; `scrub_tree`).
 """
 from __future__ import annotations
 
@@ -119,6 +120,17 @@ def usable(d: Path, systems: list[str], cid: str, accept_4xx=(400,)) -> bool:
     return complete(d, systems, cid) and not infra_errors(d, systems, cid, accept_4xx)
 
 
+def scrub_tree(sess: Path, d: Path) -> None:
+    """Replace the repository root and the home folder in every file under d (released files)."""
+    repo, home = str(runs_root(sess).parents[1]).encode(), str(Path.home()).encode()
+    for f in d.rglob("*"):
+        if f.is_file():
+            b = f.read_bytes()
+            n = b.replace(repo + b"/", b"").replace(repo, b".").replace(home, b"~")
+            if n != b:
+                f.write_bytes(n)
+
+
 def _set_aside(sess: Path, run: str, cid: str, why: str) -> None:
     d = case_dir(sess, run, cid)
     if d.exists():
@@ -129,6 +141,7 @@ def _set_aside(sess: Path, run: str, cid: str, why: str) -> None:
             n += 1
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(d), str(dest))
+        scrub_tree(sess, dest)
 
 
 def runs_root(sess: Path) -> Path:
@@ -340,6 +353,7 @@ def run_phase(sess: Path, run: str, systems: list[str], backend: Path, order: li
             if infra:
                 ph["tasks"][cid]["infra_errors"] = infra
             if ok:
+                scrub_tree(sess, d)
                 seg["n_done"] += 1
                 streak = 0
             else:

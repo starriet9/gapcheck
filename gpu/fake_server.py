@@ -14,22 +14,26 @@ Scripted model, the same for every case (it never knows the case):
 So a run with max_steps 20 and no notice hits the limit in every case, and a run with the
 notice at 2 answers right after it.
 
+--log-requests F: one JSON line per chat request with its sampling fields (model, temperature,
+top_p, top_k, seed, max_tokens, stream), for tests of what the client sends.
 --fail-503-text T: every chat request with T in a message answers HTTP 503 (a case whose
 requests always fail, for the exhausted-attempts rule of gpu/queue_run.py).
 
 Usage: fake_server.py --port P [--token-file F] [--np 8] [--ctx-per-slot 49152]
           [--delay 0.05] [--ready-after 0] [--template FILE] [--chars-per-token 2.3]
-          [--fail-503-text T]
+          [--fail-503-text T] [--log-requests F]
 """
 import argparse
 import hashlib
 import json
 import math
+import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 A = None
 T0 = time.time()
+LOG_LOCK = threading.Lock()
 TOKEN = None
 TEMPLATE = ""
 ABSTAIN = {"status": "CANNOT_DETERMINE", "benefit_group": None, "risk_10y": None, "missing": [],
@@ -135,6 +139,10 @@ class H(BaseHTTPRequestHandler):
             return self._json(200, {"tokens": [0] * ntok(body.get("content") or "")})
         if not self.path.rstrip("/").endswith("/chat/completions"):
             return self._json(404, {"error": {"code": 404, "message": "not found"}})
+        if A.log_requests:
+            with LOG_LOCK, open(A.log_requests, "a") as f:
+                f.write(json.dumps({k: body.get(k) for k in ("model", "temperature", "top_p", "top_k", "seed",
+                                                            "max_tokens", "stream")}) + "\n")
         if A.fail_503_text and any(A.fail_503_text in (m.get("content") or "") for m in body.get("messages") or []):
             return self._json(503, {"error": {"code": 503, "message": "dry: scripted failure", "type": "unavailable_error"}})
         p = ntok(render(body))
@@ -197,6 +205,7 @@ def main():
     ap.add_argument("--template")
     ap.add_argument("--chars-per-token", type=float, default=2.3)
     ap.add_argument("--fail-503-text")
+    ap.add_argument("--log-requests")
     A = ap.parse_args()
     TOKEN = open(A.token_file).read().strip() if A.token_file else None
     TEMPLATE = open(A.template, encoding="utf-8").read() if A.template else ""

@@ -1,9 +1,12 @@
-"""One GPU session of a pre-registered run (run 1: configs/run1.json), from pod creation to
-scoring. Every frozen setting comes from the run config; the case set is given with --cases.
+"""One GPU session of a pre-registered run (configs/run1.json by default; runs 2 and 3:
+--config configs/run2.json or configs/run3.json, each with its own run directory), from pod
+creation to scoring. Every frozen setting comes from the run config; the case set is given
+with --cases.
 
 Steps (each logged to <run dir>/logs/timeline.txt; state in <run dir>/session.json):
   preflight   real run: --protocol-tag given and the run commit is the tagged commit or
-              follows it only by commits to RUNS.md, DEVIATIONS.md, results/; the run commit is
+              follows it only by commits to RUNS.md, DEVIATIONS.md, results/, README.md,
+              pages/ or site/; the run commit is
               HEAD and the checkout is clean; a resume at a later commit only with --runner-fix
               (changes in gpu/, tests/gpu/, docs/, RUNS.md, DEVIATIONS.md, results/ only, a logged
               deviation). Always: worktree of the commit (clean); the harness at that commit
@@ -84,8 +87,10 @@ import rpapi  # noqa: E402
 REPO = KIT.parent
 DISK_RATE = 0.10 / 730.0  # USD per GB-hour, container disk of a running pod
 DRY_TEMPLATE = "{#- gapcheck dry run: a stand-in, not the model's chat template -#}\n"
-# After the protocol tag only these may change before run 1 (the test set's sha256 goes into RUNS.md).
-AFTER_TAG = ("RUNS.md", "DEVIATIONS.md", "results/")
+# After the protocol tag only these may change before a run: the run records (the test set's
+# sha256 goes into RUNS.md) and the page and README (release link, test-step ticks). PROTOCOL.md,
+# SPEC.md, src/, configs/, scripts/ and gpu/ stay as tagged.
+AFTER_TAG = ("RUNS.md", "DEVIATIONS.md", "results/", "README.md", "pages/", "site/")
 # A resume at a later commit (--runner-fix, a logged deviation) may change only these: never the
 # harness (src/), the scripts, the run config or the prompts.
 RUNNER_FIX = ("gpu/", "tests/gpu/", "docs/", "RUNS.md", "DEVIATIONS.md", "results/")
@@ -117,6 +122,7 @@ def timeline(msg: str) -> None:
     log(msg)
     for i, p in enumerate(load_ledger()["pods"], 1):
         msg = msg.replace(p["id"], f"pod#{i}")
+    msg = scrub(msg)
     with open(SESS / "logs" / "timeline.txt", "a") as f:
         f.write(f"{utc()} {msg}\n")
 
@@ -148,9 +154,23 @@ def watchdog_log() -> Path:
     return account_dir() / "watchdog.log"
 
 
+def scrub(text: str) -> str:
+    """No absolute local path in text written to a run file: the repository root and the home
+    folder are replaced by relative and '~' forms (a message may carry either)."""
+    repo = str(REPO)
+    return str(text).replace(repo + "/", "").replace(repo, ".").replace(str(Path.home()), "~")
+
+
+def scrub_file(p: Path) -> None:
+    if p.exists():
+        s = p.read_text(errors="surrogateescape")
+        if scrub(s) != s:
+            p.write_text(scrub(s), errors="surrogateescape")
+
+
 def write_json(p: Path, d) -> None:
     tmp = p.with_suffix(".tmp")
-    tmp.write_text(json.dumps(d, indent=1) + "\n")
+    tmp.write_text(scrub(json.dumps(d, indent=1)) + "\n")
     os.replace(tmp, p)
 
 
@@ -362,6 +382,9 @@ def load_config(path: Path) -> dict:
     if set(c["run"]) != set(SETTINGS_FIELDS):
         errs.append(f"run must give every harness setting exactly once: {sorted(SETTINGS_FIELDS)}")
     d, cl, sv = c["decoding"], c["client"], c["server"]
+    extra_keys = set(d) - {"temperature", "seed", "max_tokens", "top_p", "top_k", "extra"}
+    if extra_keys or not {"temperature", "seed", "max_tokens", "extra"} <= set(d):
+        errs.append(f"decoding: temperature, seed, max_tokens, extra (and top_p, top_k if sent); not {sorted(extra_keys)}")
     if c["run"].get("context_limit", 0) + d.get("max_tokens", 0) > sv.get("ctx_per_slot", 0):
         errs.append("context_limit + max_tokens must fit ctx_per_slot")
     if not 1 <= int(cl.get("concurrency", 0)) <= int(sv.get("slots", 0)):
@@ -556,6 +579,7 @@ def local_build_stop(a, wt: Path, commit: str, manifest_sha: str, ids: list[str]
     (SESS / "logs" / "build_stop_local.out").write_text(p.stdout + p.stderr)
     if not res.exists():
         raise SystemExit(f"local build stop failed (rc {p.returncode}); see logs/build_stop_local.out")
+    scrub_file(res)
     d = json.loads(res.read_text())
     d["key"] = key
     write_json(res, d)
@@ -854,6 +878,7 @@ def calibrate(a, wt: Path, n: int, ids: list[str]) -> dict:
     (SESS / "logs" / f"calibrate_{n}.out").write_text(p.stdout + p.stderr)
     if not out.exists():
         raise SystemExit(f"calibration failed (rc {p.returncode}); see logs/calibrate_{n}.out")
+    scrub_file(out)
     cal = json.loads(out.read_text())
     timeline(f"calibration {n} (check only): max L1 {cal['max']} tokens ({cal['max_case']}) + "
              f"{d['max_tokens']} vs {s['ctx_per_slot']} served; estimate max {cal['estimate_max']} vs "
@@ -871,12 +896,18 @@ def calibrate(a, wt: Path, n: int, ids: list[str]) -> dict:
 
 
 def backend_config(a) -> dict:
+    """The harness's backend config. top_p and top_k are sent only when the run config gives
+    them (runs 2 and 3); the backend sends top_p itself and top_k as an extra request field."""
     d = CFG["decoding"]
-    return {"backend": "openai_compat", "base_url": f"http://127.0.0.1:{a.relay_port}/v1",
-            "model": CFG["server"]["alias"], "revision": revision_text(a.dry),
-            "temperature": d["temperature"], "seed": d["seed"], "max_tokens": d["max_tokens"],
-            "timeout": CFG["client"]["request_timeout_s"], "preflight": None, "extra": d["extra"],
-            "run": dict(CFG["run"])}
+    extra = dict(d["extra"], **({"top_k": d["top_k"]} if "top_k" in d else {}))
+    cfg = {"backend": "openai_compat", "base_url": f"http://127.0.0.1:{a.relay_port}/v1",
+           "model": CFG["server"]["alias"], "revision": revision_text(a.dry),
+           "temperature": d["temperature"], "seed": d["seed"], "max_tokens": d["max_tokens"],
+           "timeout": CFG["client"]["request_timeout_s"], "preflight": None, "extra": extra,
+           "run": dict(CFG["run"])}
+    if "top_p" in d:
+        cfg["top_p"] = d["top_p"]
+    return cfg
 
 
 def write_backend(a) -> Path:
@@ -992,28 +1023,38 @@ def finalize(a, st: dict, wt: Path) -> dict:
     return stt
 
 
-RELEASE = (  # run files meant for release, relative to the run directory
-    ("session.json", "state: commits, tag, config, case ids, launches (cloud, arguments)"),
-    ("status.json", "completeness, exhausted cases, billed GPU hours and cost, clouds, commits"),
-    ("logs/timeline.txt", "every step (pod ids as pod#n, no account amounts)"),
-    ("wait.log", "stock checks before the launch (gpu/wait_launch.sh)"),
-    ("backend_run1.json", "the backend configuration the harness read"),
-    ("results/build_stop_local.json", "the local L1 build stop"),
-    ("results/calibration_*.json", "server checks and token counts, per pod"),
-    ("run1/phase.json", "attempts, their errors and timing, per case"),
-    ("run1/cases/", "one harness run per case: manifest.json and one record per system"),
-    ("R/", "R0 and R1"),
-    ("run1/merged/", "all five systems merged, manifest.json, score.json, results.json"),
-)
+def release_list() -> tuple:
+    """Run files meant for release, relative to the run directory (<name> is the run's name)."""
+    n = CFG["name"]
+    return (
+        ("session.json", "state: commits, tag, config, case ids, launches (cloud, arguments)"),
+        ("status.json", "completeness, exhausted cases, billed GPU hours and cost, clouds, commits"),
+        ("logs/timeline.txt", "every step (pod ids as pod#n, no account amounts)"),
+        ("wait.log", "stock checks before the launch (gpu/wait_launch.sh)"),
+        (f"backend_{n}.json", "the backend configuration the harness read"),
+        ("results/build_stop_local.json", "the local L1 build stop"),
+        ("results/calibration_*.json", "server checks and token counts, per pod"),
+        (f"{n}/phase.json", "attempts, their errors and timing, per case"),
+        (f"{n}/cases/", "one harness run per case: manifest.json and one record per system"),
+        (f"{n}/aborted/", "failed and interrupted attempts as they were left (PROTOCOL.md sec. 11)"),
+        ("R/", "R0 and R1"),
+        (f"{n}/merged/", "all five systems merged, manifest.json, score.json, results.json"),
+    )
+
+
 NOT_RELEASED = ("account/ (account balance, the account's pods, the watchdog log); ledger.json (pod ids; "
                 "the billed hours and prices of each pod are in status.json); logs/ except timeline.txt "
-                "(pod ids, proxy host, process output); podlogs/; run1/aborted/ and run1/logs/ (failed "
-                "attempts, process output); secret/; wt/; session.lock; watchdog.stop; STOP; dry-run files")
+                "(pod ids, proxy host, process output); podlogs/; <run>/logs/ (process output); secret/; "
+                "wt/; session.lock; watchdog.stop; STOP; dry-run files")
 
 
 def write_release() -> None:
-    lines = ["Run files meant for release (paths relative to this directory). Generated by gpu/session.py.", ""]
-    for pat, what in RELEASE:
+    lines = ["Run files meant for release (paths relative to this directory; local paths in them are",
+             "replaced by repository-relative and '~' forms). Generated by gpu/session.py.", ""]
+    for d in ("R", f"{CFG['name']}/merged"):
+        if (SESS / d).is_dir():
+            queue_run.scrub_tree(SESS, SESS / d)
+    for pat, what in release_list():
         found = sorted(SESS.glob(pat.rstrip("/"))) if "*" in pat else [SESS / pat.rstrip("/")]
         for f in found:
             if f.exists():
@@ -1027,7 +1068,8 @@ def parse_args(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--cases", required=True, help="case set directory, e.g. data/cases/<test set>")
     ap.add_argument("--run-dir", required=True, help="session directory under data/runs/")
-    ap.add_argument("--config", default=str(REPO / "configs" / "run1.json"))
+    ap.add_argument("--config", default=str(REPO / "configs" / "run1.json"),
+                    help="run config: configs/run1.json (default), configs/run2.json or configs/run3.json")
     ap.add_argument("--cap", type=float, required=True, help="USD for all pods of the run; the watchdog "
                                                              "terminates at cap - margin")
     ap.add_argument("--go", action="store_true", help="create the pod (without it: plan only)")
@@ -1035,7 +1077,8 @@ def parse_args(argv=None):
     ap.add_argument("--finalize-only", action="store_true", help="no pod: the finalize step only")
     ap.add_argument("--commit", default="HEAD")
     ap.add_argument("--protocol-tag", help="required for a real run: the run commit is the tagged commit or "
-                                           "follows it only by commits to RUNS.md, DEVIATIONS.md, results/")
+                                           "follows it only by commits to RUNS.md, DEVIATIONS.md, results/, "
+                                           "README.md, pages/, site/")
     ap.add_argument("--runner-fix", action="store_true",
                     help="resume at a later commit that changes only gpu/, tests/gpu/, docs/, RUNS.md, DEVIATIONS.md, "
                          "results/ (a logged deviation)")
@@ -1230,7 +1273,8 @@ def main(argv=None):
                 [sys.executable, "-I", str(KIT / "fake_server.py"), "--port", str(port),
                  "--np", str(CFG["server"]["slots"]), "--ctx-per-slot", str(CFG["server"]["ctx_per_slot"]),
                  "--delay", str(a.dry_delay), "--ready-after", "3", "--template", str(tpl),
-                 "--token-file", str(tokf)] + (["--fail-503-text", a.dry_fail_text] if a.dry_fail_text else []),
+                 "--token-file", str(tokf), "--log-requests", str(SESS / "logs" / "fake_requests.jsonl")]
+                + (["--fail-503-text", a.dry_fail_text] if a.dry_fail_text else []),
                 stdout=open(SESS / "logs" / "fake_server.out", "a"), stderr=subprocess.STDOUT)
             st["fake_pid"] = Procs.fake.pid
             fake_up = f"http://127.0.0.1:{port}"
@@ -1345,10 +1389,10 @@ def main(argv=None):
         else:
             status = "done"
     except SystemExit as e:
-        status = f"stopped: {e.code}" if e.code not in (None, 0) else status
+        status = scrub(f"stopped: {e.code}") if e.code not in (None, 0) else status
         log(f"SystemExit: {e.code}")
     except Exception as e:  # anything else: still tear down
-        status = f"error: {type(e).__name__}: {e}"
+        status = scrub(f"error: {type(e).__name__}: {e}")
         log(status)
         import traceback
         log(traceback.format_exc())

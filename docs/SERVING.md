@@ -70,7 +70,7 @@ No speculative or multi-token decoding flag is given, so both are off.
 
 Every chat request of L1, A1 and A2 (`gapcheck.backends.OpenAICompatBackend`, configured from `decoding` in `configs/run1.json`):
 
-| Field | Server default (command line) | Sent by the client | In effect |
+| Field | Server default (command line) | Sent by the client (run 1) | In effect |
 |---|---|---|---|
 | `model` | – | `qwen3.8-flash-next-gpu` | |
 | `temperature` | 1 | 0 | 0 |
@@ -82,6 +82,8 @@ Every chat request of L1, A1 and A2 (`gapcheck.backends.OpenAICompatBackend`, co
 | `parallel_tool_calls` | – | `true` | |
 | `tools`, `tool_choice` | – | the system's tools, `"auto"` (L1: `prevent_risk` only) | |
 | `stream`, `stream_options`, `return_progress` | – | added by the relay (sec. 1) | |
+
+**Runs 2 and 3** (`configs/run2.json`, `configs/run3.json`) are identical to run 1 except the name and the sampling: `temperature` 0.7, `top_p` 0.8, `top_k` 20 and `seed` 2 or 3, all sent with every request (the backend sends `top_p` itself and `top_k` as an extra request field); `top_p` and `top_k` are sent only by a config that gives them. Each runs with `--config configs/run2.json` (or `run3.json`), its own `--run-dir` and the same tag rule as run 1.
 
 Client time-out per request: 1,800 s (the relay's upstream time-out is the same). The client's own context pre-check is off. The calibration renders every L1 prompt with the server's `/apply-template` using the same request fields, so the prompt it counts is the one the server builds.
 
@@ -100,7 +102,7 @@ Prerequisites: `make setup`; a RunPod API key in `~/.config/runpod/api_key` (mod
 
 The preflight of a real run refuses unless all of these hold:
 
-- `--protocol-tag <tag>` is given, the tag exists, and the run commit is the commit it points to or follows it only by commits that touch nothing but `RUNS.md`, `DEVIATIONS.md` and `results/` (each commit is checked, so a change that a later commit reverts still counts; merge commits are refused);
+- `--protocol-tag <tag>` is given, the tag exists, and the run commit is the commit it points to or follows it only by commits that touch nothing but `RUNS.md`, `DEVIATIONS.md`, `results/`, `README.md`, `pages/` and `site/` (the run records, and page and README updates such as the release link and the test-step ticks); `PROTOCOL.md`, `SPEC.md`, `src/`, `configs/`, `scripts/` and `gpu/` stay as tagged. Each commit is checked, so a change that a later commit reverts still counts; merge commits are refused;
 - the run commit is the checked-out `HEAD` and the checkout has no uncommitted change (untracked files included; ignored files such as `data/` do not count), so `gpu/` and `configs/run1.json` are as committed;
 - the case set is the test split, every file matches its `manifest.json`, and the sha256 of `manifest.json` is in `RUNS.md` at the run commit;
 - `--run-dir` and `--cases` are inside the repository, and the API key file is present.
@@ -172,7 +174,7 @@ Run 1 is complete, and is scored, when every case has a record for every system:
 
 Resume is the same command with `--resume` and the same run directory. It continues only with the same commit, the same run config (compared in full), the same case set (path, manifest sha256 and case ids) and the same tag; otherwise it refuses.
 
-**Runner fix** (a logged deviation). `--runner-fix` allows a resume at a later commit, and only if the commits from the first run commit to `HEAD` change nothing outside `gpu/`, `tests/gpu/`, `docs/`, `RUNS.md`, `DEVIATIONS.md` and `results/` (each commit checked, as for the tag), so the harness (`src/gapcheck/`, prompts included), `scripts/` and `configs/run1.json` cannot change. The worktree moves to the new commit; the file list and both commits go to the timeline, `session.json` and `status.json` (`runner_fixes`, `deviation: "runner fix"`), and to the merged manifest's note. When the parts are merged, cases run at different commits count as the same run code only under this rule; any other difference stops the merge, and nothing is scored.
+**Runner fix** (a logged deviation). `--runner-fix` allows a resume at a later commit, and only if the commits from the first run commit to `HEAD` change nothing outside `gpu/`, `tests/gpu/`, `docs/`, `RUNS.md`, `DEVIATIONS.md` and `results/` (each commit checked, as for the tag), so the harness (`src/gapcheck/`, prompts included), `scripts/` and `configs/` cannot change. The worktree moves to the new commit; the file list and both commits go to the timeline, `session.json` and `status.json` (`runner_fixes`, `deviation: "runner fix"`), and to the merged manifest's note. When the parts are merged, cases run at different commits count as the same run code only under this rule; any other difference stops the merge, and nothing is scored.
 
 - A case with a usable record for every system is never run again. Any other case directory (in flight at a crash, killed, or failed) is moved to `run1/aborted/` and the case is run again.
 - Processes a killed session left behind are stopped first: its relay, and any case process still running (pids in `run1/running.json`). A pod that is still running is reused, with its deadline, and so is a watchdog that is still alive; otherwise a new pod is created under the budget that is left (the cap counts every pod in `ledger.json`). On a new pod the calibration must give the same template and the same token count for every case as on the first.
@@ -197,9 +199,9 @@ sha256sum data/cases/test_s${SEED}_n40/manifest.json          # into RUNS.md bef
 
 ## 12. Run files and what is released
 
-Every path stored in the run directory is relative to the repository root (the run directory and the case set must be inside the repository), and error texts kept with the run have local paths replaced. The account is kept apart: `account/` (mode 700) holds the balance at the first launch and at the end, the account's pods (`gpu_check_*.json`), the watchdog log (it polls the balance) and `account.log` (every line that names an amount of the balance). The timeline gives pod ids as `pod#1`, `pod#2`, ... and never an amount of the balance; `session.json` and `status.json` hold no balance.
+Every path stored in the run directory is relative to the repository root (the run directory and the case set must be inside the repository). Every text written to a released file (the timeline, `session.json`, `status.json`, the calibration and build-stop results, the error texts in `phase.json`, the files of every finished case and of every attempt in `aborted/`, `R/` and `merged/`) has the repository root replaced by a relative path and the home folder by `~`; this includes stop messages and exception texts. The full process logs (`logs/session.log` and the like) keep them and are not released. The account is kept apart: `account/` (mode 700) holds the balance at the first launch and at the end, the account's pods (`gpu_check_*.json`), the watchdog log (it polls the balance) and `account.log` (every line that names an amount of the balance). The timeline gives pod ids as `pod#1`, `pod#2`, ... and never an amount of the balance; `session.json` and `status.json` hold no balance.
 
-`RELEASE.txt`, written at every finalize, lists exactly the run files meant for release: `session.json`, `status.json`, `logs/timeline.txt`, `wait.log`, the backend configuration, `results/build_stop_local.json`, `results/calibration_*.json`, `run1/phase.json`, `run1/cases/`, `R/` and `run1/merged/`. Not for release: `account/`, `ledger.json` (pod ids; each pod's cloud, price and billed hours are in `status.json`), the other files in `logs/` (pod ids, the proxy host, process output), `podlogs/`, `run1/aborted/`, `run1/logs/`, `secret/`, `wt/` and the session's lock and stop files.
+`RELEASE.txt`, written at every finalize, lists exactly the run files meant for release (`run1` is the run's name; `run2`, `run3` for runs 2 and 3): `session.json`, `status.json`, `logs/timeline.txt`, `wait.log`, the backend configuration (`backend_run1.json`), `results/build_stop_local.json`, `results/calibration_*.json`, `run1/phase.json`, `run1/cases/`, `run1/aborted/` (every failed or interrupted attempt as it was left, `PROTOCOL.md` sec. 11), `R/` and `run1/merged/`. Not for release: `account/`, `ledger.json` (pod ids; each pod's cloud, price and billed hours are in `status.json`), the other files in `logs/` (pod ids, the proxy host, process output), `podlogs/`, `run1/logs/` (process output), `secret/`, `wt/` and the session's lock and stop files.
 
 ## 13. Rehearsal on a real pod
 
