@@ -1,7 +1,7 @@
 """Offline stand-in for the RunPod REST API (dry runs of gpu/session.py). No network.
 
 State is one JSON file:
-  {"balance0": 20.0, "speed": 1.0, "availability": "LOW", "price": 1.69,
+  {"balance0": 20.0, "speed": 1.0, "availability": "LOW", "price": 1.69, "secure_price": 2.69,
    "upstream": "http://127.0.0.1:PORT", "pods": [{id, name, cost, created, terminated}]}
 Spend is computed, as on RunPod, from each pod's lifetime: hourly cost x seconds x speed.
 `speed` makes a dry second count as `speed` seconds (watchdog budget tests).
@@ -67,7 +67,7 @@ class Fake:
         if method == "GET" and path.startswith("/v2/catalog/gpus"):
             cloud = "community" if "cloud=COMMUNITY" in path else "secure"
             avail = s.get("availability", "LOW") if cloud == "community" else "MEDIUM"
-            price = s.get("price", 1.69) if cloud == "community" else 2.69
+            price = s.get("price", 1.69) if cloud == "community" else s.get("secure_price", 2.69)
             return 200, {"gpus": [{"id": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
                                    "availability": avail, "memory": 96,
                                    "price": {cloud: price}, "maxCount": {cloud: 9 if avail != "NONE" else 0},
@@ -76,7 +76,7 @@ class Fake:
             if s.get("availability", "LOW") == "NONE" and body.get("cloud") == "COMMUNITY":
                 return 500, {"error": "There are no longer any instances available with the requested specifications."}
             pid = "dry" + uuid.uuid4().hex[:11]
-            price = s.get("price", 1.69)
+            price = s.get("price", 1.69) if body.get("cloud") == "COMMUNITY" else s.get("secure_price", 2.69)
             rec = {"id": pid, "name": body["name"], "cost": price, "disk": body.get("disk", 0),
                    "hourly": price + body.get("disk", 0) * DISK_RATE, "created": now,
                    "terminated": None, "cloud": body.get("cloud"), "gpu": body["gpu"]["id"],

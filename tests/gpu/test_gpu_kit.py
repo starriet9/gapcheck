@@ -219,6 +219,8 @@ def test_run1_config_holds_the_frozen_values():
                              "extra": {"chat_template_kwargs": {"enable_thinking": False},
                                        "parallel_tool_calls": True}}
     assert c["client"]["concurrency"] == 1 and c["server"]["slots"] == 8 and c["server"]["ctx_per_slot"] == 49152
+    assert c["client"]["max_attempts"] == 2 and c["client"]["max_total_attempts"] == 4
+    assert c["gpu"]["cloud"] == "COMMUNITY"
     assert [f["sha256"][:8] for f in c["model"]["files"]] == ["44481862", "3f342f1c", "56758f40", "753bda48"]
     assert c["model"]["revision"] == "766911a6b7369840a91dbcd95f9f997acaab6cd6"
     assert c["image"].endswith("@sha256:ae96e52f8b2106ea82bad786ee2d08bb9b0a8c93403df9c27ae1bf065a118089")
@@ -236,6 +238,7 @@ def test_run1_config_holds_the_frozen_values():
     (lambda c: c["run"].update(context_limit=46000), "fit ctx_per_slot"),
     (lambda c: c["client"].update(accept_http_4xx=[500]), "4xx statuses only"),
     (lambda c: c["model"]["files"][0].pop("sha256"), "model.files"),
+    (lambda c: c["client"].update(max_total_attempts=1), "max_total_attempts >= max_attempts"),
 ])
 def test_bad_run_config_is_refused(tmp_path, change, msg):
     c = json.loads((REPO / "configs" / "run1.json").read_text())

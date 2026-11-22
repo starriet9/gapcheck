@@ -4,12 +4,12 @@
 
 | File | What it does |
 |---|---|
-| `session.py` | Orchestrates a session: preflight (commit, worktree, settings, case-set integrity and its RUNS.md entry, relay self-test, local L1 build stop), GPU check, watchdog, pod, relay, health, calibration (check only), case queue, teardown, finalize (scores only a complete run; otherwise writes `status.json`). `--dry` runs the same path against the two fakes below. |
+| `session.py` | Orchestrates a session: preflight (commit, worktree, settings, case-set integrity and its RUNS.md entry, relay self-test, local L1 build stop), GPU check, watchdog, pod (Community Cloud; Secure only with `--cloud SECURE`), relay, health, calibration (check only), case queue, teardown, finalize (scores only a complete run, with the billed GPU hours of every pod; otherwise writes `status.json`). `--dry` runs the same path against the two fakes below. |
 | `pod_start.sh` | Runs in the pod: downloads the pinned GGUF files with sha256 checks, extracts the chat template from the first file's metadata and checks its sha256, starts `llama-server`; self-terminates at its deadline or when idle. Refuses to start on any failed check. |
 | `extract_template.py` | Pure-Python GGUF header reader: writes the `tokenizer.chat_template` value of a GGUF file after checking its sha256 (the same bytes `pod_start.sh` extracts). |
 | `relay.py` | Local relay between the harness and the pod: sends each chat request upstream as a stream (the RunPod proxy cuts replies after 100 s) and rebuilds the ordinary JSON reply; adds the server token. |
 | `relay_selftest.py` | Offline test of the relay with the harness's backend; run in the preflight. |
-| `queue_run.py` | Case queue: one `run_systems.py` process per case, client concurrency from the config, retries, the rule for usable records, resume, merge. |
+| `queue_run.py` | Case queue: one `run_systems.py` process per case, client concurrency from the config, retries, the rule for usable records, the record written after exhausted attempts, resume, merge. |
 | `calibrate.py` | Context checks before any model call: `--local` runs the harness's L1 build stop on every case; server mode checks the template, slots and that every L1 prompt counted by the server fits one slot. Derives nothing. |
 | `watchdog.py` | Detached budget watchdog: terminates the pod at its deadline, on estimated spend or balance drop at the cap, or when the session stops writing its heartbeat. |
 | `rpapi.py` | Minimal RunPod REST client (standard library). Reads the API key from `~/.config/runpod/api_key` inside the process; never prints or passes it on. |

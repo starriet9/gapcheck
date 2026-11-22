@@ -7,7 +7,7 @@ Run 1 (`PROTOCOL.md` sec. 11) runs L1, A1 and A2 on the test set against one ope
 | Where | What |
 |---|---|
 | Local machine | `gpu/session.py` (orchestration), `gpu/relay.py` (local relay on 127.0.0.1), `gpu/watchdog.py` (detached budget guard), one `scripts/run_systems.py` process per case from a clean worktree of the run commit, then R0/R1 and scoring |
-| RunPod pod (Community Cloud, one NVIDIA RTX PRO 6000 Blackwell Server Edition, 150 GB container disk, port 8080/http only, no SSH) | `gpu/pod_start.sh`: download, checks, `llama-server` |
+| RunPod pod (Community Cloud by default, Secure Cloud only with `--cloud SECURE`; one NVIDIA RTX PRO 6000 Blackwell Server Edition, the same image, 150 GB container disk, port 8080/http only, no SSH) | `gpu/pod_start.sh`: download, checks, `llama-server` |
 
 The relay exists because the RunPod HTTPS proxy closes a request that has sent no response bytes for 100 s. It sends each non-streaming chat request upstream with `stream: true`, `stream_options: {"include_usage": true}` and `return_progress: true` (bytes flow during prompt processing), rebuilds the ordinary `chat.completion` JSON (content, tool calls, finish reason, usage, server timings) and returns it. Other requests pass through unchanged. The relay adds the server's throwaway token; the harness sends none.
 
@@ -121,17 +121,26 @@ setsid nohup uv run --locked python gpu/session.py --cases data/cases/<test set>
     --run-dir data/runs/run1 --cap 45 --go --resume >> data/runs/run1.out 2>&1 < /dev/null &
 ```
 
-`--cap` is the budget in USD for all pods of the run together. A dry run takes the same path with a fake RunPod API and a fake llama-server and no network: `... --cases data/cases/<dev set> --run-dir data/runs/dry1 --cap 12 --go --dry --dry-cases 6`. The plan prints a cost estimate only when given pod seconds per case (`--est-case-s LO,HI`).
+`--cap` is the budget in USD for all pods of the run together.
+
+**Secure Cloud fallback** (off by default): `--cloud SECURE --max-hourly <USD>` creates the next pod on Secure Cloud with the same GPU type, image, server command and client settings; only the provider tier and price change. `--max-hourly` is required there (on Community it defaults to 1.80 USD per GPU hour). A resume may switch cloud, for example a run started on Community and resumed on Secure; a pod that is still running is reused on its own cloud. The cloud of every launch and of every pod is written to the timeline, `session.json`, `ledger.json` and `status.json`, and the pod deadline, the watchdog and the estimate use that pod's price.
+
+A dry run takes the same path with a fake RunPod API and a fake llama-server and no network: `... --cases data/cases/<dev set> --run-dir data/runs/dry1 --cap 12 --go --dry --dry-cases 6`. The plan prints a cost estimate only when given pod seconds per case (`--est-case-s LO,HI`).
 
 Outputs in the run directory: `session.json` (state, commit, config, case ids, launches), `ledger.json` (pods, prices, times), `logs/timeline.txt`, `run1/cases/<case id>/` (one harness run per case), `run1/phase.json` (attempts and timing), `status.json` (what is complete), and, once complete, `R/` (R0, R1) and `run1/merged/` (all five systems, `manifest.json`, `score.json`, `results.json`).
 
-**No interim analysis.** The finalize step merges and scores only when every case has a usable record (sec. 9) for L1, A1 and A2. Otherwise it writes `status.json` with the missing case ids and their attempts, and nothing is merged or scored. `--finalize-only` repeats this step without a pod and refuses in the same way. The GPU-hours passed to scoring are the wall time of the case queue; total pod hours are in `status.json`.
+**No interim analysis.** The finalize step merges and scores only when every case has a usable record (sec. 9) for L1, A1 and A2. Otherwise it writes `status.json` with the missing case ids and their attempts, and nothing is merged or scored. `--finalize-only` repeats this step without a pod and refuses in the same way.
+
+**Cost.** Two times are kept, and only the first is a cost:
+
+- *Billed GPU hours*: for every pod of the run (every session and resume), from its creation to its termination, as RunPod bills; a pod the watchdog or the pod itself terminated while no session was running ends at the time the watchdog logged it. This sum is passed to scoring as `--gpu-hours`, with `--usd-per-hour` = the billed USD estimate divided by these hours (each pod at its own price, disk included). `status.json`: `billed_gpu_hours`, `billed_usd_estimate`, `pods` (cloud, price and hours of each).
+- *Queue wall time*: the time the case queue ran, summed over sessions; it leaves out download, loading, calibration and teardown. `status.json`: `queue_wall_hours`. Not a cost.
 
 ## 8. Guards and budget
 
 - Watchdog (detached, started before the pod): terminates the pod at its deadline (the pod hours the budget left buys at the highest accepted price, 1.80 USD/h plus disk, rounded down to 3 minutes), when estimated spend or the account balance drop since the first launch reaches cap − 0.5 USD, at the hard deadline, or when the session's heartbeat is 600 s old.
 - In the pod: self-termination 3 minutes after the deadline, and after 1,200 s without a server task once the server is up; both use the pod-scoped key RunPod injects.
-- The session stops launching cases at cap − 1 USD of estimated spend, 15 minutes before the pod deadline, on a STOP file, on a signal (a second signal kills the case in flight) or when the pod is gone; a pod refused above 1.80 USD/h; a GPU that is not on Community stops the session (no automatic switch to Secure).
+- The session stops launching cases at cap − 1 USD of estimated spend, 15 minutes before the pod deadline, on a STOP file, on a signal (a second signal kills the case in flight) or when the pod is gone. A pod above `--max-hourly` is refused (or terminated at once if billed above it). A GPU that is not available on the chosen cloud stops the session; the cloud is never switched automatically.
 - After a budget stop the same cap is refused before a pod is created; the cap must be raised to go on.
 
 ## 9. Retry and failure rule
@@ -141,11 +150,12 @@ As implemented (`src/gapcheck/backends.py`, `src/gapcheck/systems.py`, `gpu/rela
 1. **HTTP 4xx from the server** (a request it rejects, such as a prompt longer than its slot): the backend raises `BackendError`; the system's conversation ends with no answer and no re-ask, the error is logged in the record (`error: "backend: HTTP 400: ..."`), and the case counts as having a record for that system: scored as no valid output (for A2, a rejection in the repair round gives the forced fallback). Only HTTP 400 with llama-server's JSON error body is accepted as such a rejection (`accept_http_4xx`).
 2. **Any other 4xx** (401, 403, 404, 408, 429 or a 400 that is not llama-server's JSON, which come from the token, the proxy or the network, not from the model): the case attempt counts as failed (point 4), so it is run again rather than scored.
 3. **HTTP 5xx, a connection failure or a time-out** (1,800 s per request): not caught by the harness; the case process exits with an error and writes no record for any system of that case.
-4. **Failed attempt** (exit code ≠ 0, records incomplete, an error of point 2, or the case killed after 2,400 s): the case directory is moved to `run1/aborted/` and the case is queued again at the end, until it has had 2 attempts; attempts are counted in `run1/phase.json` across sessions, so each later resume gives such a case one more attempt. After 4 failed attempts in a row the session stops launching (server or relay down) and tears down.
-5. **Relay**: a request on a pooled connection that the upstream had closed is sent once more on a fresh connection; any other upstream failure is answered with HTTP 502 (point 3).
-6. **Invalid reply** (not one schema-valid JSON object): one re-ask inside the same tool-round limit; then scored as no valid output (harness rule, `PROTOCOL.md` sec. 5).
+4. **Failed attempt** (exit code ≠ 0, records incomplete, an error of point 2, or the case killed after 2,400 s): the case directory is moved to `run1/aborted/`, the error text is kept (the last line of the case log, the infrastructure errors, or the time-out), and the case is queued again at the end, until it has had 2 attempts in the session; attempts are counted in `run1/phase.json` across sessions, so each later resume gives such a case one more attempt. An attempt the runner kills itself because of a second signal or a pod that is gone (budget, deadline) is not counted. After 4 failed attempts in a row the session stops launching (server or relay down) and tears down.
+5. **Exhausted attempts** (`max_total_attempts` 4): when a case's 4th counted attempt fails, the runner itself (`gpu/queue_run.py`, not a person) writes a record for every system of that case with `output: null`, `schema_valid: false` and `error: "attempts exhausted (4): <last error text>"`, and the errors of all 4 attempts under `exhausted`. It is logged in the timeline and listed under `exhausted` in `status.json`; scoring reads it as no valid output (incorrect). The case then counts as complete.
+6. **Relay**: a request on a pooled connection that the upstream had closed is sent once more on a fresh connection; any other upstream failure is answered with HTTP 502 (point 3).
+7. **Invalid reply** (not one schema-valid JSON object): one re-ask inside the same tool-round limit; then scored as no valid output (harness rule, `PROTOCOL.md` sec. 5).
 
-A case that fails every attempt has no record and keeps run 1 from being scored; it is listed in `status.json`.
+Run 1 is complete, and is scored, when every case has a record for every system: the harness's own, or the record of point 5.
 
 ## 10. Resume
 
@@ -153,7 +163,7 @@ Resume is the same command with `--resume` and the same run directory. It contin
 
 - A case with a usable record for every system is never run again. Any other case directory (in flight at a crash, killed, or failed) is moved to `run1/aborted/` and the case is run again.
 - Processes a killed session left behind are stopped first: its relay, and any case process still running (pids in `run1/running.json`). A pod that is still running is reused, with its deadline, and so is a watchdog that is still alive; otherwise a new pod is created under the budget that is left (the cap counts every pod in `ledger.json`). On a new pod the calibration must give the same template and the same token count for every case as on the first.
-- A budget stop (watchdog or soft stop), a deadline, a STOP file, a signal or a crash are all resumed the same way; after a budget stop with a larger `--cap`.
+- A budget stop (watchdog or soft stop), a deadline, a STOP file, a signal or a crash are all resumed the same way; after a budget stop with a larger `--cap`. A resume may use another cloud (`--cloud`); the run config and the backend record stay the same, so the parts still merge.
 
 ## 11. Building the test case set
 

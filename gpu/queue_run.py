@@ -20,8 +20,14 @@ the systems run one after another, so with np 1 the server sees one request at a
 - Retry: a process that fails (exit code != 0, unusable output, or killed after
   `task_timeout` seconds) is queued again at the end, until it has had `max_attempts`
   attempts; the count is kept in <run>/phase.json across resumes, so a later session gives
-  such a case one more attempt. After `fail_limit` failures in a row the queue stops
-  launching (server or relay down).
+  such a case one more attempt. An attempt the queue itself kills on `abort()` (second
+  signal, pod gone) is not counted. After `fail_limit` failures in a row the queue stops
+  launching (server or relay down). Each failed attempt's error text (the last line of the
+  case log, the infrastructure errors, or the time-out) is kept in phase.json.
+- Exhausted: with `max_total_attempts` = N, a case whose N-th counted attempt fails gets a
+  record for every system written by this queue (`write_exhausted`): output null,
+  schema_valid false, error "attempts exhausted (N): <last error>", the attempts' errors
+  under "exhausted". Scoring reads it as no valid output. The case is then complete.
 - `may_launch()` is asked before each launch; a non-empty string (budget, deadline, stop
   file, signal) stops launching. Cases in flight are allowed to finish (or killed after
   `task_timeout` seconds, or at once when `abort()` turns true).
@@ -143,6 +149,64 @@ def save_phase(sess: Path, run: str, ph: dict) -> None:
     os.replace(tmp, p)
 
 
+def _utc() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def last_log_line(sess: Path, run: str, cid: str) -> str:
+    try:
+        lines = [x.strip() for x in (sess / run / "logs" / f"{cid}.log").read_text(errors="replace").splitlines()]
+    except OSError:
+        return ""
+    lines = [x for x in lines if x]
+    return lines[-1][:300] if lines else ""
+
+
+def _base_manifest(sess: Path, run: str, cid: str, systems: list[str]) -> dict:
+    """The run-level fields of a case manifest: from this case's latest failed attempt
+    (run_systems.py writes its manifest before any model call), else from a usable case."""
+    cands = sorted((sess / run / "aborted").glob(f"{cid}.*/manifest.json"), key=lambda p: p.stat().st_mtime,
+                   reverse=True)
+    cands += sorted((sess / run / "cases").glob("*/manifest.json"))
+    for p in cands:
+        try:
+            m = json.loads(p.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        if all(k in m for k in KEYS_SAME):
+            return {k: m[k] for k in KEYS_SAME}
+    return {k: None for k in KEYS_SAME}
+
+
+def write_exhausted(sess: Path, run: str, cid: str, systems: list[str], errors: list[dict]) -> str:
+    """Records of a case whose attempts are exhausted, written by the runner: for every
+    system, no output, schema_valid false, the error. Returns the error text."""
+    root = runs_root(sess)
+    n = sum(1 for e in errors if e.get("counted", True))
+    last = next((e["error"] for e in reversed(errors) if e.get("error")), "no error text")
+    msg = f"attempts exhausted ({n}): {last}"
+    d = case_dir(sess, run, cid)
+    if d.exists():
+        _set_aside(sess, run, cid, "before_exhausted")
+    d.mkdir(parents=True)
+    info = {"attempts": n, "errors": errors, "written_by": "gpu/queue_run.py", "t_utc": _utc()}
+    for s in systems:
+        rec = {"case_id": cid, "system": s, "output": None, "schema_valid": False, "error": msg, "trace": [],
+               "tokens": {"input_tokens": 0, "output_tokens": 0}, "model_calls": 0, "tool_calls": 0,
+               "seconds": 0.0, "verifier": [] if s == "A2" else None, "forced_fallback": False,
+               "audit": None, "exhausted": info}
+        (d / f"{s}.jsonl").write_text(json.dumps(rec, ensure_ascii=False) + "\n")
+    man = {**_base_manifest(sess, run, cid, systems), "run_id": str(d.relative_to(root)), "case_ids": [cid],
+           "n_cases": 1, "started_utc": info["t_utc"], "finished_utc": info["t_utc"], "exhausted": info}
+    (d / "manifest.json").write_text(json.dumps(man, indent=1, sort_keys=True) + "\n")
+    return msg
+
+
+def exhausted_info(d: Path, systems: list[str], cid: str) -> dict | None:
+    recs = _records(d, systems, cid) or {}
+    return next((r["exhausted"] for r in recs.values() if r.get("exhausted")), None)
+
+
 def _cmdline(pid: int) -> str:
     try:
         return Path(f"/proc/{pid}/cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")
@@ -186,7 +250,9 @@ def run_phase(sess: Path, run: str, systems: list[str], backend: Path, order: li
               log: Callable[[str], None], python: str = sys.executable,
               max_attempts: int = 2, fail_limit: int = 4, task_timeout: float = 2400,
               poll: float = 1.0, abort: Callable[[], bool] = lambda: False,
-              accept_4xx=(400,)) -> dict:
+              accept_4xx=(400,), max_total_attempts: int | None = None,
+              note: Callable[[str], None] | None = None) -> dict:
+    note = note or log
     root = runs_root(sess)
     (sess / run / "cases").mkdir(parents=True, exist_ok=True)
     (sess / run / "logs").mkdir(parents=True, exist_ok=True)
@@ -199,6 +265,11 @@ def run_phase(sess: Path, run: str, systems: list[str], backend: Path, order: li
             continue
         if d.exists():
             _set_aside(sess, run, cid, "incomplete")
+        task = ph["tasks"].get(cid, {})
+        if max_total_attempts and task.get("attempts", 0) >= max_total_attempts:
+            msg = write_exhausted(sess, run, cid, systems, task.get("errors", []))
+            note(f"{run}: {cid}: {msg} (record written by the runner)")
+            continue
         todo.append(cid)
     n_total, n_done0 = len(order), len(order) - len(todo)
     seg = {"start": time.time(), "end": None, "n_done": 0, "n_failed": 0, "np": np,
@@ -211,17 +282,21 @@ def run_phase(sess: Path, run: str, systems: list[str], backend: Path, order: li
     attempts = {cid: ph["tasks"].get(cid, {}).get("attempts", 0) for cid in todo}
     streak, stop = 0, None
     gave_up = []
+    interrupted = set()
     while pending or running:
         if running and abort():
             log(f"{run}: abort: killing {len(running)} running cases (they will be re-run on resume)")
-            for p, _, _ in running.values():
+            for cid, (p, _, _) in running.items():
                 p.kill()
+                interrupted.add(cid)
             stop = stop or "aborted"
         for cid, (p, t0, lf) in list(running.items()):
             rc = p.poll()
+            timed_out = False
             if rc is None and time.time() - t0 > task_timeout:
                 p.kill()
                 rc = p.wait()
+                timed_out = True
                 log(f"{run}: {cid} killed after {task_timeout:.0f} s")
             if rc is None:
                 continue
@@ -232,7 +307,25 @@ def run_phase(sess: Path, run: str, systems: list[str], backend: Path, order: li
             d = case_dir(sess, run, cid)
             infra = infra_errors(d, systems, cid, accept_4xx) if rc == 0 else []
             ok = rc == 0 and complete(d, systems, cid) and not infra
-            ph["tasks"][cid] = {"start": t0, "end": t1, "rc": rc, "ok": ok, "attempts": attempts[cid]}
+            errors = list(ph["tasks"].get(cid, {}).get("errors", []))
+            if not ok:
+                counted = cid not in interrupted
+                if not counted:
+                    attempts[cid] -= 1
+                if not counted:
+                    why = "interrupted by the runner (not counted)"
+                elif timed_out:
+                    why = f"killed after {task_timeout:.0f} s (case time-out)"
+                elif infra:
+                    why = "infrastructure errors: " + ", ".join(infra)
+                elif rc != 0:
+                    why = last_log_line(sess, run, cid) or f"exit code {rc}"
+                else:
+                    why = "exit code 0 but the records are incomplete"
+                errors.append({"attempt": attempts[cid] + (0 if counted else 1), "counted": counted, "rc": rc,
+                               "error": why, "t_utc": _utc()})
+            ph["tasks"][cid] = {"start": t0, "end": t1, "rc": rc, "ok": ok, "attempts": attempts[cid],
+                                "errors": errors}
             if infra:
                 ph["tasks"][cid]["infra_errors"] = infra
             if ok:
@@ -240,12 +333,18 @@ def run_phase(sess: Path, run: str, systems: list[str], backend: Path, order: li
                 streak = 0
             else:
                 seg["n_failed"] += 1
-                streak += 1
+                streak += 1 if cid not in interrupted else 0
                 _set_aside(sess, run, cid, "infra" if infra else f"rc{rc}")
-                if attempts[cid] < max_attempts and stop is None:
+                if max_total_attempts and attempts[cid] >= max_total_attempts:
+                    msg = write_exhausted(sess, run, cid, systems, errors)
+                    ph["tasks"][cid]["exhausted"] = True
+                    seg["n_done"] += 1
+                    note(f"{run}: {cid}: {msg} (record written by the runner)")
+                elif attempts[cid] < max_attempts and stop is None:
                     pending.append(cid)
                 else:
                     gave_up.append(cid)
+            interrupted.discard(cid)
             done = n_done0 + seg["n_done"]
             log(f"{run}: {'ok  ' if ok else 'FAIL'} {cid} rc={rc} {t1 - t0:.0f} s"
                 + (f" infrastructure errors {infra}" if infra else "")

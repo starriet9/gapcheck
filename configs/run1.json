@@ -25,6 +25,7 @@
   "request_timeout_s": 1800,
   "case_timeout_s": 2400,
   "max_attempts": 2,
+  "max_total_attempts": 4,
   "fail_limit": 4,
   "accept_http_4xx": [400]
  },

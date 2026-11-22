@@ -9,6 +9,11 @@ run, with no network, no GPU and no model.
   crash (SIGKILL)       -> no teardown, no status, no score; the resume stops the relay and
                            fake server the dead session left, kills its case process, reuses
                            the live pod and the watchdog, and then scores
+  exhausted attempts    -> one case's requests always get HTTP 503: not scored after its 2nd
+                           and 3rd attempts; at the 4th the runner writes its records (no valid
+                           output) and the run is scored
+The budget-stop resume moves to Secure Cloud (--cloud SECURE), which the ledger and
+status.json record per pod; scoring gets the billed GPU hours of every pod.
 
 They need the development case set (built by `make cases`); without it they are skipped.
 """
@@ -28,6 +33,8 @@ GPU = REPO / "gpu"
 sys.path.insert(0, str(GPU))
 import queue_run  # noqa: E402
 import session  # noqa: E402
+from gapcheck import serialize  # noqa: E402
+from gapcheck.tools import CaseEnv  # noqa: E402
 
 DEV = "data/cases/dev_s20261120_utc_n10"
 RUN1 = json.loads((REPO / "configs" / "run1.json").read_text())
@@ -107,7 +114,13 @@ def test_complete_run_is_scored(run_dir):
     assert man["backend"]["temperature"] == 0 and man["backend"]["extra"] == RUN1["decoding"]["extra"]
     score = json.loads((merged / "score.json").read_text())
     assert set(score["accuracy_main"]["systems"]) == {"R0", "R1", "L1", "A1", "A2"}
-    assert score["cost"] is not None
+    # cost: billed GPU hours of the pod (creation to termination), not the queue wall time
+    led0 = json.loads((run_dir / "ledger.json").read_text())["pods"][0]
+    billed_h = (led0["terminated_epoch"] - led0["created_epoch"]) / 3600
+    assert abs(stt["billed_gpu_hours"] - billed_h) < 1e-3 and stt["queue_wall_hours"] < stt["billed_gpu_hours"]
+    assert abs(score["cost"]["gpu_hours"] - stt["billed_gpu_hours"]) < 1e-3
+    assert stt["pods"][0]["cloud"] == "COMMUNITY" and stt["clouds"] == ["COMMUNITY"]
+    assert stt["exhausted"] == {}
     st = json.loads((run_dir / "session.json").read_text())
     assert st["status"] == "done" and st["scored"]
     led = json.loads((run_dir / "ledger.json").read_text())
@@ -157,12 +170,23 @@ def test_budget_stop_is_not_scored_and_resumes(run_dir):
     assert not json.loads((run_dir / "status.json").read_text())["scored"]
     assert len(json.loads((run_dir / "ledger.json").read_text())["pods"]) == 1
 
-    p3 = run(cmd(run_dir, port, 12, n, "--resume"))
+    # resumed on Secure Cloud (same GPU and image), with its own price ceiling
+    p3 = run(cmd(run_dir, port, 12, n, "--resume", "--cloud", "SECURE", "--max-hourly", "3"))
     assert p3.returncode == 0, p3.stdout[-3000:]
     stt = json.loads((run_dir / "status.json").read_text())
     assert stt["complete"] and stt["scored"], stt
     assert {c: started(run_dir, c) for c in done1} == t_done  # finished cases were not run again
-    assert len(json.loads((run_dir / "ledger.json").read_text())["pods"]) == 2
+    pods = json.loads((run_dir / "ledger.json").read_text())["pods"]
+    assert [x["cloud"] for x in pods] == ["COMMUNITY", "SECURE"] and pods[1]["hourly"] > 2.69
+    assert [x["cloud"] for x in stt["pods"]] == ["COMMUNITY", "SECURE"]
+    assert stt["clouds"] == ["COMMUNITY", "COMMUNITY", "SECURE"]  # one per launch
+    assert abs(stt["billed_gpu_hours"] - sum(x["billed_hours"] for x in stt["pods"])) < 1e-3
+    assert abs(stt["usd_per_hour_passed"] * stt["billed_gpu_hours"] - stt["billed_usd_estimate"]) < 1e-2
+    assert "cloud SECURE" in (run_dir / "logs" / "timeline.txt").read_text()
+    # the case killed by the budget stop was not charged an attempt: every case ran once
+    phase = json.loads((run_dir / "run1" / "phase.json").read_text())
+    assert all(x["attempts"] == 1 for x in phase["tasks"].values())
+    assert all(not e["counted"] for x in phase["tasks"].values() for e in x.get("errors", []))
     assert json.loads((run_dir / "run1" / "merged" / "manifest.json").read_text())["case_ids"] == ids
     assert not nothing_left_running(run_dir)
 
@@ -196,6 +220,52 @@ def test_crash_is_not_scored_and_resumes(run_dir):
     assert not session.pid_alive(st["relay_pid"]) and not nothing_left_running(run_dir)
 
 
+def unique_l1_text(ids: list[str], target: str) -> str:
+    """A line of the target case's L1 serialization that no other case of the run has."""
+    tx = {}
+    for c in ids:
+        env = CaseEnv.from_case(REPO / DEV, c, page_size=RUN1["run"]["page_size"])
+        tx[c] = serialize.serialize(env)
+        env.close()
+    others = "\n".join(v for k, v in tx.items() if k != target)
+    return next(x for x in tx[target].splitlines() if len(x) > 15 and x not in others)
+
+
+def test_exhausted_attempts_get_a_record_and_the_run_is_scored(run_dir):
+    port, n = session.free_port(), 4
+    ids = case_ids(n)
+    bad = ids[2]
+    c = cmd(run_dir, port, 12, n, "--dry-fail-text", unique_l1_text(ids, bad))
+    p1 = run(c)  # attempts 1 and 2 fail
+    assert p1.returncode == 0, p1.stdout[-3000:]
+    stt = json.loads((run_dir / "status.json").read_text())
+    assert not stt["scored"] and stt["missing"] == [bad] and stt["failed_attempts"][bad]["attempts"] == 2
+    p2 = run(c + ["--resume"])  # attempt 3 fails
+    stt = json.loads((run_dir / "status.json").read_text())
+    assert p2.returncode == 0 and not stt["scored"] and stt["failed_attempts"][bad]["attempts"] == 3
+    p3 = run(c + ["--resume"])  # attempt 4 fails: the runner writes the records
+    assert p3.returncode == 0, p3.stdout[-3000:]
+    stt = json.loads((run_dir / "status.json").read_text())
+    assert stt["complete"] and stt["scored"] and stt["missing"] == [], stt
+    assert list(stt["exhausted"]) == [bad] and stt["exhausted"][bad]["attempts"] == 4
+    assert "503" in stt["exhausted"][bad]["last_error"]
+    merged = run_dir / "run1" / "merged"
+    for s in RUN1["systems"]:
+        r = next(json.loads(x) for x in (merged / f"{s}.jsonl").read_text().splitlines() if bad in x)
+        assert r["output"] is None and r["schema_valid"] is False
+        assert r["error"].startswith("attempts exhausted (4): ") and "503" in r["error"]
+        assert r["exhausted"]["written_by"] == "gpu/queue_run.py" and len(r["exhausted"]["errors"]) == 4
+    man = json.loads((merged / "manifest.json").read_text())
+    assert man["n_cases"] == n and not man["mismatch"]
+    score = json.loads((merged / "score.json").read_text())
+    assert score["n_cases"] == n
+    assert "attempts exhausted (4)" in (run_dir / "logs" / "timeline.txt").read_text()
+    # the other cases ran once each
+    phase = json.loads((run_dir / "run1" / "phase.json").read_text())
+    assert all(phase["tasks"][x]["attempts"] == 1 for x in ids if x != bad)
+    assert not nothing_left_running(run_dir)
+
+
 def test_plan_and_dry_flags_are_checked(run_dir):
     p = run([sys.executable, str(GPU / "session.py"), "--cases", DEV, "--run-dir", str(run_dir), "--cap", "1",
              "--dry"])
@@ -203,3 +273,6 @@ def test_plan_and_dry_flags_are_checked(run_dir):
     p = run([sys.executable, str(GPU / "session.py"), "--cases", DEV, "--run-dir", "/tmp/elsewhere", "--cap", "1",
              "--go", "--dry"])
     assert p.returncode != 0 and "not under data/runs" in p.stderr
+    p = run([sys.executable, str(GPU / "session.py"), "--cases", DEV, "--run-dir", str(run_dir), "--cap", "1",
+             "--go", "--dry", "--cloud", "SECURE"])
+    assert p.returncode != 0 and "needs --max-hourly" in p.stderr and not run_dir.exists()

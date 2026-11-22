@@ -8,12 +8,13 @@ Steps (each logged to <run dir>/logs/timeline.txt; state in <run dir>/session.js
               sha256 present in RUNS.md at the commit; relay self-test; the harness's L1 build
               stop on every case (local, before any pod); API key file present (never read
               here). Nothing is created before this passes.
-  gpu check   read-only: GPU availability and price on Community, balance >= budget left + 0.5.
-              Not available on Community: stop (no automatic switch to Secure).
+  gpu check   read-only: GPU availability and price on the chosen cloud (--cloud; default the
+              config's, Community; Secure needs --max-hourly), balance >= budget left + 0.5.
+              Not available there: stop (the cloud is never switched automatically).
   watchdog    detached (own session): terminates the pod at its deadline, on estimated spend
               or balance drop >= cap - margin, at the hard deadline, or when this process
               stops writing its heartbeat for --client-stale seconds
-  pod         Community, pinned image, 8080/http only, a throwaway llama-server token; the
+  pod         chosen cloud, pinned image, 8080/http only, a throwaway llama-server token; the
               pod downloads and sha256-checks the GGUF files, extracts the chat template from
               file 1 and checks its sha256 (gpu/pod_start.sh), and self-terminates at its
               deadline + 3 min and after --idle-seconds without a task
@@ -27,9 +28,11 @@ Steps (each logged to <run dir>/logs/timeline.txt; state in <run dir>/session.js
   teardown    pod logs, terminate (DELETE, confirmed 404), watchdog stop, relay stop, token
               deleted
   finalize    local, after the pod is gone. No interim analysis: only when every case has a
-              usable record for every system are R0/R1 run, the parts merged and the run
-              scored (scripts/score_runs.py). Otherwise <run dir>/status.json lists what is
-              missing and nothing is merged or scored; resume with the same command.
+              usable record for every system (a case whose attempts are exhausted gets one
+              written by the queue: no valid output) are R0/R1 run, the parts merged and the
+              run scored (scripts/score_runs.py, with the billed GPU hours of every pod of the
+              run). Otherwise <run dir>/status.json lists what is missing and nothing is
+              merged or scored; resume with the same command.
 
 Usage (from the repo root):
   plan only (read-only, creates nothing):
@@ -132,9 +135,20 @@ def spent_estimate(now=None) -> float:
                for p in load_ledger()["pods"])
 
 
-def pod_hours(now=None) -> float:
+def billed(now=None) -> dict:
+    """Billed GPU hours of the run: every pod in the ledger (every session and resume), from
+    creation to termination, as RunPod bills them; with each pod's cloud and hourly price."""
     now = now or time.time()
-    return sum(((p.get("terminated_epoch") or now) - p["created_epoch"]) / 3600 for p in load_ledger()["pods"])
+    pods = []
+    for i, p in enumerate(load_ledger()["pods"], 1):
+        h = max((p.get("terminated_epoch") or now) - p["created_epoch"], 0) / 3600
+        pods.append({"pod": i, "cloud": p.get("cloud"), "usd_per_hour": round(p["hourly"], 4),
+                     "billed_hours": round(h, 4), "usd": round(h * p["hourly"], 4),
+                     "terminated": bool(p.get("terminated_epoch"))})
+    hours = sum(x["billed_hours"] for x in pods)
+    usd = sum(x["usd"] for x in pods)
+    return {"billed_gpu_hours": round(hours, 4), "billed_usd_estimate": round(usd, 3),
+            "usd_per_billed_hour": round(usd / hours, 4) if hours else None, "pods": pods}
 
 
 def pid_alive(pid) -> bool:
@@ -220,10 +234,6 @@ def sha256_file(p: Path) -> str:
     return h.hexdigest()
 
 
-def hourly_rate(a) -> float:
-    return next((p["hourly"] for p in load_ledger()["pods"]), None) or (a.max_hourly + disk_gb() * DISK_RATE)
-
-
 def disk_gb() -> int:
     return int(CFG["gpu"]["disk_gb"])
 
@@ -256,9 +266,12 @@ def load_config(path: Path) -> dict:
         errs.append("context_limit + max_tokens must fit ctx_per_slot")
     if not 1 <= int(cl.get("concurrency", 0)) <= int(sv.get("slots", 0)):
         errs.append("client concurrency must be between 1 and the server slots")
-    for k in ("request_timeout_s", "case_timeout_s", "max_attempts", "fail_limit", "accept_http_4xx"):
+    for k in ("request_timeout_s", "case_timeout_s", "max_attempts", "max_total_attempts", "fail_limit",
+              "accept_http_4xx"):
         if k not in cl:
             errs.append(f"client.{k} missing")
+    if not int(cl.get("max_total_attempts", 0)) >= int(cl.get("max_attempts", 1)) >= 1:
+        errs.append("client: max_total_attempts >= max_attempts >= 1")
     if not all(400 <= int(x) < 500 for x in cl.get("accept_http_4xx", [])):
         errs.append("client.accept_http_4xx: 4xx statuses only")
     files = c["model"].get("files") or []
@@ -276,7 +289,7 @@ def revision_text(dry: bool) -> str:
         return f"DRY RUN: fake llama server (gpu/fake_server.py), no model, no GPU; slots {CFG['server']['slots']}"
     m, s = CFG["model"], CFG["server"]
     return (f"{m['repo']}@{m['revision']} {m['quant']} ({len(m['files'])} files sha256-checked); "
-            f"{CFG['engine']} {CFG['image']}; RunPod {CFG['gpu']['cloud'].title()} {CFG['gpu']['id']}; "
+            f"{CFG['engine']} {CFG['image']}; RunPod {CFG['gpu']['id']} (cloud of each pod in the ledger); "
             f"-np {s['slots']} ctx/slot {s['ctx_per_slot']} --no-kv-unified {s['extra_args']}; f16 KV; "
             f"-b 2048 -ub 2048; MTP off; context-shift off; chat template sha256 "
             f"{m['chat_template']['sha256'][:8]} from the GGUF metadata; via local streaming relay; "
@@ -498,10 +511,17 @@ def model_files_env() -> str:
     return "\n".join(f"{f['name']} {f['bytes']} {f['sha256']} {f['download_ranges']}" for f in CFG["model"]["files"])
 
 
-def create_pod(a, st: dict, token: str, upstream_fake: str | None) -> dict:
+def cloud_offer(g: dict, cloud: str) -> tuple[bool, float | None, dict | None]:
+    """(available, GPU price per hour, catalog row) of the run's GPU on one cloud."""
+    c = g["clouds"][cloud].get(CFG["gpu"]["id"])
+    ok = bool(c and c["availability"] not in (None, "NONE") and (c["max_count"] or 0) > 0)
+    return ok, (c or {}).get("price"), c
+
+
+def create_pod(a, st: dict, token: str, upstream_fake: str | None, price: float | None) -> dict:
     led = load_ledger()
     n = len(led["pods"]) + 1
-    hourly_guess = a.max_hourly + disk_gb() * DISK_RATE
+    hourly_guess = (price or a.max_hourly) + disk_gb() * DISK_RATE
     left = a.cap - a.margin - spent_estimate()
     max_wall_h = min(a.max_hours, wall_hours(left, hourly_guess)) if a.max_hours else wall_hours(left, hourly_guess)
     if max_wall_h < 0.5:
@@ -511,7 +531,7 @@ def create_pod(a, st: dict, token: str, upstream_fake: str | None) -> dict:
     start = (KIT / "pod_start.sh").read_bytes()
     g, m, s = CFG["gpu"], CFG["model"], CFG["server"]
     body = {
-        "name": f"{st['prefix']}-{n}", "cloud": g["cloud"],
+        "name": f"{st['prefix']}-{n}", "cloud": a.cloud,
         "gpu": {"id": g["id"], "count": 1, "minCudaVersion": g["min_cuda"], "minRamPerGpu": g["min_ram_gb"],
                 "minVcpuCountPerGpu": g["min_vcpu"]},
         "image": CFG["image"], "entrypoint": ["/bin/bash", "-c"],
@@ -529,7 +549,7 @@ def create_pod(a, st: dict, token: str, upstream_fake: str | None) -> dict:
                     for k, v in body["env"].items()}
     shown["start_sh_sha256"] = hashlib.sha256(start).hexdigest()
     (SESS / "logs" / f"create_pod_{n}.json").write_text(json.dumps(shown, indent=1) + "\n")
-    timeline(f"create pod {body['name']} ({g['cloud'].title()} {g['id']}, max wall {max_wall_h} h)")
+    timeline(f"create pod {body['name']} (cloud {a.cloud}, {g['id']}, max wall {max_wall_h} h)")
     code, d = rpapi.call("POST", "/v2/pods", body, timeout=120)
     if code not in (200, 201) or not isinstance(d, dict) or not d.get("id"):
         msg = json.dumps(d)[:600] if not isinstance(d, str) else d[:600]
@@ -537,17 +557,20 @@ def create_pod(a, st: dict, token: str, upstream_fake: str | None) -> dict:
         raise SystemExit(3)
     cost = float(d.get("cost") or 0)
     created = rpapi.iso_to_epoch(d["createdAt"]) if d.get("createdAt") else now
+    if cost + disk_gb() * DISK_RATE > hourly_guess:  # billed above the catalog price: a shorter deadline
+        max_wall_h = min(max_wall_h, wall_hours(left, cost + disk_gb() * DISK_RATE))
     rec = {"id": d["id"], "name": body["name"], "created_epoch": created, "created_iso": d.get("createdAt"),
            "cost_api": cost, "hourly": cost + disk_gb() * DISK_RATE, "max_wall_h": max_wall_h,
            "deadline_epoch": created + max_wall_h * 3600, "self_destruct_at": self_destruct,
-           "gpu": g["id"], "cloud": g["cloud"], "image": CFG["image"], "disk_gb": disk_gb(),
+           "gpu": g["id"], "cloud": a.cloud, "image": CFG["image"], "disk_gb": disk_gb(),
+           "launch": len(st["launches"]),
            "upstream": upstream_fake or f"https://{d['id']}-8080.proxy.runpod.net"}
     led["pods"].append(rec)
     save_ledger(led)
     keep = {k: d.get(k) for k in ("id", "name", "status", "cost", "cloud", "dataCenterId", "cudaVersion",
                                   "createdAt", "disk", "ports", "mounts", "gpu", "image")}
     (SESS / "logs" / f"create_pod_{n}.out.json").write_text(json.dumps(keep, indent=1) + "\n")
-    timeline(f"pod {d['id']} created at ${cost}/h (+disk); deadline {utc(rec['deadline_epoch'])}")
+    timeline(f"pod {d['id']} created on {a.cloud} at ${cost}/h (+disk); deadline {utc(rec['deadline_epoch'])}")
     if cost > a.max_hourly:
         timeline(f"COST {cost} > max {a.max_hourly}: terminating at once")
         terminate_pod(rec)
@@ -567,11 +590,29 @@ def live_pod() -> dict | None:
     return None
 
 
+def termination_time(pid: str) -> float:
+    """When a pod stopped being billed: now, or earlier if the watchdog terminated it or saw
+    it gone first (its log), e.g. while this session was not running."""
+    t = time.time()
+    try:
+        lines = (SESS / "logs" / "watchdog.log").read_text().splitlines()
+    except OSError:
+        lines = []
+    for x in lines:
+        if f"TERMINATE {pid}: " in x or f"pod {pid} no longer listed" in x:
+            try:
+                t = min(t, rpapi.iso_to_epoch(x[:20]))
+            except ValueError:
+                pass
+            break
+    return t
+
+
 def mark_terminated(pid: str) -> None:
     led = load_ledger()
     for p in led["pods"]:
         if p["id"] == pid and not p.get("terminated_epoch"):
-            p["terminated_epoch"] = time.time()
+            p["terminated_epoch"] = termination_time(pid)
     save_ledger(led)
 
 
@@ -754,11 +795,18 @@ def finalize(a, st: dict, wt: Path) -> dict:
     missing = [c for c in ids if not queue_run.usable(queue_run.case_dir(SESS, name, c), sy, c, accept_4xx())]
     ph = queue_run.load_phase(SESS, name)
     queue_h = sum((s["end"] or s["start"]) - s["start"] for s in ph["segments"]) / 3600
+    exhausted = {}
+    for c in ids:
+        info = queue_run.exhausted_info(queue_run.case_dir(SESS, name, c), sy, c)
+        if info:
+            exhausted[c] = {"attempts": info["attempts"], "last_error": (info["errors"] or [{}])[-1].get("error")}
+    b = billed()
     stt = {"t_utc": utc(), "run": name, "systems": sy, "case_set": rel(cases), "n_cases": len(ids),
            "n_complete": len(ids) - len(missing), "complete": not missing, "scored": False,
            "missing": missing, "failed_attempts": {c: t for c, t in ph["tasks"].items() if c in set(missing)},
-           "queue_hours": round(queue_h, 4), "pod_hours": round(pod_hours(), 4),
-           "estimated_spend_usd": round(spent_estimate(), 3), "dry": a.dry}
+           "exhausted": exhausted, "billed_gpu_hours": b["billed_gpu_hours"],
+           "billed_usd_estimate": b["billed_usd_estimate"], "queue_wall_hours": round(queue_h, 4),
+           "pods": b["pods"], "clouds": [x.get("cloud") for x in st.get("launches", [])], "dry": a.dry}
     if missing:
         stt["next"] = ("not scored (no interim analysis, PROTOCOL.md sec. 11); resume with the same command "
                        "and --resume" + (" and a larger --cap" if any(w in str(st.get("status")) for w in
@@ -780,15 +828,22 @@ def finalize(a, st: dict, wt: Path) -> dict:
         timeline(f"finalize: NOT SCORED: merge mismatch {sorted(m['mismatch'])}, {m['complete']} of {len(ids)}")
         return stt
     add_copies(merged, {"R0": rdir, "R1": rdir})
+    if exhausted:
+        timeline(f"finalize: {len(exhausted)} cases scored with records written after exhausted attempts: "
+                 f"{', '.join(sorted(exhausted))}")
+    if not b["billed_gpu_hours"]:
+        stt.update(next="not scored: no billed GPU hours in the ledger")
+        write_json(SESS / "status.json", stt)
+        return stt
     cmd = [sys.executable, str(wt / "scripts" / "score_runs.py"), "--cases", str(cases), "--run", str(merged),
-           "--gpu-hours", f"{queue_h:.4f}", "--usd-per-hour", f"{hourly_rate(a):.4f}"]
+           "--gpu-hours", f"{b['billed_gpu_hours']:.4f}", "--usd-per-hour", f"{b['usd_per_billed_hour']:.4f}"]
     if a.dry:
         cmd += ["--n-boot", str(a.dry_n_boot)]
     r = subprocess.run(cmd, cwd=wt, env=wt_env(wt), capture_output=True, text=True)
     (SESS / "logs" / f"score_{name}.out").write_text(r.stdout + r.stderr)
     stt.update(scored=r.returncode == 0, score_rc=r.returncode, merged=rel(merged),
-               score=rel(merged / "score.json"), gpu_hours_passed=round(queue_h, 4),
-               usd_per_hour_passed=round(hourly_rate(a), 4))
+               score=rel(merged / "score.json"), gpu_hours_passed=b["billed_gpu_hours"],
+               usd_per_hour_passed=b["usd_per_billed_hour"])
     write_json(SESS / "status.json", stt)
     timeline(f"finalize: merged {m['complete']} cases; score rc {r.returncode} ({rel(merged / 'score.json')})")
     return stt
@@ -807,7 +862,10 @@ def parse_args(argv=None):
     ap.add_argument("--finalize-only", action="store_true", help="no pod: the finalize step only")
     ap.add_argument("--commit", default="HEAD")
     ap.add_argument("--protocol-tag", help="record which run files changed since this tag")
-    ap.add_argument("--max-hourly", type=float, default=1.80, help="refuse a pod above this $/h (GPU part)")
+    ap.add_argument("--cloud", choices=("COMMUNITY", "SECURE"),
+                    help="RunPod cloud of a new pod (default: the run config's, Community); same GPU and image")
+    ap.add_argument("--max-hourly", type=float, help="refuse a pod above this $/h (GPU part); default 1.80 on "
+                                                     "Community, required with --cloud SECURE")
     ap.add_argument("--max-hours", type=float, default=0, help="pod wall limit (default: what the cap buys)")
     ap.add_argument("--launch-guard", type=float, default=900,
                     help="no case is launched this many seconds before the pod deadline")
@@ -831,6 +889,7 @@ def parse_args(argv=None):
     ap.add_argument("--dry-speed", type=float, default=1.0)
     ap.add_argument("--dry-delay", type=float, default=0.05)
     ap.add_argument("--dry-n-boot", type=int, default=200)
+    ap.add_argument("--dry-fail-text", help="dry: the fake server answers 503 to chat requests with this text")
     a = ap.parse_args(argv)
     a.plan = not a.go and not a.finalize_only
     if (a.dry_cases or a.use_checkout) and not a.dry:
@@ -846,7 +905,8 @@ def parse_args(argv=None):
 def plan(a) -> None:
     pf = preflight(a, {})
     g = gpu_check.check(CFG["gpu"]["id"])
-    price = (g["community_price"] or a.max_hourly) + disk_gb() * DISK_RATE
+    ok, gpu_price, row = cloud_offer(g, a.cloud)
+    price = (gpu_price or a.max_hourly) + disk_gb() * DISK_RATE
     est = None
     if a.est_case_s:
         lo, hi = (float(x) for x in a.est_case_s.split(","))
@@ -855,8 +915,8 @@ def plan(a) -> None:
         est = {"hours": [round(x, 2) for x in h], "usd": [round(x * price, 2) for x in h], "usd_per_hour": round(price, 4)}
     print(json.dumps({"plan_only": True, "commit": pf["commit"], "config": CFG["name"],
                       "case_set": pf["case_set"], "n_cases": len(pf["case_ids"]), "problems": pf["problems"],
-                      "gpu": g["clouds"]["COMMUNITY"].get(CFG["gpu"]["id"]),
-                      "community_available": g["community_available"], "balance": g["balance"],
+                      "cloud": a.cloud, "gpu": row, "available": ok, "max_hourly": a.max_hourly,
+                      "balance": g["balance"],
                       "pods_now": g["pods"], "balance_needed": a.cap + 0.5,
                       "balance_ok": g["balance"] >= a.cap + 0.5, "estimate": est,
                       "run_dir_exists": SESS.exists()}, indent=1))
@@ -866,6 +926,11 @@ def main(argv=None):
     global LOGF, SESS, CFG
     a = parse_args(argv)
     CFG = load_config(Path(a.config))
+    a.cloud = a.cloud or CFG["gpu"]["cloud"]
+    if a.max_hourly is None:
+        if a.cloud != "COMMUNITY":
+            raise SystemExit(f"--cloud {a.cloud} needs --max-hourly (USD per hour for the GPU; it costs more there)")
+        a.max_hourly = 1.80
     SESS = Path(a.run_dir).resolve()
     try:
         queue_run.runs_root(SESS)  # run ids are paths relative to data/runs
@@ -923,7 +988,8 @@ def main(argv=None):
     wt = None
     try:
         timeline(f"session {SESS.name} start pid={os.getpid()} {'DRY ' if a.dry else ''}config={CFG['name']} "
-                 f"cap=${a.cap} resume={a.resume} finalize_only={a.finalize_only}")
+                 f"cloud={a.cloud} max_hourly=${a.max_hourly} cap=${a.cap} resume={a.resume} "
+                 f"finalize_only={a.finalize_only}")
         pf = preflight(a, st)
         wt = Path(pf["wt"])
         if not st:
@@ -933,7 +999,7 @@ def main(argv=None):
                   "case_ids": pf["case_ids"], "prompts": pf["prompts"], "launches": []}
         if st["case_ids"] != pf["case_ids"] or st["case_set"]["manifest_sha256"] != pf["case_set"]["manifest_sha256"]:
             raise SystemExit("resume: the case set (or --dry-cases) differs from the session's")
-        st["launches"].append({"t": utc(), "pid": os.getpid(), "args": dict(vars(a)),
+        st["launches"].append({"t": utc(), "pid": os.getpid(), "cloud": a.cloud, "args": dict(vars(a)),
                                "warnings": pf["warnings"], "changed_since_tag": pf.get("changed_since_tag")})
         st["status"] = "running"
         save_state(st)
@@ -962,7 +1028,7 @@ def main(argv=None):
                 [sys.executable, "-I", str(KIT / "fake_server.py"), "--port", str(port),
                  "--np", str(CFG["server"]["slots"]), "--ctx-per-slot", str(CFG["server"]["ctx_per_slot"]),
                  "--delay", str(a.dry_delay), "--ready-after", "3", "--template", str(tpl),
-                 "--token-file", str(tokf)],
+                 "--token-file", str(tokf)] + (["--fail-503-text", a.dry_fail_text] if a.dry_fail_text else []),
                 stdout=open(SESS / "logs" / "fake_server.out", "a"), stderr=subprocess.STDOUT)
             st["fake_pid"] = Procs.fake.pid
             fake_up = f"http://127.0.0.1:{port}"
@@ -975,14 +1041,15 @@ def main(argv=None):
         save_state(st)
         rec = live_pod()
         if rec is None:
-            if not g["community_available"]:
-                timeline(f"STOP: {CFG['gpu']['id']} not available on Community "
-                         f"({g['clouds']['COMMUNITY'].get(CFG['gpu']['id'])}); not switching to Secure")
-                status = "stopped: GPU not available on Community"
+            ok, price, row = cloud_offer(g, a.cloud)
+            if not ok:
+                timeline(f"STOP: {CFG['gpu']['id']} not available on {a.cloud} ({row}); no automatic switch "
+                         "of cloud (--cloud chooses it)")
+                status = f"stopped: GPU not available on {a.cloud}"
                 return
-            price = g["community_price"] or 0
+            price = price or 0
             if price > a.max_hourly:
-                timeline(f"STOP: Community price ${price}/h > max ${a.max_hourly}/h")
+                timeline(f"STOP: {a.cloud} price ${price}/h > max ${a.max_hourly}/h")
                 status = "stopped: price"
                 return
             drop = st["balance0"] - g["balance"]
@@ -1005,9 +1072,12 @@ def main(argv=None):
                 status = "stopped: budget (cap reached; resume with a larger --cap)"
                 return
             start_watchdog(a, st, time.time() + wall * 3600 + 600)
-            rec = create_pod(a, st, token, fake_up)
+            rec = create_pod(a, st, token, fake_up, price)
         else:
-            timeline(f"reusing live pod {rec['id']} (deadline {utc(rec['deadline_epoch'])})")
+            timeline(f"reusing live pod {rec['id']} on {rec.get('cloud')} (deadline {utc(rec['deadline_epoch'])})"
+                     + (f"; --cloud {a.cloud} applies to the next new pod" if rec.get("cloud") != a.cloud else ""))
+            st["launches"][-1]["cloud"] = rec.get("cloud")
+            save_state(st)
             if fake_up:
                 rec["upstream"] = fake_up  # dry: the fake server of this launch
             start_watchdog(a, st, rec["deadline_epoch"] + 600)
@@ -1059,7 +1129,8 @@ def main(argv=None):
         res = queue_run.run_phase(SESS, name, systems(), backend, st["case_ids"], int(cl["concurrency"]), wt,
                                   Path(a.cases).resolve(), may_launch, log, max_attempts=int(cl["max_attempts"]),
                                   fail_limit=int(cl["fail_limit"]), task_timeout=float(cl["case_timeout_s"]),
-                                  abort=abort, accept_4xx=accept_4xx())
+                                  abort=abort, accept_4xx=accept_4xx(),
+                                  max_total_attempts=int(cl["max_total_attempts"]), note=timeline)
         stop = why_stop.get("why") if res["stop"] == "aborted" else res["stop"]
         timeline(f"run {name} end: {res['complete']}/{res['total']} complete" + (f"; stopped: {stop}" if stop else ""))
         if stop:
