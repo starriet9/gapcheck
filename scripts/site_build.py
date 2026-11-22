@@ -713,7 +713,7 @@ def upstream_html(items: list[dict], events: dict) -> str:
             if not rev:
                 problem(f"upstream: unknown reply event {it['reply']['event']}")
             else:
-                tail = f' {e(it["reply"]["text"])} <a href="{e(rev["url"])}">(his reply)</a>'
+                tail = f' {e(it["reply"]["text"])} <a href="{e(rev["url"])}">(the reply)</a>'
         detail = f'<p class="up-d">{inline_md(it["detail"])}</p>' if it.get("detail") else ""
         note = f'<p class="up-d small">{inline_md(it["note"])}</p>' if it.get("note") else ""
         out.append(f'<li><p class="up-f">{inline_md(it["finding"])}</p>{detail}'

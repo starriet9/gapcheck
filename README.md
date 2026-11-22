@@ -38,9 +38,10 @@ C0 is the unedited record. Systems: R0 (the oracle on structured data only), R1 
 ## Bugs found in the data source, fixes sent upstream
 
 Synthea is the open-source generator behind the synthetic patients (status at the time of writing; see each link):
-- [synthetichealth/synthea#1794](https://github.com/synthetichealth/synthea/pull/1794): patients with hypertension never got a kidney-function result; the wellness check tested a diagnosis code that no module has created since 2019.
+- [synthetichealth/synthea#1794](https://github.com/synthetichealth/synthea/pull/1794) (merged): patients with hypertension never got a kidney-function result; the wellness check tested a diagnosis code that no module has created since 2019.
 - [synthetichealth/synthea#1795](https://github.com/synthetichealth/synthea/pull/1795): kidney function was one CKD stage off, and end-stage patients got normal values (from the discussion in [#1793](https://github.com/synthetichealth/synthea/issues/1793)).
-<!-- PUBLISH: add PR 2 and PR 3 only after they are posted -->
+- [synthetichealth/synthea#1796](https://github.com/synthetichealth/synthea/pull/1796): the same seed produced different patients in different time zones.
+<!-- PUBLISH: add PR 3 only after it is posted -->
 
 <!-- USER: 1-2 sentences -->
 
