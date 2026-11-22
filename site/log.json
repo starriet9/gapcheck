@@ -5,7 +5,7 @@
    "links": [{"label": "commit", "first_commit": true}, {"label": "PREVENT", "commit": "Implement PREVENT base ASCVD equations"}, {"label": "answer key", "commit": "Add guideline oracle"}]},
   {"date": "2026-11-19", "text": "Agent, tools and verifier running on a local open-weights model. Protocol drafted.",
    "links": [{"label": "agent", "commit": "Add LLM systems L1/A1/A2"}, {"label": "protocol", "commit": "Draft pre-registration protocol"}]},
-  {"date": "2026-11-19", "text": "First fix sent upstream. A physician reviews the findings the same day.",
+  {"date": "2026-11-19", "text": "First fix sent upstream. The physician who had reported the kidney bug checks the findings the same day.",
    "links": [{"label": "PR #1794", "event": "pr1794"}, {"label": "reply", "event": "c1793_reply"}]},
   {"date": "2026-11-20", "text": "Second upstream fix.",
    "links": [{"label": "PR #1795", "event": "pr1795"}]},

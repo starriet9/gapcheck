@@ -55,3 +55,21 @@ def test_shared_patient_is_taken_once():
 def test_stops_instead_of_relaxing():
     with pytest.raises(SystemExit):
         hl.select(fake_cases(n_per_status=12, patients_per_status=4))
+
+
+def test_page_patients_are_excluded():
+    cases = fake_cases()
+    first = hl.select(cases)
+    banned = {first[0]["base_patient"]}
+    again = hl.select(cases, banned)
+    assert banned.isdisjoint(c["base_patient"] for c in again)
+    assert len(again) == 5 * len(oracle.STATUSES)
+
+
+def test_page_patients_reads_case_ids(tmp_path):
+    cases = fake_cases()
+    pick = tmp_path / "card_pick.json"
+    pick.write_text('{"tabs": [{"case_id": "case_0123456789ab"}]}')
+    cases[0]["case_id"] = "case_0123456789ab"
+    assert hl.page_patients(cases, pick) == {cases[0]["base_patient"]}
+    assert hl.page_patients(cases, tmp_path / "missing.json") == set()

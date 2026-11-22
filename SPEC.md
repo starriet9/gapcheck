@@ -1,6 +1,6 @@
 # gapcheck: design specification
 
-Status: v1.0, frozen with `PROTOCOL.md` at the protocol release tag (`RUNS.md` sec. 1). This file is the design; `PROTOCOL.md` (the pre-registration) is written from it. Anything changed after the tag goes in `DEVIATIONS.md`.
+Status: v1.0, frozen with `PROTOCOL.md` at the protocol release tag (`RUNS.md` sec. 1). This file is the design; `PROTOCOL.md` (the pre-registration) is written from it. Every departure from this design after the tag goes in `DEVIATIONS.md`.
 
 ## 1. Question
 
@@ -268,7 +268,8 @@ On failure the system is told only the number of the failed check and the index 
 - The first report of results covers run 1 only. Runs 2 and 3 (stability) come later and are listed in `RUNS.md` as pending until they are done (`PROTOCOL.md` sec. 11).
 - TRIPOD-LLM checklist (Gallifant et al., Nat Med 2025;31:60–69), filled in where items apply.
 - `make reproduce` rebuilds data, patches, edits, runs R0/R1, re-scores the saved model outputs, and redraws the figures from a clean clone. Re-running the LLM systems needs a GPU and is a separate target.
-- Released: the synthetic test set, the augmentation and edit ledgers, all model outputs and traces.
+- The author's checks of the oracle: a row-by-row check against the guideline before the tag, and 30 development cases labeled by hand after it (`PROTOCOL.md` sec. 3).
+- Released: the synthetic test set, the augmentation and edit ledgers, all model outputs and traces, and the hand-label cards with the author's labels and the key.
 
 ## 9. Outputs
 
@@ -287,7 +288,7 @@ On failure the system is told only the number of the failed check and the index 
 
 ## 11. Limits (fixed text for README, dashboard and write-up)
 
-Synthetic patients (Synthea v4.0.0) with disclosed patches; ground truth is the 2026 guideline as encoded in a decision table, not clinical judgment; GAP is a prompt for review, not a finding of poor care; two encoding choices are tested in sensitivity analyses, and the others (sec. 3.2) are kept out of the test labels by the sampling rules; only the PREVENT base equations are used, although the guideline's Table 13 note says "all available information should be included in risk estimates derived from the PREVENT-ASCVD equations, including albuminuria, HbA1c, and zip code"; the oracle uses the latest LDL-C, while rec 12 of sec. 4.2.3.7 refers to "baseline untreated LDL-C" (the generator's statins do not lower later values, so this matters only for real records); below LDL-C 70 the guideline gives no start recommendation except through take-home message 8, so row-7 base patients are kept only where the label would not change at 70; the test-case mix is designed, so no count is a prevalence; no base patient is a current smoker, and smoking enters only through edits; the generator gives about 8% of adults a diabetic complication or a glucose-lowering drug without a diabetes diagnosis, and these patients are not sampled, so the test set has no record that contradicts itself on diabetes; PAD, TIA, aneurysm and stable angina do not occur in the data; notes are templated and favor keyword rules; statin initiation only, no dose intensity, CAC or Lp(a) rules; lipid and eGFR values are generator values, not physiological measurements; research prototype, not medical advice.
+Synthetic patients (Synthea v4.0.0) with disclosed patches; ground truth is the 2026 guideline as encoded in a decision table, not clinical judgment; GAP is a prompt for review, not a finding of poor care; two encoding choices are tested in sensitivity analyses; four places where the guideline reads two ways are kept out of the test labels by the sampling rules, and the other encoding choices and conventions (secs. 3.2–3.4) do enter test labels; only the PREVENT base equations are used, although the guideline's Table 13 note says "all available information should be included in risk estimates derived from the PREVENT-ASCVD equations, including albuminuria, HbA1c, and zip code"; the oracle uses the latest LDL-C, while rec 12 of sec. 4.2.3.7 refers to "baseline untreated LDL-C" (the generator's statins do not lower later values, so this matters only for real records); below LDL-C 70 the guideline gives no start recommendation except through take-home message 8, so row-7 base patients are kept only where the label would not change at 70; the test-case mix is designed, so no count is a prevalence; no base patient is a current smoker, and smoking enters only through edits; the generator gives about 8% of adults a diabetic complication or a glucose-lowering drug without a diabetes diagnosis, and these patients are not sampled, so the test set has no record that contradicts itself on diabetes; PAD, TIA, aneurysm and stable angina do not occur in the data; notes are templated and favor keyword rules; statin initiation only, no dose intensity, CAC or Lp(a) rules; lipid and eGFR values are generator values, not physiological measurements; research prototype, not medical advice.
 
 ## 12. Phase 2 (planned, separate protocol)
 

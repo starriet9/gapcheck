@@ -7,12 +7,15 @@ it: `CaseEnv.from_case` (base record with the case's edits applied, and the
 notes rendered for that case, via `cases.materialize`) and the systems' own
 tools (`get_demographics`, `get_observations`, `get_allergies`,
 `prevent_risk`). Nothing comes from the oracle's fact extraction
-(`gapcheck.facts`), so the hand labels are an independent read of the record.
+(`gapcheck.facts`); the risk numbers (`prevent_risk`) and the statin, BP-drug
+and diabetes code lists (`gapcheck.codes`) are shared with the oracle.
 
-Selection (fixed before the cards are built), at most one case per base patient:
+Selection (PROTOCOL.md sec. 3), at most one case per base patient:
 - all cases sorted by sha256("20261122:handlabel:<case_id>") (hex, ascending);
   walking that list, a case is taken if fewer than 5 cases of its expected
-  status are taken and its base patient is not taken yet; stop at 5 per status.
+  status are taken, its base patient is not taken yet, and its base patient is
+  not shown on the project page (any case named in site/card_pick.json); stop
+  at 5 per status.
   If a status cannot reach 5, the script stops and prints the counts (the rule
   is never relaxed);
 - the 30 cases shown in the order of sha256("20261122:handlabel-order:<case_id>"),
@@ -25,7 +28,7 @@ Outputs (in --out):
               "expected_row", "condition"}]}. Keep it closed until every card
               is labeled.
 
-A card holds (every field is described in the hand-label README.md):
+A card holds:
 - age at index, sex, index date;
 - diagnoses (conditions) dated on or before index, one entry per code, with
   start and stop dates; Synthea's social and administrative findings and
@@ -122,10 +125,10 @@ def _h(salt: str, case_id: str) -> str:
     return hashlib.sha256(f"{salt}:{case_id}".encode()).hexdigest()
 
 
-def select(cases: list[dict]) -> list[dict]:
-    """PER_STATUS cases per expected status, at most one per base patient, in display
-    order (module docstring)."""
-    picked, patients = [], set()
+def select(cases: list[dict], exclude_patients=frozenset()) -> list[dict]:
+    """PER_STATUS cases per expected status, at most one per base patient and none of
+    `exclude_patients`, in display order (module docstring)."""
+    picked, patients = [], set(exclude_patients)
     taken = {s: 0 for s in oracle.STATUSES}
     for c in sorted(cases, key=lambda c: _h(SELECT_SALT, c["case_id"])):
         st = c["expected_status"]
@@ -412,8 +415,21 @@ def _dump(obj) -> str:
     return _fmt(obj) + "\n"
 
 
+PAGE_PICK = ROOT / "site" / "card_pick.json"
+
+
+def page_patients(cases: list[dict], pick: Path = PAGE_PICK) -> set[str]:
+    """Base patients of every case named on the project page (site/card_pick.json)."""
+    if not pick.exists():
+        return set()
+    named = set(re.findall(r"case_[0-9a-f]{12}", pick.read_text()))
+    return {c["base_patient"] for c in cases if c["case_id"] in named}
+
+
 def build(case_dir: Path) -> tuple[dict, dict]:
-    picked = select(read_cases(case_dir))
+    cases = read_cases(case_dir)
+    excluded = page_patients(cases)
+    picked = select(cases, excluded)
     cards, key = [], []
     for n, c in enumerate(picked, 1):
         env = CaseEnv.from_case(case_dir, c["case_id"], page_size=ALL_ROWS)
@@ -424,6 +440,7 @@ def build(case_dir: Path) -> tuple[dict, dict]:
         key.append({"n": n, "case_id": c["case_id"], "expected_status": c["expected_status"],
                     "expected_row": c["expected_row"], "condition": c["condition"]})
     meta = {"case_set": _rel(case_dir), "cards": len(cards),
+            "patients_excluded_as_shown_on_page": len(excluded),
             "built_by": "scripts/hand_label_cards.py",
             "note_window_days": NOTE_WINDOW_DAYS}
     return {"meta": meta, "cards": cards}, {"meta": meta, "cards": key}
@@ -446,7 +463,8 @@ def main(argv=None) -> None:
     key["meta"] = {**key["meta"],
                    "selection": f"all cases sorted by sha256('{SELECT_SALT}:<case_id>') "
                                 f"ascending; take a case if its expected status has fewer "
-                                f"than {PER_STATUS} taken and its base patient is not taken; "
+                                f"than {PER_STATUS} taken, its base patient is not taken and is not shown on "
+                                f"the project page (site/card_pick.json); "
                                 f"stop at {PER_STATUS} per status; display order by "
                                 f"sha256('{ORDER_SALT}:<case_id>')",
                    "cases_jsonl_sha256": hashlib.sha256(

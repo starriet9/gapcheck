@@ -51,6 +51,15 @@ Built by the tag commit, unchanged, before any model is called.
 | **Test set sha256** (sha256 of the case set's `manifest.json`, which lists the sha256 of every file) | pending |
 | Commit that recorded this section (must precede every model call) | pending |
 
+**Hand labels** (`PROTOCOL.md` sec. 3).
+
+| Field | Value |
+|---|---|
+| sha256 of the cards file (`scripts/hand_label_cards.py` at the tag commit), entered before labeling starts | pending |
+| sha256 of the label file, and the commit that holds it (before the key is opened and before run 1 is complete) | pending |
+| Time the key was opened | pending |
+| Commit that records the cause of each disagreement (before any run 1 output is read) | pending |
+
 ## 4. Model and server
 
 Chosen by the rule in `PROTOCOL.md` sec. 6. Filled before run 1.
@@ -120,5 +129,5 @@ Outcome (2026-11-21, session t2 at commit 4aa6afb, 200 of 200 cases for A1 and A
 
 **Rehearsals (no setting chosen).** A rehearsal runs the run-1 path on a real pod with the first 6 development cases (`--rehearsal`, `docs/SERVING.md`): download, checks, a killed session, a resume, scoring. Its records are not results.
 
-- 2026-11-22, attempt 1 (`data/runs/rehearsal/r1`, commit d493abd, Community Cloud): the server never became healthy, and the session stopped after 3000 s and terminated the pod (0.84 billed pod hours). From the first reading the GPU showed 100 % utilization with no memory used (the pods of dev1 and T2 showed 0 %), and the download had not finished after 50 minutes (on the pods of dev1 and T2 the server was healthy after 18 and 21 minutes). The output of the start script was not kept. Changes before the next attempt: the pod refuses to start on a GPU that is busy before use or a download that is too slow; the start script's output goes to `start.log`; the waiter tries a new pod after such a host problem, up to 2 times.
+- 2026-11-22, attempt 1 (`data/runs/rehearsal/r1`, commit d493abd, Community Cloud): the server never became healthy, and the session stopped after 3000 s and terminated the pod (0.84 billed pod hours, about $1.44). From the first reading the GPU showed 100 % utilization with no memory used (the pods of dev1 and T2 showed 0 %), and the download had not finished after 50 minutes (on the pods of dev1 and T2 the server was healthy after 18 and 21 minutes). The output of the start script was not kept. Changes before the next attempt: the pod refuses to start on a GPU that is busy before use or a download that is too slow; the start script's output goes to `start.log`; the waiter tries a new pod after such a host problem, up to 2 times.
 - 2026-11-22, attempt 2 (`data/runs/rehearsal/r2`, commit a443cf0, Community Cloud): the first create failed because no instance was left (no pod, no cost) and the waiter launched again 33 s later. The pod's GPU was idle before use, the download (111 GB) finished in 1,732 s and the server was healthy after 1,796 s. After the first case the session was killed (SIGKILL); resumed 30 s later, it reused the live pod, completed the 6 cases and scored them, and the pod was terminated (DELETE 204, then 404). 0.57 billed pod hours, about $0.98. No runner change was needed.
