@@ -5,7 +5,7 @@ Steps (each logged to <run dir>/logs/timeline.txt; state in <run dir>/session.js
   preflight   real run: --protocol-tag given and the run commit is the tagged commit or
               follows it only by commits to RUNS.md, DEVIATIONS.md, results/; the run commit is
               HEAD and the checkout is clean; a resume at a later commit only with --runner-fix
-              (changes in gpu/, docs/, RUNS.md, DEVIATIONS.md, results/ only, a logged
+              (changes in gpu/, tests/gpu/, docs/, RUNS.md, DEVIATIONS.md, results/ only, a logged
               deviation). Always: worktree of the commit (clean); the harness at that commit
               accepts the run settings exactly; case set: every file matches its manifest,
               split as the config says (a --rehearsal: dev, under data/runs/rehearsal/),
@@ -88,7 +88,7 @@ DRY_TEMPLATE = "{#- gapcheck dry run: a stand-in, not the model's chat template 
 AFTER_TAG = ("RUNS.md", "DEVIATIONS.md", "results/")
 # A resume at a later commit (--runner-fix, a logged deviation) may change only these: never the
 # harness (src/), the scripts, the run config or the prompts.
-RUNNER_FIX = ("gpu/", "docs/", "RUNS.md", "DEVIATIONS.md", "results/")
+RUNNER_FIX = ("gpu/", "tests/gpu/", "docs/", "RUNS.md", "DEVIATIONS.md", "results/")
 SETTINGS_FIELDS = ("max_steps", "repair_steps", "l1_tool_rounds", "context_limit", "page_size",
                    "chars_per_token", "prompt_set", "rounds_left_notice", "round_counter")
 
@@ -1037,7 +1037,7 @@ def parse_args(argv=None):
     ap.add_argument("--protocol-tag", help="required for a real run: the run commit is the tagged commit or "
                                            "follows it only by commits to RUNS.md, DEVIATIONS.md, results/")
     ap.add_argument("--runner-fix", action="store_true",
-                    help="resume at a later commit that changes only gpu/, docs/, RUNS.md, DEVIATIONS.md, "
+                    help="resume at a later commit that changes only gpu/, tests/gpu/, docs/, RUNS.md, DEVIATIONS.md, "
                          "results/ (a logged deviation)")
     ap.add_argument("--rehearsal", action="store_true",
                     help="a real-pod rehearsal on development cases under data/runs/rehearsal/; no tag needed")

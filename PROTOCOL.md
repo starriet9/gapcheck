@@ -299,7 +299,7 @@ No development-set accuracy is reported as a result.
 - Every departure from this protocol after the tag is entered in `DEVIATIONS.md` with: the protocol sentence, what was done, why, when it was decided (before the seed; after the seed and before any model output; after outputs were seen), what it affects, and the commit.
 - Where both can be computed, the result under the protocol and the result under the deviation are reported side by side.
 - A change to the protocol before the test seed is derived needs a new tag and Release. The seed then comes from the new commit and the pulse that follows the new Release; the earlier tag stays public and is listed in `RUNS.md`. Once a seed has been derived, the protocol is not re-released to obtain another.
-- A code change after the tag that alters the test set is a deviation, reported with both results. A code change that alters neither the test set nor the scoring (for example a crash fix in the runner) is logged in `RUNS.md` with its commit.
+- A code change after the tag that alters the test set is a deviation, reported with both results. A code change that alters neither the test set nor the scoring (for example a crash fix in the runner) is logged in `RUNS.md` and `DEVIATIONS.md` with its commit. Such a fix may change only `gpu/`, `tests/gpu/`, `docs/`, `RUNS.md`, `DEVIATIONS.md` and `results/`; the runner refuses to resume run 1 at a commit that changes anything else (`--runner-fix`, `docs/SERVING.md`).
 - If there are no deviations, `DEVIATIONS.md` says "None as of <date>".
 
 ## 13. Test-set seed
