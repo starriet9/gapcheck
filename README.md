@@ -75,9 +75,9 @@ None of the parts is new on its own. This project extends counterfactual evaluat
 - Blumenthal RS, et al. 2026 ACC/AHA/AACVPR/ABC/ACPM/ADA/AGS/APhA/ASPC/NLA/PCNA Guideline on the Management of Dyslipidemia. J Am Coll Cardiol 2026;87(19):2624-2757.
 - Khan SS, et al. Development and validation of the American Heart Association's PREVENT equations. Circulation 2024;149(6):430-449.
 
-## AI use
+## How it was built
 
-Code was written with AI coding agents; the design, protocol and review are mine.
+I came up with the idea and the design, and developed them in discussion with several AI agents. The code was written by AI coding agents under my direction.
 
 ## License and data
 

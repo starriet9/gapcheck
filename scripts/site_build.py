@@ -1013,7 +1013,7 @@ def build(out_dir: Path, res_p: Path | None = None) -> Path:
         if not re.search(r"\bAI\b", user.get("how_fast", "")):
             problem("how_fast does not mention AI; the AI disclosure sentence is no longer on the page")
     else:
-        fast = user_block(user, "how_fast") + f'<p class="disclose">{e(cfg["ai_disclosure"])}</p>'
+        fast = user_block(user, "how_fast") + f'<p class="disclose">{inline_md(cfg["ai_disclosure"])}</p>'
     tl_sec = (f'<section class="s" id="timeline" aria-labelledby="h-tl"><h2 id="h-tl">{e(tl_title)}</h2>'
               f'<ol class="tl">{tl}</ol>{fast}</section>')
 

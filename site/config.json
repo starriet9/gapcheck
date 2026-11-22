@@ -41,7 +41,7 @@
  ],
  "failed_title_pre": "Where it failed: a wrong answer the verifier passed",
  "footer": "Synthetic patients (Synthea). The answer key is the 2026 ACC/AHA guideline as encoded here, not clinical judgment. Research prototype, not medical advice.",
- "ai_disclosure": "Code was written with AI coding agents; the design, protocol and review are mine.",
+ "ai_disclosure": "**How it was built:** I came up with the idea and the design, and developed them in discussion with several AI agents. The code was written by AI coding agents under my direction.",
  "limits_folded": ["test-case mix is designed", "notes are templated", "generator values"],
  "files": [
   {"label": "Protocol", "path": "PROTOCOL.md"},

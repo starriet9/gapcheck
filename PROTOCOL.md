@@ -203,7 +203,7 @@ Accuracy of any system on any set is not a criterion. Development accuracy is re
 | License | Qwen Community License 1.0 (`qwen-community-1.0`, both repositories) |
 | Training data cut-off stated by the publisher | Not stated on either model card (checked 2026-11-22) |
 | Serving engine, version or commit, container image digest | llama.cpp `llama-server` b12464 (commit `d3c3e242`), CUDA server image `ghcr.io/ggml-org/llama.cpp@sha256:ae96e52f8b2106ea82bad786ee2d08bb9b0a8c93403df9c27ae1bf065a118089`; f16 KV cache, flash attention on, context shift off, multi-token prediction off |
-| GPU, provider and tier | One NVIDIA RTX PRO 6000 Blackwell Server Edition (96 GB), RunPod Community Cloud |
+| GPU, provider and tier | One NVIDIA RTX PRO 6000 Blackwell Server Edition (96 GB), rented on RunPod; the cloud tier of each pod is recorded in `RUNS.md` |
 | Chat template file and sha256 | The metadata key `tokenizer.chat_template` of the first model file, extracted on the pod by `gpu/pod_start.sh` (no template file is shipped; the server refuses to start on a mismatch), 9,993 bytes, sha256 `12827f24b742ea4e80cdc12dbcf9622227056b9f797252a3149263d4f9aaadce`, passed to the server with `--chat-template-file`; the same bytes as in the development runs |
 | Served context length; `context_limit`; `chars_per_token` | 49,152 tokens per request slot (8 slots, one request at a time); 45,056; 2.26 |
 

@@ -7,7 +7,7 @@ Plain paragraphs; [text](url) links and *emphasis* work. Keep it short.
 -->
 
 ## how_fast
-<!-- USER: One sentence under the timeline: how this was built so fast (you directed AI coding agents; the design, protocol and review are yours). Until you write it, the page shows the sentence "Code was written with AI coding agents; the design, protocol and review are mine." Your sentence replaces it, so keep the AI part in it. -->
+<!-- USER: One sentence under the timeline: how this was built so fast (you directed AI coding agents). Until you write it, the page shows the config sentence `ai_disclosure` ("How it was built: ..."). Your sentence replaces it, so keep the AI part in it. -->
 
 ## upstream
 <!-- USER: One or two sentences under the upstream fixes: what you learned from this work, or why you fixed it. -->
