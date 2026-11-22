@@ -15,6 +15,11 @@
 # of a mismatched file) -> chat template extracted from file 1 -> its sha256 -> llama-server.
 # A failed check writes $L/FATAL and starts no server; the session reads that file through
 # the exec API, collects the logs and terminates the pod.
+# Host checks (a failure writes $L/FATAL with a reason that starts with "host:"; the waiter
+# gpu/wait_launch.sh then tries a new pod): the GPU is busy before any use (utilization >= 90 %
+# with < 1 GiB used in every one of GPU_CHECK_SAMPLES samples), or the download is too slow
+# (after DL_CHECK_S seconds the projected download time exceeds DL_MAX_S, or DL_MAX_S passes).
+# Everything this script prints is also written to $L/start.log (collected with the logs).
 # Guards in the pod (the local watchdog is the first layer):
 #   layer 2: self-terminate at SELF_DESTRUCT_AT (after the watchdog's pod deadline)
 #   layer 3: self-terminate when no slot has started a task for IDLE_SECONDS (client gone)
@@ -127,9 +132,34 @@ verify(){ # name sha
   if [ "$got" = "$2" ]; then log "SHA OK $1 $got"; return 0; else log "SHA MISMATCH $1 got=$got want=$2"; return 1; fi
 }
 
+gpu_busy(){ # -> 0 (and the reason on stdout) when every sample shows a busy GPU before use
+  local i u m seen=""
+  for ((i=1; i<=${GPU_CHECK_SAMPLES:-3}; i++)); do
+    [ $i -gt 1 ] && sleep "${GPU_CHECK_PAUSE:-15}"
+    read -r u m < <(nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv,noheader,nounits 2>/dev/null | head -1 | tr -d ',')
+    seen="$seen ${u:-?}%/${m:-?}MiB"
+    { [ -n "${u:-}" ] && [ -n "${m:-}" ] && [ "$u" -ge 90 ] && [ "$m" -lt 1024 ]; } || return 1
+  done
+  echo "GPU busy before use (utilization/memory used:$seen)"
+}
+
+dl_too_slow(){ # got total elapsed -> 0 (and the reason on stdout) when the download is too slow
+  local got=$1 total=$2 el=$3 chk=${DL_CHECK_S:-600} max=${DL_MAX_S:-2400} proj
+  [ "$got" -ge "$total" ] && return 1
+  if [ "$el" -ge "$max" ]; then echo "download not finished after ${el}s (limit ${max}s): $got of $total bytes"; return 0; fi
+  [ "$el" -lt "$chk" ] && return 1
+  if [ "$got" -le 0 ]; then echo "download too slow: 0 bytes after ${el}s"; return 0; fi
+  proj=$(( el * total / got ))
+  if [ "$proj" -gt "$max" ]; then
+    echo "download too slow: $(( got / el / 1000000 )) MB/s after ${el}s, projected ${proj}s > ${max}s"; return 0
+  fi
+  return 1
+}
+
 [ "${POD_START_TEST:-0}" = 1 ] && return 0
 
 mkdir -p $D $L
+exec > >(tee -a "$L/start.log") 2>&1
 log "start pod=${RUNPOD_POD_ID:-?} dc=${RUNPOD_DC_ID:-?} host_cuda=${CUDA_VERSION:-?} nproc=$(nproc)"
 for v in MODEL_REPO MODEL_REV MODEL_QUANT MODEL_FILES TEMPLATE_SHA256; do
   [ -n "${!v:-}" ] || fatal "environment variable $v is not set"
@@ -146,6 +176,9 @@ if [ "${IDLE_SECONDS:-0}" -gt 0 ]; then idle_guard & fi
 c=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer ${RUNPOD_API_KEY:-none}" "https://api.runpod.io/v2/pods/${RUNPOD_POD_ID:-none}")
 log "pod-scoped key: GET own pod -> HTTP $c (key present: $([ -n "${RUNPOD_API_KEY:-}" ] && echo yes || echo no))"
 
+why=$(gpu_busy) && fatal "host: $why"
+log "GPU idle before use"
+
 # GPU monitor every 60 s into a file
 ( while true; do echo "$(date -u +%H:%M:%S) $(nvidia-smi --query-gpu=memory.used,memory.total,utilization.gpu,power.draw --format=csv,noheader 2>&1)" >> $L/gpu.log; sleep 60; done ) &
 
@@ -156,7 +189,12 @@ FIRST=$(printf '%s\n' "$FILES" | head -1 | cut -d' ' -f1)
 log "model $MODEL_REPO@$MODEL_REV $MODEL_QUANT: $(printf '%s\n' "$FILES" | wc -l) files"
 T0=$(date +%s)
 if [ ! -f $D/.verified ]; then
-  ( while [ ! -f $D/.dl_done ]; do sleep 30; log "download progress $(du -sb --apparent-size $D 2>/dev/null | cut -f1) apparent, $(du -sb $D | cut -f1) bytes on disk, $(( $(date +%s) - T0 ))s"; done ) &
+  TOTAL=$(printf '%s\n' "$FILES" | awk '{s += $2} END {printf "%d", s}')
+  ( while [ ! -f $D/.dl_done ]; do sleep "${DL_PROGRESS_S:-30}"; [ -f $D/.dl_done ] && break
+      got=$(du -s -B1 $D | cut -f1); el=$(( $(date +%s) - T0 ))
+      log "download progress $got of $TOTAL bytes on disk, ${el}s"
+      why=$(dl_too_slow "$got" "$TOTAL" "$el") && fatal "host: $why"
+    done ) &
   dpids=(); while read -r n size sha parts; do dl_file "$n" "$size" "$parts" & dpids+=($!); done <<< "$FILES"
   for p in "${dpids[@]}"; do wait $p || log "a download job failed (sha256 check decides)"; done
   touch $D/.dl_done
@@ -176,6 +214,9 @@ if [ ! -f $D/.verified ]; then
   touch $D/.verified
   log "GGUF verified in $(( $(date +%s) - T0 ))s total"
 fi
+
+# a host check failed while the download ran (the session terminates the pod): no server
+[ -s "$L/FATAL" ] && { log "FATAL present: not starting the server"; sleep infinity; }
 
 # ---- chat template: extracted from the verified first file, never sent in the request
 template_from_gguf "$D/$FIRST" "$D/chat-template.jinja" "$TEMPLATE_SHA256"

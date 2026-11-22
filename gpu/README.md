@@ -5,7 +5,7 @@
 | File | What it does |
 |---|---|
 | `session.py` | Orchestrates a session: preflight (commit, worktree, settings, case-set integrity and its RUNS.md entry, relay self-test, local L1 build stop), GPU check, watchdog, pod (Community Cloud; Secure only with `--cloud SECURE`), relay, health, calibration (check only), case queue, teardown, finalize (scores only a complete run, with the billed GPU hours of every pod; otherwise writes `status.json`). A real run needs `--protocol-tag` (sec. 7 of SERVING.md); `--runner-fix` allows a resume at a later commit that changes only `gpu/`, `docs/`, `RUNS.md`, `DEVIATIONS.md` or `results/`; `--rehearsal` runs development cases on a real pod; `--dry` runs the same path against the two fakes below. |
-| `pod_start.sh` | Runs in the pod: downloads the pinned GGUF files with sha256 checks, extracts the chat template from the first file's metadata and checks its sha256, starts `llama-server`; self-terminates at its deadline or when idle. Refuses to start on any failed check. |
+| `pod_start.sh` | Runs in the pod: downloads the pinned GGUF files with sha256 checks, extracts the chat template from the first file's metadata and checks its sha256, starts `llama-server`; self-terminates at its deadline or when idle. Refuses to start on any failed check, including a GPU that is busy before use and a download that is too slow. |
 | `extract_template.py` | Pure-Python GGUF header reader: writes the `tokenizer.chat_template` value of a GGUF file after checking its sha256 (the same bytes `pod_start.sh` extracts). |
 | `relay.py` | Local relay between the harness and the pod: sends each chat request upstream as a stream (the RunPod proxy cuts replies after 100 s) and rebuilds the ordinary JSON reply; adds the server token. |
 | `relay_selftest.py` | Offline test of the relay with the harness's backend; run in the preflight. |
@@ -15,7 +15,7 @@
 | `rpapi.py` | Minimal RunPod REST client (standard library). Reads the API key from `~/.config/runpod/api_key` inside the process; never prints or passes it on. |
 | `gpu_check.py` | Read-only: GPU availability and price on Community and Secure, balance, pods; `--summary` prints one line without account data. |
 | `collect.py` | Copies the pod's logs before termination (exec API, time-limited). |
-| `wait_launch.sh` | Waits for stock (one check every 5 minutes, up to 24 hours, each logged to `<run dir>/wait.log`), then launches `session.py` once with a pod. |
+| `wait_launch.sh` | Waits for stock (one check every 5 minutes, up to 24 hours, each logged to `<run dir>/wait.log`), then launches `session.py` with a pod; after a host problem (GPU busy before use, download too slow, server never healthy) it tries a new pod, up to 2 times. |
 | `fakerp.py`, `fake_server.py` | Offline stand-ins for the RunPod API and llama-server, for dry runs and the tests in `tests/gpu/`. |
 
 Tests are in [`tests/gpu/`](../tests/gpu/) and run with the rest of the suite (`make test`), offline: the watchdog triggers, the pod's idle guard and template extraction, the queue rules, the tag and runner-fix rules, and full dry runs of `session.py` (complete; budget stop, crash and exhausted attempts, each resumed; a runner fix; run 2's sampling; a rehearsal) in a throwaway copy of the repository. The dry runs need the development case set (`make cases`) and are skipped without it.

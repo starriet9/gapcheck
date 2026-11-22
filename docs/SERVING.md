@@ -22,6 +22,8 @@ The relay exists because the RunPod HTTPS proxy closes a request that has sent n
 
 The pod downloads each file from `https://huggingface.co/<repo>/resolve/<revision>/<folder>/<file>` in parallel byte ranges (each range retried up to 8 times), checks every sha256, re-downloads a mismatched file once, and refuses to start the server if any file still differs.
 
+Before the download the pod checks that its GPU is idle: if every one of 3 readings 15 s apart shows utilization of 90 % or more with less than 1 GiB of memory used, it refuses to start, with a reason that begins `host:`. During the download it refuses the same way if, after 10 minutes, the download at its average speed so far would take more than 40 minutes in all, or if 40 minutes pass. Everything `gpu/pod_start.sh` prints is also written to `/models/logs/start.log`, which is collected with the other pod logs.
+
 ## 3. Chat template
 
 The template is not stored in this repository and not sent in the pod request. It is the string value of the GGUF metadata key `tokenizer.chat_template` in the first file, which the pod has just checked against its sha256 above:
@@ -118,8 +120,10 @@ uv run --locked python gpu/session.py --cases data/cases/<test set> --run-dir da
 setsid nohup uv run --locked python gpu/session.py --cases data/cases/<test set> \
     --run-dir data/runs/run1 --cap 45 --go --protocol-tag <tag> > data/runs/run1.out 2>&1 < /dev/null &
 
-# or wait for stock and launch once: one check every 5 minutes for up to 24 hours,
-# every check logged to data/runs/run1/wait.log (time, availability, count, price on both clouds)
+# or wait for stock and launch: one check every 5 minutes for up to 24 hours, every check
+# logged to data/runs/run1/wait.log (time, availability, count, price on both clouds);
+# after a host problem (the pod refused with a "host:" reason, or no healthy server after
+# 3000 s) it creates a new pod with --resume, up to 2 times (HOST_RETRIES)
 CASES=data/cases/<test set> RUN_DIR=data/runs/run1 CAP=45 EXTRA="--protocol-tag <tag>" \
     setsid nohup gpu/wait_launch.sh > /dev/null 2>&1 < /dev/null &
 
