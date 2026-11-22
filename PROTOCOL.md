@@ -111,7 +111,7 @@ Last commit that changed the decision table before the tag: `d60c5a2` (2026-11-1
 
 C1 and C2a use one deletion per base patient; if several inputs qualify, one is chosen by the `edits` sub-seed. C2b is kept.
 
-**Phrases.** 30 test phrasings per planted fact type, each used at most once, disjoint from the 20 development phrasings per type. A phrasing whose words state the patient's sex (a pronoun, a spouse, pregnancy) is planted only in patients of that sex (`SPEC.md` sec. 5.2). Test phrasings are written by an author who reads neither the prompts, the R1 rules nor any run output, and the authors of the prompts and R1 never read the test phrasings; R1 was frozen before they were written (its last change predates the phrase file's first commit). Test phrasings are used in no run before the tag. The test phrasings were written by a separate agent (Claude Opus 5.5, commit `e8d3352`) that was told not to open the prompts, the R1 rules or any run output. Two clinical reviews by separate agents (Claude Fable 5.2) under the same rule read all 300: the first reworded 17 (`61d892a`); the second, made before reading the first, found none wrong and 4 open to clinical dispute, and one of the 4 was reworded by a third such agent (`b05c7f5`). None was removed. The agent that wrote the prompts has read none of them; the project author was shown the 4 disputed phrasings in the second review. Phrase file `src/gapcheck/phrases/test.json` (version `test-1`), sha256 at the tag: `[FILL]`.
+**Phrases.** 30 test phrasings per planted fact type, each used at most once, disjoint from the 20 development phrasings per type. A phrasing whose words state the patient's sex (a pronoun, a spouse, pregnancy) is planted only in patients of that sex (`SPEC.md` sec. 5.2). Test phrasings are written by an author who reads neither the prompts, the R1 rules nor any run output, and the authors of the prompts and R1 never read the test phrasings; R1 was frozen before they were written (its last change predates the phrase file's first commit). Test phrasings are used in no run before the tag. The test phrasings were written by a separate agent (Claude Opus 5.5, commit `e8d3352`) that was told not to open the prompts, the R1 rules or any run output. Two reviews for clinical plausibility by separate LLM agents (Claude Fable 5.2) under the same rule read all 300, and no clinician reviewed them: the first reworded 17 (`61d892a`); the second, made before reading the first, found none wrong and 4 open to clinical dispute, and one of the 4 was reworded by a third such agent (`b05c7f5`). None was removed. The agent that wrote the prompts has read none of them; the project author was shown the 4 disputed phrasings in the second review. Phrase file `src/gapcheck/phrases/test.json` (version `test-1`), sha256 at the tag: `[FILL]`.
 
 **Expected counts.** The exact counts are fixed by the tagged code and the seed, not by the author, and are entered in `RUNS.md` before any model call.
 
@@ -138,7 +138,7 @@ R0 and R1 contain the oracle, so they are correct by construction on C0, C1, C2a
 
 All systems get the same conventions page (decision table, encoding choices, input rules, code lists, reason taxonomy) and return the same output schema (`SPEC.md` sec. 6.1). The verifier checks provenance and arithmetic only (`SPEC.md` sec. 6.2): cited rows and quotes exist and match; the inputs required by the row the system itself names are covered; each computed risk is reproduced within 0.1 percentage point; each absence claim is confirmed by a fixed query. It never evaluates the decision table and never reads the ledger. On failure the system is told only the number of the failed check and the index of the claim.
 
-A reply that is not one schema-valid JSON object gets one re-ask; the re-ask may use the rounds of tool calls left in the same limit. A case with no valid output after that, or with a request the server rejects, is scored as incorrect for that system.
+A reply that is not one schema-valid JSON object gets one re-ask; the re-ask may use the rounds of tool calls left in the same limit. A case with no valid output after that, or with a request the server rejects, is scored as incorrect for that system. In A2, a repair that ends this way is a failed repair: the answer is the forced CANNOT_DETERMINE, scored like any forced fallback.
 
 **Harness settings** (the task prompts state the same limits to the model):
 
@@ -146,6 +146,7 @@ A reply that is not one schema-valid JSON object gets one re-ask; the re-ask may
 |---|---|
 | A1 rounds of tool calls (`max_steps`) | 8, chosen over 16 on the development set by a rule written before that run (`RUNS.md` sec. 8) |
 | Round counter: after each round of tool calls in A1 and in the A2 repair, one message "Round k of N used." (`round_counter`) | on |
+| Rounds-left notice (`rounds_left_notice`) | 0 (off) |
 | A2 repair rounds of tool calls (`repair_steps`) | 8 |
 | L1 rounds of `prevent_risk` calls (`l1_tool_rounds`) | 2 |
 | Tool page size | 20 |
@@ -153,7 +154,7 @@ A reply that is not one schema-valid JSON object gets one re-ask; the re-ask may
 
 **L1 build stop.** Before any model call, every test case is checked: each row the oracle uses and each planted sentence must be inside the L1 serialization, and the prompt must fit the served context. If a prompt does not fit, the served context length is raised until every test case fits, before any model call; this is logged in `RUNS.md` and is not a deviation. If the model cannot serve that length, the cases that do not fit are scored as incorrect for L1 and counted, and the primary analysis is repeated without them as a deviation.
 
-**Frozen prompts.** sha256 at the tag; every run manifest records the same values:
+**Frozen prompts.** sha256 at the tag. Every run manifest records the prompt and conventions hashes; the tag commit pins every other file, including `configs/run1.json` (the run-1 settings), `gpu/` (the serving and run scripts), `src/gapcheck/systems.py`, `schema.py` and `backends.py`:
 
 | File | sha256 |
 |---|---|
@@ -164,6 +165,7 @@ A reply that is not one schema-valid JSON object gets one re-ask; the re-ask may
 | `src/gapcheck/prompts/repair.txt` | `[FILL]` |
 | `src/gapcheck/prompts/limit.txt` | `[FILL]` |
 | `src/gapcheck/prompts/round_counter.txt` | `[FILL]` |
+| `src/gapcheck/prompts/rounds_left.txt` (loaded, not used: `rounds_left_notice` is 0) | `[FILL]` |
 | Conventions page (`gapcheck.conventions.sha256()`) | `[FILL]` |
 | `src/gapcheck/baselines.py` (R0, R1) | `[FILL]` |
 | `src/gapcheck/verifier.py` | `[FILL]` |
@@ -177,13 +179,13 @@ Prompts were developed on the development sets only. The repair prompt was revis
 
 One open-weights model with native tool calling, pinned by revision and file hash, on one rented GPU. The same model and settings serve L1, A1 and A2.
 
-**Selection rule, written before the GPU test.** Candidates in order of preference:
+**Selection rule, written before the GPU test** (except the G4 amount, set on 2026-11-22 after the projection was known). Candidates in order of preference:
 
 1. Qwen3.8-Flash-Next, GGUF build `unsloth/Qwen3.8-Flash-Next-GGUF`, quantization UD-Q4_K_XL, revision `766911a6b7369840a91dbcd95f9f997acaab6cd6`, served by llama.cpp (CUDA) on one RTX PRO 6000 (96 GB).
 2. `Qwen/Qwen3.8-27B-FP8`, revision `017b9c7af6b5689d5dd426a76e0bc077eb5ca20a`, served by vLLM on one L40S (48 GB).
 3. Fallback if neither passes: one hosted model pinned to a dated snapshot (synthetic data only).
 
-The first candidate that passes every gate is used. Candidate 1 is first because the same weights also run on a local machine, which the planned work on real notes requires (`SPEC.md` sec. 12). Gates, measured on the development set with the frozen prompts:
+The first candidate that passes every gate is used. Candidate 1 is first because the same weights also run on a local machine, which the planned work on real notes requires (`SPEC.md` sec. 12). Gates, measured on the development set (the GPU smoke test of 2026-11-20 used that day's prompts; the default prompts changed twice after it, `b468daf` and `RUNS.md` sec. 8, and G2 was checked again in the development runs):
 
 - G1. The pinned build loads, its file hashes match, and the served context holds the largest development L1 prompt plus the output allowance.
 - G2. A schema-valid final answer on at least 95% of development cases, for L1 and for the agent run.
@@ -196,7 +198,7 @@ Accuracy of any system on any set is not a criterion. Development accuracy is re
 
 | Field | Value |
 |---|---|
-| Candidate chosen and gate results (G1–G4, for each candidate tested) | Candidate 1; candidates 2 and 3 not tested. GPU smoke test, 2026-11-20, 60 development cases: G1 pass (the 4 file hashes match; largest development L1 prompt 32,197 tokens + 4,096 output ≤ 49,152 served); G2 pass (L1 60/60, agent 59/60; 200/200 for L1, A1 and A2 in the two development runs of 2026-11-21 and 11-22); G3 pass (37/37 alone and among 3 or 7 concurrent requests, 18,058-token prompt); G4 pass (run 1 projected at USD 37–41 with one request at a time) |
+| Candidate chosen and gate results (G1–G4, for each candidate tested) | Candidate 1; candidates 2 and 3 not tested. GPU smoke test, 2026-11-20, 60 development cases: G1 pass (the 4 file hashes match; largest development L1 prompt 32,197 tokens + 4,096 output ≤ 49,152 served); G2 pass (L1 60/60, agent 59/60; in the development runs of 2026-11-21, L1 200/200, A1 and A2 200/200 at 8 rounds in both runs and 198/200 at 16 rounds); G3 pass (37/37 alone and among 3 or 7 concurrent requests, 18,058-token prompt); G4 pass (run 1 projected at USD 37–41 with one request at a time) |
 | Model repository, revision, quantization, file sha256 | `unsloth/Qwen3.8-Flash-Next-GGUF` at `766911a6b7369840a91dbcd95f9f997acaab6cd6`, UD-Q4_K_XL (GGUF of `Qwen/Qwen3.8-Flash-Next`), 4 files: `-00001-of-00004.gguf` `4448186216b3af4cc558bbce2c3213f01608f8f8b2e5267a9767971dd3ec8082`; `-00002` `3f342f1c1580473f1ee94ddd5b28206e8c07a70fa1a366f59d1d6c922919a6c9`; `-00003` `56758f40269cad5cd9b0d3d6fbae0f40f6d5be6de49e4ab392dbe83157d9cbd3`; `-00004` `753bda48b98ba4f1636134a90a967de1b2d3908a236c026e464777342e53510a` |
 | License | Qwen Community License 1.0 (`qwen-community-1.0`, both repositories) |
 | Training data cut-off stated by the publisher | Not stated on either model card (checked 2026-11-22) |
@@ -257,7 +259,7 @@ All pre-specified, all with 95% intervals from the same bootstrap, all on run 1 
 
 ## 9. Sensitivity analyses
 
-Both re-score the saved run 1 outputs; no model is run again. Truth and prediction are relabelled the same way.
+Both re-score the saved run 1 outputs; no model is run again. Truth and prediction are relabelled the same way; a prediction is relabelled by the row the system names in `benefit_group`.
 
 - **S-A.** Row 8 (10-year risk ≥ 10%) relabelled DISCUSS. Reason: the ≥ 10% recommendation is class 1 but worded conditionally ("in whom LLT is initiated").
 - **S-C.** Strict GAP: GAP only for rows 1, 2, 3 and 3b; rows 8 and 9 relabelled DISCUSS.
