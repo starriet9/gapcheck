@@ -1,8 +1,12 @@
 """Read-only check: is the GPU available on the Community cloud, and at what price?
 Also reads the account balance and the pods that exist. Creates nothing, spends nothing.
 
-Usage: python3 -I gpu/gpu_check.py [--gpu ID] [--out results/gpu_check.json] [--dry-state F]
-Exit code 0 if the GPU is listed on COMMUNITY with availability other than NONE, else 3.
+Usage: python3 -I gpu/gpu_check.py [--gpu ID] [--cloud COMMUNITY|SECURE] [--summary]
+          [--out F] [--dry-state F]
+--summary prints one line with the GPU's availability, count and price on both clouds and
+nothing about the account (gpu/wait_launch.sh logs it).
+Exit code 0 if the GPU is listed on --cloud (default COMMUNITY) with availability other than
+NONE and a count above 0, else 3.
 """
 import argparse
 import json
@@ -40,19 +44,36 @@ def check(gpu: str = GPU) -> dict:
     return out
 
 
+def available(res: dict, cloud: str) -> bool:
+    c = res["clouds"][cloud].get(res["gpu"])
+    return bool(c and c["availability"] not in (None, "NONE") and (c["max_count"] or 0) > 0)
+
+
+def summary(res: dict) -> str:
+    def one(cloud):
+        c = res["clouds"][cloud].get(res["gpu"])
+        return f"{cloud.lower()} " + (f"{c['availability']} count={c['max_count']} price={c['price']}" if c else "not listed")
+    return f"{res['gpu']}: {one('COMMUNITY')}; {one('SECURE')}"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--gpu", default=GPU)
+    ap.add_argument("--cloud", default="COMMUNITY", choices=("COMMUNITY", "SECURE"))
+    ap.add_argument("--summary", action="store_true", help="one line, no account data")
     ap.add_argument("--out")
     ap.add_argument("--dry-state")
     a = ap.parse_args()
     if a.dry_state:
         rpapi.use_fake(a.dry_state)
     res = check(a.gpu)
-    print(json.dumps(res, indent=1))
+    if a.summary:
+        print(summary(res))
+    else:
+        print(json.dumps(res, indent=1))
     if a.out:
         Path(a.out).write_text(json.dumps(res, indent=1) + "\n")
-    sys.exit(0 if res["community_available"] else 3)
+    sys.exit(0 if available(res, a.cloud) else 3)
 
 
 if __name__ == "__main__":

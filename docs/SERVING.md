@@ -96,17 +96,28 @@ Client time-out per request: 1,800 s (the relay's upstream time-out is the same)
 
 ## 7. Running run 1
 
-Prerequisites: `make setup`; a RunPod API key in `~/.config/runpod/api_key` (mode 600; read only inside `gpu/rpapi.py`, never printed, logged or put in a pod); the test set built by the tag commit (sec. 10) with its `manifest.json` sha256 committed to `RUNS.md`; the run commit checked out, with `gpu/` and `configs/run1.json` as committed (the preflight refuses otherwise).
+Prerequisites: `make setup`; a RunPod API key in `~/.config/runpod/api_key` (mode 600; read only inside `gpu/rpapi.py`, never printed, logged or put in a pod); the test set built by the tag commit (sec. 11) with its `manifest.json` sha256 committed to `RUNS.md`.
+
+The preflight of a real run refuses unless all of these hold:
+
+- `--protocol-tag <tag>` is given, the tag exists, and the run commit is the commit it points to or follows it only by commits that touch nothing but `RUNS.md`, `DEVIATIONS.md` and `results/` (each commit is checked, so a change that a later commit reverts still counts; merge commits are refused);
+- the run commit is the checked-out `HEAD` and the checkout has no uncommitted change (untracked files included; ignored files such as `data/` do not count), so `gpu/` and `configs/run1.json` are as committed;
+- the case set is the test split, every file matches its `manifest.json`, and the sha256 of `manifest.json` is in `RUNS.md` at the run commit;
+- `--run-dir` and `--cases` are inside the repository, and the API key file is present.
+
+The tag, the tag's commit and the run commit are written to the timeline, `session.json` and `status.json`.
 
 ```
 # plan only: read-only checks, GPU stock and price, balance; creates nothing
-uv run --locked python gpu/session.py --cases data/cases/<test set> --run-dir data/runs/run1 --cap 45
+uv run --locked python gpu/session.py --cases data/cases/<test set> --run-dir data/runs/run1 --cap 45 \
+    --protocol-tag <tag>
 
 # launch, detached (the session survives the terminal)
 setsid nohup uv run --locked python gpu/session.py --cases data/cases/<test set> \
     --run-dir data/runs/run1 --cap 45 --go --protocol-tag <tag> > data/runs/run1.out 2>&1 < /dev/null &
 
-# or wait for Community stock and launch once
+# or wait for stock and launch once: one check every 5 minutes for up to 24 hours,
+# every check logged to data/runs/run1/wait.log (time, availability, count, price on both clouds)
 CASES=data/cases/<test set> RUN_DIR=data/runs/run1 CAP=45 EXTRA="--protocol-tag <tag>" \
     setsid nohup gpu/wait_launch.sh > /dev/null 2>&1 < /dev/null &
 
@@ -118,16 +129,16 @@ touch data/runs/run1/STOP
 
 # resume after any stop: the same command with --resume (remove STOP first)
 setsid nohup uv run --locked python gpu/session.py --cases data/cases/<test set> \
-    --run-dir data/runs/run1 --cap 45 --go --resume >> data/runs/run1.out 2>&1 < /dev/null &
+    --run-dir data/runs/run1 --cap 45 --go --protocol-tag <tag> --resume >> data/runs/run1.out 2>&1 < /dev/null &
 ```
 
 `--cap` is the budget in USD for all pods of the run together.
 
 **Secure Cloud fallback** (off by default): `--cloud SECURE --max-hourly <USD>` creates the next pod on Secure Cloud with the same GPU type, image, server command and client settings; only the provider tier and price change. `--max-hourly` is required there (on Community it defaults to 1.80 USD per GPU hour). A resume may switch cloud, for example a run started on Community and resumed on Secure; a pod that is still running is reused on its own cloud. The cloud of every launch and of every pod is written to the timeline, `session.json`, `ledger.json` and `status.json`, and the pod deadline, the watchdog and the estimate use that pod's price.
 
-A dry run takes the same path with a fake RunPod API and a fake llama-server and no network: `... --cases data/cases/<dev set> --run-dir data/runs/dry1 --cap 12 --go --dry --dry-cases 6`. The plan prints a cost estimate only when given pod seconds per case (`--est-case-s LO,HI`).
+A dry run takes the same path with a fake RunPod API and a fake llama-server and no network, and needs no tag: `... --cases data/cases/<dev set> --run-dir data/runs/dry1 --cap 12 --go --dry --first-cases 6`. The plan prints a cost estimate only when given pod seconds per case (`--est-case-s LO,HI`).
 
-Outputs in the run directory: `session.json` (state, commit, config, case ids, launches), `ledger.json` (pods, prices, times), `logs/timeline.txt`, `run1/cases/<case id>/` (one harness run per case), `run1/phase.json` (attempts and timing), `status.json` (what is complete), and, once complete, `R/` (R0, R1) and `run1/merged/` (all five systems, `manifest.json`, `score.json`, `results.json`).
+Outputs in the run directory: `session.json` (state, commits, tag, config, case ids, launches), `ledger.json` (pods, prices, times), `logs/timeline.txt`, `run1/cases/<case id>/` (one harness run per case), `run1/phase.json` (attempts, their errors, timing), `status.json` (what is complete), `account/` (sec. 12), `RELEASE.txt` (sec. 12), and, once complete, `R/` (R0, R1) and `run1/merged/` (all five systems, `manifest.json`, `score.json`, `results.json`).
 
 **No interim analysis.** The finalize step merges and scores only when every case has a usable record (sec. 9) for L1, A1 and A2. Otherwise it writes `status.json` with the missing case ids and their attempts, and nothing is merged or scored. `--finalize-only` repeats this step without a pod and refuses in the same way.
 
@@ -159,7 +170,9 @@ Run 1 is complete, and is scored, when every case has a record for every system:
 
 ## 10. Resume
 
-Resume is the same command with `--resume` and the same run directory. It continues only with the same commit, the same run config (compared in full) and the same case set (path, manifest sha256 and case ids); otherwise it refuses.
+Resume is the same command with `--resume` and the same run directory. It continues only with the same commit, the same run config (compared in full), the same case set (path, manifest sha256 and case ids) and the same tag; otherwise it refuses.
+
+**Runner fix** (a logged deviation). `--runner-fix` allows a resume at a later commit, and only if the commits from the first run commit to `HEAD` change nothing outside `gpu/`, `docs/`, `RUNS.md`, `DEVIATIONS.md` and `results/` (each commit checked, as for the tag), so the harness (`src/gapcheck/`, prompts included), `scripts/` and `configs/run1.json` cannot change. The worktree moves to the new commit; the file list and both commits go to the timeline, `session.json` and `status.json` (`runner_fixes`, `deviation: "runner fix"`), and to the merged manifest's note. When the parts are merged, cases run at different commits count as the same run code only under this rule; any other difference stops the merge, and nothing is scored.
 
 - A case with a usable record for every system is never run again. Any other case directory (in flight at a crash, killed, or failed) is moved to `run1/aborted/` and the case is run again.
 - Processes a killed session left behind are stopped first: its relay, and any case process still running (pids in `run1/running.json`). A pod that is still running is reused, with its deadline, and so is a watchdog that is still alive; otherwise a new pod is created under the budget that is left (the cap counts every pod in `ledger.json`). On a new pod the calibration must give the same template and the same token count for every case as on the first.
@@ -181,3 +194,13 @@ sha256sum data/cases/test_s${SEED}_n40/manifest.json          # into RUNS.md bef
 ```
 
 `build_db.py` takes the seed from the generator's `run_manifest.json`, and `gate.py` and `build_cases.py` take it from the database, so every sub-seed follows from the test seed. `build_cases.py` names the set `test_s<seed>_n40` and uses the test phrasings (`src/gapcheck/phrases/test.json`).
+
+## 12. Run files and what is released
+
+Every path stored in the run directory is relative to the repository root (the run directory and the case set must be inside the repository), and error texts kept with the run have local paths replaced. The account is kept apart: `account/` (mode 700) holds the balance at the first launch and at the end, the account's pods (`gpu_check_*.json`), the watchdog log (it polls the balance) and `account.log` (every line that names an amount of the balance). The timeline gives pod ids as `pod#1`, `pod#2`, ... and never an amount of the balance; `session.json` and `status.json` hold no balance.
+
+`RELEASE.txt`, written at every finalize, lists exactly the run files meant for release: `session.json`, `status.json`, `logs/timeline.txt`, `wait.log`, the backend configuration, `results/build_stop_local.json`, `results/calibration_*.json`, `run1/phase.json`, `run1/cases/`, `R/` and `run1/merged/`. Not for release: `account/`, `ledger.json` (pod ids; each pod's cloud, price and billed hours are in `status.json`), the other files in `logs/` (pod ids, the proxy host, process output), `podlogs/`, `run1/aborted/`, `run1/logs/`, `secret/`, `wt/` and the session's lock and stop files.
+
+## 13. Rehearsal on a real pod
+
+`--rehearsal` runs run-1 mode on a real pod without the protocol tag, for a rehearsal of the whole path (pod, download, checks, a crash, a resume, scoring). It is refused unless the case set is a development set (split `dev`) and `--run-dir` is under `data/runs/rehearsal/`; `--first-cases N` takes the first N cases of the case set. Everything else is as in a real run: clean checkout, the API key, the cap, the watchdog. The merged manifest and `status.json` mark it as a rehearsal, not a result.

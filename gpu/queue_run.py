@@ -34,7 +34,11 @@ the systems run one after another, so with np 1 the server sees one request at a
 - Timing of each segment goes to <run>/phase.json (segments add up across resumes).
 
 `merge()` gathers usable cases into <run>/merged/ (case-set order) with one manifest,
-after checking that every part ran the same commit, prompts, settings and backend.
+after checking that every part ran the same commit, prompts, settings and backend. With
+`git_equiv`, parts at different commits are accepted when it says their code is the same
+(gpu/session.py: a logged runner fix that leaves the harness, scripts and config alone).
+Error texts kept in phase.json and in exhausted records have the repository and home paths
+replaced by relative ones.
 """
 from __future__ import annotations
 
@@ -153,13 +157,20 @@ def _utc() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
+def scrub(sess: Path, text: str) -> str:
+    """No absolute local path in a text kept with the run: the repository root and the home
+    folder are replaced by '.' and '~'."""
+    repo = str(runs_root(sess).parents[1])
+    return text.replace(repo + "/", "").replace(repo, ".").replace(str(Path.home()), "~")
+
+
 def last_log_line(sess: Path, run: str, cid: str) -> str:
     try:
         lines = [x.strip() for x in (sess / run / "logs" / f"{cid}.log").read_text(errors="replace").splitlines()]
     except OSError:
         return ""
     lines = [x for x in lines if x]
-    return lines[-1][:300] if lines else ""
+    return scrub(sess, lines[-1])[:300] if lines else ""
 
 
 def _base_manifest(sess: Path, run: str, cid: str, systems: list[str]) -> dict:
@@ -387,7 +398,7 @@ def run_phase(sess: Path, run: str, systems: list[str], backend: Path, order: li
 
 
 def merge(sess: Path, run: str, systems: list[str], case_order: list[str], note: str,
-          accept_4xx=(400,)) -> dict:
+          accept_4xx=(400,), git_equiv: Callable[[dict, dict], bool] | None = None) -> dict:
     """<run>/merged/{system}.jsonl over the usable cases, in case-set order."""
     root = runs_root(sess)
     recs = {s: {} for s in systems}
@@ -406,6 +417,8 @@ def merge(sess: Path, run: str, systems: list[str], case_order: list[str], note:
     m0 = mans[0]
     mismatch = {k: sorted({json.dumps(m.get(k), sort_keys=True) for m in mans})
                 for k in KEYS_SAME if len({json.dumps(m.get(k), sort_keys=True) for m in mans}) > 1}
+    if "git" in mismatch and git_equiv and all(git_equiv(m0.get("git"), m.get("git")) for m in mans):
+        del mismatch["git"]  # different commits, same run code
     out = sess / run / "merged"
     out.mkdir(parents=True, exist_ok=True)
     ids = [c for c in case_order if c in recs[systems[0]]]
@@ -418,6 +431,7 @@ def merge(sess: Path, run: str, systems: list[str], case_order: list[str], note:
                started_utc=min(m["started_utc"] for m in mans),
                finished_utc=max(m["finished_utc"] for m in mans),
                parts=len(mans), parts_dir=str((sess / run / "cases").relative_to(root)),
+               git_commits=sorted({(m.get("git") or {}).get("commit") or "" for m in mans}),
                mismatch=mismatch, note=note)
     (out / "manifest.json").write_text(json.dumps(man, indent=1, sort_keys=True) + "\n")
     return {"complete": len(ids), "mismatch": mismatch, "dir": str(out)}

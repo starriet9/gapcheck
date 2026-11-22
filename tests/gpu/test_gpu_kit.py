@@ -7,7 +7,9 @@
     guard terminates after IDLE_SECONDS without server-log activity, not while active
   queue_run: complete(), usable() and the infrastructure-error rule, merge() mismatch
     detection, orphaned case processes killed on resume
-  session: the run config is checked; configs/run1.json holds the frozen values
+  session: the run config is checked; configs/run1.json holds the frozen values; the tag
+    rule and the runner-fix rule on a small git repository; parts at a runner-fix commit merge
+  gpu_check --summary: one line, no account data, exit status by cloud
 """
 import json
 import os
@@ -254,3 +256,73 @@ def test_pod_start_has_no_template_payload():
     text = (GPU / "pod_start.sh").read_text() + (GPU / "session.py").read_text()
     assert "CT_B64" not in text and "--chat-template-file $D/chat-template.jinja" in text
     assert shutil.which("bash")
+
+
+GIT_ID = ["-c", "user.name=test", "-c", "user.email=test@localhost"]
+
+
+def commit(repo: Path, files: dict[str, str], msg: str) -> str:
+    for f, text in files.items():
+        (repo / f).parent.mkdir(parents=True, exist_ok=True)
+        (repo / f).write_text(text)
+    subprocess.run(["git", *GIT_ID, "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", *GIT_ID, "commit", "-q", "-m", msg], cwd=repo, check=True)
+    return session.git("rev-parse", "HEAD", cwd=repo)
+
+
+def test_tag_and_runner_fix_rules(tmp_path):
+    r = tmp_path / "r"
+    r.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=r, check=True)
+    base = commit(r, {"src/gapcheck/a.py": "1", "gpu/session.py": "1", "RUNS.md": "", "docs/x.md": ""}, "base")
+    subprocess.run(["git", *GIT_ID, "tag", "-a", "-m", "t", "v1"], cwd=r, check=True)
+    assert session.tag_check("v1", base, cwd=r) == (base, [])
+    assert session.tag_check("nope", base, cwd=r)[1]
+    c1 = commit(r, {"RUNS.md": "test set sha256", "results/a.json": "{}", "DEVIATIONS.md": "None"}, "after tag")
+    assert session.tag_check("v1", c1, cwd=r) == (base, [])
+    c2 = commit(r, {"src/gapcheck/a.py": "2"}, "harness")
+    c3 = commit(r, {"src/gapcheck/a.py": "1"}, "reverted")  # same tree as c1, but a commit touched src
+    for c in (c2, c3):
+        tc, probs = session.tag_check("v1", c, cwd=r)
+        assert probs and "src/gapcheck/a.py" in probs[0]
+    # runner fix: gpu/ and docs/ only
+    subprocess.run(["git", "reset", "-q", "--hard", c1], cwd=r, check=True)
+    f1 = commit(r, {"gpu/session.py": "2", "docs/x.md": "fix"}, "runner fix")
+    assert session.runner_fix_check(c1, f1, cwd=r) == (["docs/x.md", "gpu/session.py"], [])
+    for files in ({"src/gapcheck/a.py": "3"}, {"configs/run1.json": "{}"}, {"scripts/s.py": "x"},
+                  {"tests/gpu/t.py": "x"}):
+        subprocess.run(["git", "reset", "-q", "--hard", f1], cwd=r, check=True)
+        bad = commit(r, files, "not a runner fix")
+        assert session.runner_fix_check(c1, bad, cwd=r)[1] == list(files)
+    # not a descendant
+    subprocess.run(["git", "checkout", "-q", "--orphan", "other"], cwd=r, check=True)
+    lone = commit(r, {"x": "1"}, "elsewhere")
+    assert session.runner_fix_check(c1, lone, cwd=r)[1]
+
+
+def test_merge_accepts_runner_fix_commits_only_through_git_equiv(tmp_path):
+    root = tmp_path / "data" / "runs" / "s"
+    write_case(root, "c1", "a")
+    write_case(root, "c2", "b")
+    m = queue_run.merge(root, "X", ["A1"], ["c1", "c2"], "t")
+    assert "git" in m["mismatch"]
+    m = queue_run.merge(root, "X", ["A1"], ["c1", "c2"], "t", git_equiv=lambda g0, g: True)
+    assert not m["mismatch"]
+    man = json.loads((root / "X" / "merged" / "manifest.json").read_text())
+    assert man["git_commits"] == ["a", "b"]
+    m = queue_run.merge(root, "X", ["A1"], ["c1", "c2"], "t", git_equiv=lambda g0, g: g0 == g)
+    assert "git" in m["mismatch"]
+
+
+def test_gpu_check_summary_has_no_account_data(tmp_path):
+    state = tmp_path / "fake.json"
+    fakerp.Fake(str(state))
+    for cloud, avail, rc in (("COMMUNITY", "LOW", 0), ("COMMUNITY", "NONE", 3), ("SECURE", "NONE", 0)):
+        s = json.loads(state.read_text())
+        s["availability"] = avail  # the fake's Community stock; Secure stays MEDIUM
+        state.write_text(json.dumps(s))
+        p = subprocess.run([PY, "-I", str(GPU / "gpu_check.py"), "--summary", "--cloud", cloud,
+                            "--dry-state", str(state)], capture_output=True, text=True)
+        assert p.returncode == rc, (cloud, avail, p.stdout)
+        line = p.stdout.strip()
+        assert "community" in line and "secure" in line and "balance" not in line and "pods" not in line

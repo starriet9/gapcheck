@@ -181,12 +181,10 @@ fi
 template_from_gguf "$D/$FIRST" "$D/chat-template.jinja" "$TEMPLATE_SHA256"
 /app/llama-server --version 2>&1 | sed 's/^/[gapcheck] version: /'
 
-# ---- server supervisor: args from $D/np and $D/ctx_per_slot (changeable via exec + pkill)
-[ -f $D/np ] || echo "${NP:-8}" > $D/np
-[ -f $D/ctx_per_slot ] || echo "${CTX_PER_SLOT:-49152}" > $D/ctx_per_slot
-[ -f $D/extra_args ] || echo "${EXTRA_ARGS:-}" > $D/extra_args
+# ---- llama-server with the arguments from the pod request; restarted with the same
+# arguments if it exits
+np=${NP:-8}; cps=${CTX_PER_SLOT:-49152}; extra=${EXTRA_ARGS:-}
 while true; do
-  np=$(cat $D/np); cps=$(cat $D/ctx_per_slot); extra=$(cat $D/extra_args)
   log "SERVER START np=$np ctx_per_slot=$cps total_ctx=$((np*cps)) extra='$extra'"
   # shellcheck disable=SC2086
   /app/llama-server -m $D/$FIRST \

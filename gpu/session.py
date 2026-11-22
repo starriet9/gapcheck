@@ -2,10 +2,14 @@
 scoring. Every frozen setting comes from the run config; the case set is given with --cases.
 
 Steps (each logged to <run dir>/logs/timeline.txt; state in <run dir>/session.json):
-  preflight   run commit; the checkout's gpu/ and run config equal the commit's; worktree of
-              the commit (clean); the harness at that commit accepts the run settings exactly;
-              case set: every file matches its manifest, split as the config says, manifest
-              sha256 present in RUNS.md at the commit; relay self-test; the harness's L1 build
+  preflight   real run: --protocol-tag given and the run commit is the tagged commit or
+              follows it only by commits to RUNS.md, DEVIATIONS.md, results/; the run commit is
+              HEAD and the checkout is clean; a resume at a later commit only with --runner-fix
+              (changes in gpu/, docs/, RUNS.md, DEVIATIONS.md, results/ only, a logged
+              deviation). Always: worktree of the commit (clean); the harness at that commit
+              accepts the run settings exactly; case set: every file matches its manifest,
+              split as the config says (a --rehearsal: dev, under data/runs/rehearsal/),
+              manifest sha256 in RUNS.md at the commit; relay self-test; the harness's L1 build
               stop on every case (local, before any pod); API key file present (never read
               here). Nothing is created before this passes.
   gpu check   read-only: GPU availability and price on the chosen cloud (--cloud; default the
@@ -36,16 +40,19 @@ Steps (each logged to <run dir>/logs/timeline.txt; state in <run dir>/session.js
 
 Usage (from the repo root):
   plan only (read-only, creates nothing):
-    uv run --locked python gpu/session.py --cases data/cases/<test set> --run-dir data/runs/run1 --cap 45
+    uv run --locked python gpu/session.py --cases data/cases/<test set> --run-dir data/runs/run1 --cap 45 \\
+        --protocol-tag <tag>
   launch (detached; survives the terminal):
     setsid nohup uv run --locked python gpu/session.py --cases data/cases/<test set> \\
-        --run-dir data/runs/run1 --cap 45 --go > data/runs/run1.out 2>&1 < /dev/null &
+        --run-dir data/runs/run1 --cap 45 --protocol-tag <tag> --go > data/runs/run1.out 2>&1 < /dev/null &
   resume after any stop (crash, budget, deadline, signal, STOP file): the same command with
   --resume (same commit, config and case set; usable cases are kept). After a budget stop
   the cap must be raised, since the cap counts every pod of the run.
   graceful stop: touch data/runs/run1/STOP
   dry run (no RunPod, no model: fake API and fake llama-server, same code path):
-    ... --cases data/cases/<dev set> --run-dir data/runs/dry1 --cap 12 --go --dry --dry-cases 6
+    ... --cases data/cases/<dev set> --run-dir data/runs/dry1 --cap 12 --go --dry --first-cases 6
+Run files store repository-relative paths only; the account (balance, other pods, the watchdog
+log) stays in <run dir>/account/, and <run dir>/RELEASE.txt lists the files meant for release.
 The RunPod API key is read only inside rpapi.py and never printed, logged or passed on.
 """
 from __future__ import annotations
@@ -77,6 +84,11 @@ import rpapi  # noqa: E402
 REPO = KIT.parent
 DISK_RATE = 0.10 / 730.0  # USD per GB-hour, container disk of a running pod
 DRY_TEMPLATE = "{#- gapcheck dry run: a stand-in, not the model's chat template -#}\n"
+# After the protocol tag only these may change before run 1 (the test set's sha256 goes into RUNS.md).
+AFTER_TAG = ("RUNS.md", "DEVIATIONS.md", "results/")
+# A resume at a later commit (--runner-fix, a logged deviation) may change only these: never the
+# harness (src/), the scripts, the run config or the prompts.
+RUNNER_FIX = ("gpu/", "docs/", "RUNS.md", "DEVIATIONS.md", "results/")
 SETTINGS_FIELDS = ("max_steps", "repair_steps", "l1_tool_rounds", "context_limit", "page_size",
                    "chars_per_token", "prompt_set", "rounds_left_notice", "round_counter")
 
@@ -100,9 +112,40 @@ def log(msg: str) -> None:
 
 
 def timeline(msg: str) -> None:
+    """A line of logs/timeline.txt (released): pod ids are written as pod#1, pod#2, ...; amounts
+    of the account balance never go here (account_log)."""
     log(msg)
+    for i, p in enumerate(load_ledger()["pods"], 1):
+        msg = msg.replace(p["id"], f"pod#{i}")
     with open(SESS / "logs" / "timeline.txt", "a") as f:
         f.write(f"{utc()} {msg}\n")
+
+
+def account_dir() -> Path:
+    """<run dir>/account/: the account's balance and pods, the watchdog log. Never released."""
+    d = SESS / "account"
+    d.mkdir(exist_ok=True)
+    os.chmod(d, 0o700)
+    return d
+
+
+def account_log(msg: str) -> None:
+    log(msg)
+    with open(account_dir() / "account.log", "a") as f:
+        f.write(f"{utc()} {msg}\n")
+
+
+def load_account() -> dict:
+    p = account_dir() / "account.json"
+    return json.loads(p.read_text()) if p.exists() else {}
+
+
+def save_account(d: dict) -> None:
+    write_json(account_dir() / "account.json", d)
+
+
+def watchdog_log() -> Path:
+    return account_dir() / "watchdog.log"
 
 
 def write_json(p: Path, d) -> None:
@@ -219,6 +262,63 @@ def git(*a, cwd=REPO) -> str:
     return subprocess.run(["git", *a], cwd=cwd, capture_output=True, text=True, check=True).stdout.strip()
 
 
+def under(path: str, prefixes) -> bool:
+    return any(path == x or (x.endswith("/") and path.startswith(x)) for x in prefixes)
+
+
+def touched(c0: str, c1: str, cwd=REPO) -> list[str]:
+    """Every path a commit in c0..c1 touches, each commit's own diff included (a change that a
+    later commit reverts is still listed). c0 must be an ancestor of c1; merges are refused."""
+    if subprocess.run(["git", "merge-base", "--is-ancestor", c0, c1], cwd=cwd).returncode:
+        return [f"<{c1[:10]} does not descend from {c0[:10]}>"]
+    out = set(git("log", "--format=", "--name-only", f"{c0}..{c1}", cwd=cwd).split())
+    out |= set(git("diff", "--name-only", c0, c1, cwd=cwd).split())
+    if git("rev-list", "--merges", f"{c0}..{c1}", cwd=cwd):
+        out.add("<merge commits>")
+    return sorted(out)
+
+
+def tag_check(tag: str, commit: str, cwd=REPO) -> tuple[str | None, list[str]]:
+    """(tag commit, problems): the run commit is the tagged commit, or follows it by commits
+    that touch only RUNS.md, DEVIATIONS.md and results/."""
+    try:
+        tc = git("rev-parse", "--verify", f"{tag}^{{commit}}", cwd=cwd)
+    except subprocess.CalledProcessError:
+        return None, [f"protocol tag {tag!r} does not exist here"]
+    if tc == commit:
+        return tc, []
+    bad = [f for f in touched(tc, commit, cwd) if not under(f, AFTER_TAG)]
+    return tc, ([f"commits after the tag {tag} ({tc[:10]}) touch {bad}; only {list(AFTER_TAG)} may change"]
+                if bad else [])
+
+
+def runner_fix_check(c0: str, c1: str, cwd=REPO) -> tuple[list[str], list[str]]:
+    """(files the commits c0..c1 change, those outside the runner-fix paths)."""
+    files = touched(c0, c1, cwd)
+    return files, [f for f in files if not under(f, RUNNER_FIX)]
+
+
+def same_code(first: str):
+    """For merge(): two parts' git records are the same run code if equal, or if both are clean
+    and every commit is the first run commit or a runner fix of it."""
+    ok = {first: True}
+
+    def allowed(c: str) -> bool:
+        if c not in ok:
+            try:
+                ok[c] = not runner_fix_check(first, c)[1]
+            except subprocess.CalledProcessError:
+                ok[c] = False
+        return ok[c]
+
+    def equiv(g0: dict | None, g: dict | None) -> bool:
+        if g0 == g:
+            return True
+        return bool(g0 and g and not g0.get("dirty") and not g.get("dirty")
+                    and allowed(g0.get("commit")) and allowed(g.get("commit")))
+    return equiv
+
+
 def rel(p: Path) -> str:
     try:
         return str(Path(p).resolve().relative_to(REPO))
@@ -301,7 +401,7 @@ def template_sha(a) -> str:
 
 
 # ---------------------------------------------------------------- preflight
-def case_set_check(cases: Path, commit: str) -> dict:
+def case_set_check(cases: Path, commit: str, split: str, check_runs_md: bool = True) -> dict:
     """Integrity of the case set and its registration. Returns facts and problems."""
     out = {"path": rel(cases), "problems": []}
     try:
@@ -314,14 +414,14 @@ def case_set_check(cases: Path, commit: str) -> dict:
             out["problems"].append(f"case set file {f} missing or changed (sha256 differs from manifest.json)")
     out["manifest_sha256"] = sha256_file(cases / "manifest.json")
     out["split"] = man.get("split")
-    if man.get("split") != CFG["case_split"]:
-        out["problems"].append(f"case set split {man.get('split')!r} != {CFG['case_split']!r} (run config)")
+    if man.get("split") != split:
+        out["problems"].append(f"case set split {man.get('split')!r} != {split!r}")
     try:
-        runs_md = git("show", f"{commit}:RUNS.md")
+        runs_md_text = git("show", f"{commit}:RUNS.md")
     except subprocess.CalledProcessError:
-        runs_md = ""
-    out["in_runs_md"] = out["manifest_sha256"] in runs_md
-    if not out["in_runs_md"]:
+        runs_md_text = ""
+    out["in_runs_md"] = out["manifest_sha256"] in runs_md_text
+    if check_runs_md and not out["in_runs_md"]:
         out["problems"].append(f"manifest.json sha256 {out['manifest_sha256']} is not in RUNS.md at the run "
                                f"commit {commit[:10]} (PROTOCOL.md sec. 14: recorded before any model call)")
     ids = [json.loads(x)["case_id"] for x in (cases / "cases.jsonl").read_text().splitlines() if x.strip()]
@@ -351,37 +451,64 @@ def worktree(a, commit: str) -> Path:
     wt = SESS / "wt"
     if not wt.exists():
         git("worktree", "add", "--detach", str(wt), commit)
-    if git("rev-parse", "HEAD", cwd=wt) != commit:
-        raise SystemExit(f"worktree {wt} is not at {commit[:10]}")
     dirty = git("status", "--porcelain", cwd=wt)
     if dirty:
         raise SystemExit(f"worktree is not clean:\n{dirty}")
+    if git("rev-parse", "HEAD", cwd=wt) != commit:
+        if not a.runner_fix:
+            raise SystemExit(f"worktree {rel(wt)} is not at {commit[:10]}")
+        git("checkout", "-q", "--detach", commit, cwd=wt)  # a checked runner fix (preflight)
     return wt
 
 
 def preflight(a, st: dict) -> dict:
     """Local checks; the worktree (under data/, git-ignored) is created unless plan-only."""
-    out = {"warnings": []}
-    commit = git("rev-parse", st.get("commit") or a.commit)
-    if st.get("commit") and a.commit != "HEAD" and git("rev-parse", a.commit) != st["commit"]:
-        raise SystemExit(f"resume: session commit {st['commit'][:10]} != --commit {a.commit}")
-    out["commit"] = commit
-    cs = case_set_check(Path(a.cases), commit)
+    out = {"warnings": [], "runner_fix": None}
+    head = git("rev-parse", "HEAD")
+    commit = git("rev-parse", a.commit)
+    first = st.get("commit") or commit
+    if not a.dry and commit != head:
+        raise SystemExit("a real run runs the checked-out commit: leave --commit at HEAD")
+    if commit != first:
+        if not a.runner_fix:
+            raise SystemExit(f"resume: the session ran commit {first[:10]}, this checkout is at {commit[:10]}; a "
+                             f"later commit is allowed only with --runner-fix (changes in {list(RUNNER_FIX)} only)")
+        files, bad = runner_fix_check(first, commit)
+        if bad:
+            raise SystemExit(f"--runner-fix refused: the commits since {first[:10]} change {bad}, outside "
+                             f"{list(RUNNER_FIX)}")
+        out["runner_fix"] = {"t_utc": utc(), "from": first, "to": commit, "files": files}
+    out["commit"], out["first_commit"] = commit, first
+    cs = case_set_check(Path(a.cases), commit, "dev" if a.rehearsal else CFG["case_split"],
+                        check_runs_md=not a.rehearsal)
     probs = list(cs.pop("problems")) + code_check(commit, Path(a.config))
     out["case_set"] = {k: v for k, v in cs.items() if k != "case_ids"}
-    ids = cs["case_ids"][:a.dry_cases] if a.dry and a.dry_cases else cs["case_ids"]
+    ids = cs["case_ids"][:a.first_cases] if a.first_cases else cs["case_ids"]
     out["case_ids"] = ids
+    out["tag"] = {"protocol_tag": a.protocol_tag, "tag_commit": None}
     if a.protocol_tag:
-        out["changed_since_tag"] = subprocess.run(
-            ["git", "diff", "--name-only", a.protocol_tag, commit, "--", "src", "scripts", "gpu", rel(Path(a.config))],
-            cwd=REPO, capture_output=True, text=True, check=True).stdout.split()
-    if not a.dry and not rpapi.key_present():
-        probs.append("no RunPod API key file (~/.config/runpod/api_key)")
+        tc, tp = tag_check(a.protocol_tag, first)
+        out["tag"]["tag_commit"] = tc
+        probs += tp
+    elif not a.dry and not a.rehearsal:
+        probs.append("--protocol-tag <tag> is required for a real run")
+    if not a.dry:
+        dirty = git("status", "--porcelain")
+        if dirty:
+            probs.append(f"the checkout has uncommitted changes: {dirty.splitlines()[:5]}")
+        if not rpapi.key_present():
+            probs.append("no RunPod API key file (~/.config/runpod/api_key)")
+    hard = []
+    if a.rehearsal:  # a rehearsal never runs on the test set, and stays in its own folder
+        if cs["split"] != "dev":
+            hard.append(f"--rehearsal needs a development case set, not split {cs['split']!r}")
+        if not SESS.is_relative_to(REPO / "data" / "runs" / "rehearsal"):
+            hard.append("--rehearsal writes under data/runs/rehearsal/ only")
     if a.plan:
-        out["problems"] = probs
+        out["problems"] = hard + probs
         return out
-    if probs and not a.dry:
-        raise SystemExit("preflight:\n  " + "\n  ".join(probs))
+    if hard or (probs and not a.dry):
+        raise SystemExit("preflight:\n  " + "\n  ".join(hard + probs))
     out["warnings"] = [f"dry run, not enforced: {p}" for p in probs]
     wt = worktree(a, commit)
     chk = subprocess.run([sys.executable, "-c",
@@ -423,7 +550,7 @@ def local_build_stop(a, wt: Path, commit: str, manifest_sha: str, ids: list[str]
            "--out", str(res), "--chars-per-token", str(r["chars_per_token"]),
            "--context-limit", str(r["context_limit"]), "--l1-rounds", str(r["l1_tool_rounds"]),
            "--page-size", str(r["page_size"]), "--prompt-set", r["prompt_set"]]
-    if a.dry and a.dry_cases:
+    if a.first_cases:
         cmd += ["--case-ids", ",".join(ids)]
     p = subprocess.run(cmd, cwd=wt, env=wt_env(wt), capture_output=True, text=True, timeout=7200)
     (SESS / "logs" / "build_stop_local.out").write_text(p.stdout + p.stderr)
@@ -453,7 +580,7 @@ def heartbeat_loop(path: Path, stop: threading.Event) -> None:
 
 def start_watchdog(a, st: dict, hard_deadline: float) -> None:
     hb = SESS / "logs" / "watchdog.heartbeat"
-    wlog = SESS / "logs" / "watchdog.log"
+    wlog = watchdog_log()
     if st.get("watchdog_pid") and pid_alive(st["watchdog_pid"]):
         age = time.time() - float(hb.read_text()) if hb.exists() else 1e9
         if age < 3 * a.watchdog_poll + 30:
@@ -463,7 +590,7 @@ def start_watchdog(a, st: dict, hard_deadline: float) -> None:
     stopf.unlink(missing_ok=True)
     cmd = [sys.executable, "-I", str(KIT / "watchdog.py"), "--ledger", str(SESS / "ledger.json"),
            "--prefix", st["prefix"], "--hard-deadline", str(hard_deadline), "--budget", str(a.cap),
-           "--margin", str(a.margin), "--poll", str(a.watchdog_poll), "--balance0", str(st["balance0"]),
+           "--margin", str(a.margin), "--poll", str(a.watchdog_poll), "--balance0", str(load_account()["balance0"]),
            "--log", str(wlog), "--stop-file", str(stopf), "--heartbeat", str(hb),
            "--client-heartbeat", str(SESS / "logs" / "session.heartbeat"),
            "--client-stale", str(a.client_stale)]
@@ -471,7 +598,7 @@ def start_watchdog(a, st: dict, hard_deadline: float) -> None:
         cmd += ["--dry-state", str(SESS / "fake_runpod.json")]
     n0 = len(wlog.read_text().splitlines()) if wlog.exists() else 0
     p = subprocess.Popen(["nohup", *cmd], stdin=subprocess.DEVNULL,
-                         stdout=open(SESS / "logs" / "watchdog.stdout", "a"), stderr=subprocess.STDOUT,
+                         stdout=open(account_dir() / "watchdog.stdout", "a"), stderr=subprocess.STDOUT,
                          start_new_session=True, cwd=str(KIT))
     Procs.watchdog = p
     st["watchdog_pid"] = p.pid
@@ -484,7 +611,7 @@ def start_watchdog(a, st: dict, hard_deadline: float) -> None:
         if p.poll() is not None:
             break
         time.sleep(0.5)
-    raise SystemExit("watchdog did not start (see logs/watchdog.stdout)")
+    raise SystemExit("watchdog did not start (see account/watchdog.stdout)")
 
 
 def stop_watchdog(st: dict, wait_s: float = 150) -> None:
@@ -595,7 +722,7 @@ def termination_time(pid: str) -> float:
     it gone first (its log), e.g. while this session was not running."""
     t = time.time()
     try:
-        lines = (SESS / "logs" / "watchdog.log").read_text().splitlines()
+        lines = watchdog_log().read_text().splitlines()
     except OSError:
         lines = []
     for x in lines:
@@ -662,12 +789,15 @@ def stop_proc(p) -> None:
 def watchdog_reason(pod_id: str) -> str:
     """Why the watchdog terminated a pod (its log), or that it was not the watchdog."""
     try:
-        lines = (SESS / "logs" / "watchdog.log").read_text().splitlines()
+        lines = watchdog_log().read_text().splitlines()
     except OSError:
         lines = []
     for x in reversed(lines):
         if f"TERMINATE {pod_id}: " in x:
-            return "the watchdog terminated it: " + x.split(f"TERMINATE {pod_id}: ", 1)[1].rsplit(" -> ", 1)[0]
+            why = x.split(f"TERMINATE {pod_id}: ", 1)[1].rsplit(" -> ", 1)[0]
+            if "balance" in why:  # no account amounts outside account/
+                why = "balance drop since the first launch >= cap - margin"
+            return "the watchdog terminated it: " + why
     return "terminated outside the watchdog (the pod's own guards or RunPod)"
 
 
@@ -718,7 +848,7 @@ def calibrate(a, wt: Path, n: int, ids: list[str]) -> dict:
            "--context-limit", str(r["context_limit"]), "--l1-rounds", str(r["l1_tool_rounds"]),
            "--page-size", str(r["page_size"]), "--prompt-set", r["prompt_set"], "--model", s["alias"],
            "--extra", json.dumps(d["extra"]), "--agent-config", f"{r['max_steps']}:{r['prompt_set']}"]
-    if a.dry and a.dry_cases:
+    if a.first_cases:
         cmd += ["--case-ids", ",".join(ids)]
     p = subprocess.run(cmd, cwd=wt, env=wt_env(wt), capture_output=True, text=True, timeout=3600)
     (SESS / "logs" / f"calibrate_{n}.out").write_text(p.stdout + p.stderr)
@@ -806,7 +936,13 @@ def finalize(a, st: dict, wt: Path) -> dict:
            "missing": missing, "failed_attempts": {c: t for c, t in ph["tasks"].items() if c in set(missing)},
            "exhausted": exhausted, "billed_gpu_hours": b["billed_gpu_hours"],
            "billed_usd_estimate": b["billed_usd_estimate"], "queue_wall_hours": round(queue_h, 4),
-           "pods": b["pods"], "clouds": [x.get("cloud") for x in st.get("launches", [])], "dry": a.dry}
+           "pods": b["pods"], "clouds": [x.get("cloud") for x in st.get("launches", [])],
+           "protocol_tag": st.get("protocol_tag"), "tag_commit": st.get("tag_commit"),
+           "first_run_commit": st.get("commit"), "run_commit": st.get("run_commit", st.get("commit")),
+           "runner_fixes": st.get("runner_fixes", []),
+           "deviation": "runner fix" if st.get("runner_fixes") else None,
+           "rehearsal": a.rehearsal, "dry": a.dry}
+    write_release()
     if missing:
         stt["next"] = ("not scored (no interim analysis, PROTOCOL.md sec. 11); resume with the same command "
                        "and --resume" + (" and a larger --cap" if any(w in str(st.get("status")) for w in
@@ -817,9 +953,15 @@ def finalize(a, st: dict, wt: Path) -> dict:
         return stt
     timeline("finalize: every case complete: R0/R1, merge, score (local)")
     rdir = run_rules(wt, cases, ids)
-    note = (f"DRY RUN ({rel(cases)}): fake server, no model; not a result" if a.dry else
-            f"{name}: pre-registered run (PROTOCOL.md sec. 11); merged from one process per case")
-    m = queue_run.merge(SESS, name, sy, ids, note, accept_4xx())
+    if a.dry or a.rehearsal:
+        note = "; ".join(x for x in (
+            f"DRY RUN ({rel(cases)}): fake server, no model" if a.dry else "",
+            f"REHEARSAL on development cases ({rel(cases)})" if a.rehearsal else "") if x) + "; not a result"
+    else:
+        note = f"{name}: pre-registered run (PROTOCOL.md sec. 11); merged from one process per case"
+    if st.get("runner_fixes"):
+        note += "; deviation: runner fix " + ", ".join(f"{x['from'][:10]}->{x['to'][:10]}" for x in st["runner_fixes"])
+    m = queue_run.merge(SESS, name, sy, ids, note, accept_4xx(), git_equiv=same_code(st["commit"]))
     merged = SESS / name / "merged"
     if m["complete"] != len(ids) or m["mismatch"]:
         stt.update(next="not scored: the parts differ in " + ", ".join(sorted(m["mismatch"])) +
@@ -846,7 +988,38 @@ def finalize(a, st: dict, wt: Path) -> dict:
                usd_per_hour_passed=b["usd_per_billed_hour"])
     write_json(SESS / "status.json", stt)
     timeline(f"finalize: merged {m['complete']} cases; score rc {r.returncode} ({rel(merged / 'score.json')})")
+    write_release()
     return stt
+
+
+RELEASE = (  # run files meant for release, relative to the run directory
+    ("session.json", "state: commits, tag, config, case ids, launches (cloud, arguments)"),
+    ("status.json", "completeness, exhausted cases, billed GPU hours and cost, clouds, commits"),
+    ("logs/timeline.txt", "every step (pod ids as pod#n, no account amounts)"),
+    ("wait.log", "stock checks before the launch (gpu/wait_launch.sh)"),
+    ("backend_run1.json", "the backend configuration the harness read"),
+    ("results/build_stop_local.json", "the local L1 build stop"),
+    ("results/calibration_*.json", "server checks and token counts, per pod"),
+    ("run1/phase.json", "attempts, their errors and timing, per case"),
+    ("run1/cases/", "one harness run per case: manifest.json and one record per system"),
+    ("R/", "R0 and R1"),
+    ("run1/merged/", "all five systems merged, manifest.json, score.json, results.json"),
+)
+NOT_RELEASED = ("account/ (account balance, the account's pods, the watchdog log); ledger.json (pod ids; "
+                "the billed hours and prices of each pod are in status.json); logs/ except timeline.txt "
+                "(pod ids, proxy host, process output); podlogs/; run1/aborted/ and run1/logs/ (failed "
+                "attempts, process output); secret/; wt/; session.lock; watchdog.stop; STOP; dry-run files")
+
+
+def write_release() -> None:
+    lines = ["Run files meant for release (paths relative to this directory). Generated by gpu/session.py.", ""]
+    for pat, what in RELEASE:
+        found = sorted(SESS.glob(pat.rstrip("/"))) if "*" in pat else [SESS / pat.rstrip("/")]
+        for f in found:
+            if f.exists():
+                lines.append(f"{f.relative_to(SESS)}{'/' if f.is_dir() else ''}\t{what}")
+    lines += ["", "Not for release: " + NOT_RELEASED, ""]
+    (SESS / "RELEASE.txt").write_text("\n".join(lines))
 
 
 # ---------------------------------------------------------------- main
@@ -861,7 +1034,13 @@ def parse_args(argv=None):
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--finalize-only", action="store_true", help="no pod: the finalize step only")
     ap.add_argument("--commit", default="HEAD")
-    ap.add_argument("--protocol-tag", help="record which run files changed since this tag")
+    ap.add_argument("--protocol-tag", help="required for a real run: the run commit is the tagged commit or "
+                                           "follows it only by commits to RUNS.md, DEVIATIONS.md, results/")
+    ap.add_argument("--runner-fix", action="store_true",
+                    help="resume at a later commit that changes only gpu/, docs/, RUNS.md, DEVIATIONS.md, "
+                         "results/ (a logged deviation)")
+    ap.add_argument("--rehearsal", action="store_true",
+                    help="a real-pod rehearsal on development cases under data/runs/rehearsal/; no tag needed")
     ap.add_argument("--cloud", choices=("COMMUNITY", "SECURE"),
                     help="RunPod cloud of a new pod (default: the run config's, Community); same GPU and image")
     ap.add_argument("--max-hourly", type=float, help="refuse a pod above this $/h (GPU part); default 1.80 on "
@@ -882,7 +1061,8 @@ def parse_args(argv=None):
     ap.add_argument("--est-case-s", help="plan: LO,HI pod seconds per case, for a cost estimate")
     ap.add_argument("--est-setup-h", type=float, default=0.5, help="plan: pod hours outside the case queue")
     ap.add_argument("--dry", action="store_true", help="fake RunPod API and fake llama-server; no network")
-    ap.add_argument("--dry-cases", type=int, default=0, help="dry: the first N cases only")
+    ap.add_argument("--first-cases", "--dry-cases", dest="first_cases", type=int, default=0,
+                    help="dry or rehearsal: the first N cases of the case set only")
     ap.add_argument("--use-checkout", action="store_true", help="dry: this checkout instead of a worktree")
     ap.add_argument("--dry-availability", default="LOW")
     ap.add_argument("--dry-balance", type=float, default=20.0)
@@ -892,8 +1072,10 @@ def parse_args(argv=None):
     ap.add_argument("--dry-fail-text", help="dry: the fake server answers 503 to chat requests with this text")
     a = ap.parse_args(argv)
     a.plan = not a.go and not a.finalize_only
-    if (a.dry_cases or a.use_checkout) and not a.dry:
-        ap.error("--dry-cases and --use-checkout need --dry")
+    if a.first_cases and not (a.dry or a.rehearsal):
+        ap.error("--first-cases needs --dry or --rehearsal (run 1 runs every case)")
+    if a.use_checkout and not a.dry:
+        ap.error("--use-checkout needs --dry")
     if a.relay_port is None:
         a.relay_port = 18090 if a.dry else 18080
     if a.dry:
@@ -936,6 +1118,10 @@ def main(argv=None):
         queue_run.runs_root(SESS)  # run ids are paths relative to data/runs
     except ValueError as e:
         raise SystemExit(f"--run-dir: {e}")
+    # run files store paths relative to the repository only
+    for what, path in (("--run-dir", SESS), ("--cases", Path(a.cases).resolve()), ("--config", Path(a.config).resolve())):
+        if not path.is_relative_to(REPO):
+            raise SystemExit(f"{what} must be inside the repository ({REPO.name}/...)")
 
     if a.plan:
         if a.dry:
@@ -954,6 +1140,10 @@ def main(argv=None):
             raise SystemExit("resume: the run config differs from the session's (see session.json)")
         if st.get("cases") != rel(Path(a.cases)):
             raise SystemExit(f"resume: --cases {a.cases} differs from the session's {st.get('cases')}")
+        if bool(st.get("rehearsal")) != a.rehearsal:
+            raise SystemExit("resume: --rehearsal differs from the session's")
+        if st.get("protocol_tag") != a.protocol_tag:
+            raise SystemExit(f"resume: --protocol-tag {a.protocol_tag} differs from the session's {st.get('protocol_tag')}")
     elif a.finalize_only:
         raise SystemExit(f"{SESS}: no session to finalize")
     SESS.mkdir(parents=True, exist_ok=True)
@@ -993,16 +1183,28 @@ def main(argv=None):
         pf = preflight(a, st)
         wt = Path(pf["wt"])
         if not st:
-            st = {"run_dir": SESS.name, "dry": a.dry, "created_utc": utc(), "commit": pf["commit"],
+            st = {"run_dir": rel(SESS), "dry": a.dry, "rehearsal": a.rehearsal, "created_utc": utc(),
+                  "commit": pf["commit"], "run_commit": pf["commit"], "protocol_tag": a.protocol_tag,
+                  "tag_commit": pf["tag"]["tag_commit"], "runner_fixes": [],
                   "prefix": f"gapcheck-{SESS.name}-{secrets.token_hex(3)}", "config": CFG,
                   "config_file": rel(Path(a.config)), "cases": rel(Path(a.cases)), "case_set": pf["case_set"],
                   "case_ids": pf["case_ids"], "prompts": pf["prompts"], "launches": []}
         if st["case_ids"] != pf["case_ids"] or st["case_set"]["manifest_sha256"] != pf["case_set"]["manifest_sha256"]:
             raise SystemExit("resume: the case set (or --dry-cases) differs from the session's")
-        st["launches"].append({"t": utc(), "pid": os.getpid(), "cloud": a.cloud, "args": dict(vars(a)),
-                               "warnings": pf["warnings"], "changed_since_tag": pf.get("changed_since_tag")})
+        args = {k: (rel(Path(v)) if k in ("cases", "run_dir", "config") else v) for k, v in vars(a).items()}
+        st["launches"].append({"t": utc(), "pid": os.getpid(), "cloud": a.cloud, "commit": pf["commit"],
+                               "args": args, "warnings": pf["warnings"]})
+        if pf["runner_fix"]:
+            st["runner_fixes"].append(pf["runner_fix"])
+            st["run_commit"] = pf["commit"]
         st["status"] = "running"
         save_state(st)
+        if pf["runner_fix"]:
+            fx = pf["runner_fix"]
+            timeline(f"deviation: runner fix: resumed at commit {fx['to']} (first run commit {fx['from']}); "
+                     f"files changed: {fx['files']}")
+        if a.protocol_tag:
+            timeline(f"protocol tag {a.protocol_tag} -> {st['tag_commit']}; first run commit {st['commit']}")
         for w in pf["warnings"]:
             timeline(f"WARNING {w}")
         timeline(f"preflight ok: commit {pf['commit'][:10]}, {len(pf['case_ids'])} cases, {pf['relay_test']}; "
@@ -1036,9 +1238,10 @@ def main(argv=None):
             fs["upstream"] = fake_up
             (SESS / "fake_runpod.json").write_text(json.dumps(fs, indent=1))
         g = gpu_check.check(CFG["gpu"]["id"])
-        (SESS / "results" / f"gpu_check_{len(st['launches'])}.json").write_text(json.dumps(g, indent=1) + "\n")
-        st.setdefault("balance0", g["balance"])
-        save_state(st)
+        (account_dir() / f"gpu_check_{len(st['launches'])}.json").write_text(json.dumps(g, indent=1) + "\n")
+        acct = load_account()
+        acct.setdefault("balance0", g["balance"])
+        save_account(acct)
         rec = live_pod()
         if rec is None:
             ok, price, row = cloud_offer(g, a.cloud)
@@ -1052,15 +1255,17 @@ def main(argv=None):
                 timeline(f"STOP: {a.cloud} price ${price}/h > max ${a.max_hourly}/h")
                 status = "stopped: price"
                 return
-            drop = st["balance0"] - g["balance"]
+            drop = acct["balance0"] - g["balance"]
             if drop >= a.cap - a.margin:  # the watchdog's balance rule, before a pod exists
-                timeline(f"STOP: budget: balance drop ${drop:.2f} since the first launch >= cap ${a.cap} - "
-                         f"margin ${a.margin}; raise --cap to go on")
+                account_log(f"STOP: balance drop ${drop:.2f} since the first launch >= cap ${a.cap} - margin ${a.margin}")
+                timeline("STOP: budget: the balance drop since the first launch reached cap - margin; raise --cap "
+                         "to go on (amounts in account/)")
                 status = "stopped: budget (balance drop reached the cap; resume with a larger --cap)"
                 return
             left = a.cap - spent_estimate()
             if g["balance"] < left + 0.5:
-                timeline(f"STOP: balance ${g['balance']:.2f} < budget left ${left:.2f} + $0.50")
+                account_log(f"STOP: balance ${g['balance']:.2f} < budget left ${left:.2f} + $0.50")
+                timeline("STOP: the account balance is below the budget left + $0.50 (amounts in account/)")
                 status = "stopped: balance below cap"
                 return
             wall = wall_hours(a.cap - a.margin - spent_estimate(), price + disk_gb() * DISK_RATE)
@@ -1174,24 +1379,26 @@ def main(argv=None):
                 st["n_complete"] = fin["n_complete"]
             except Exception as e:
                 log(f"FINALIZE ERROR {type(e).__name__}: {e}")
-        if not a.finalize_only:
+        if not a.finalize_only and (SESS / "ledger.json").exists():  # a pod existed: the account after it
             try:
                 g = gpu_check.check(CFG["gpu"]["id"])
-                if g:
-                    st["balance_end"] = g["balance"]
-                    st["pods_end"] = g["pods"]
+                acct = load_account()
+                acct.update(balance_end=g["balance"], pods_end=g["pods"], t_end=utc())
+                if acct.get("balance0") is not None:
+                    acct["balance_drop"] = round(acct["balance0"] - g["balance"], 4)
+                save_account(acct)
+                account_log(f"session end: balance drop {acct.get('balance_drop')}")
             except Exception as e:
                 log(f"final balance check failed: {e}")
         st["finished_utc"] = utc()
         st["estimated_spend"] = round(spent_estimate(), 3) if (SESS / "ledger.json").exists() else 0.0
-        if st.get("balance0") is not None and st.get("balance_end") is not None:
-            st["balance_drop"] = round(st["balance0"] - st["balance_end"], 4)
         if st.get("commit"):
             save_state(st)
         hb_stop.set()
-        timeline(f"session end: {status}; scored {st.get('scored')}; est spend ${st.get('estimated_spend')}, "
-                 f"balance drop {st.get('balance_drop')}")
+        timeline(f"session end: est spend ${st.get('estimated_spend')}; scored {st.get('scored')}; {status}")
         lock.unlink(missing_ok=True)
+        if wt is None or status.startswith("error"):  # refused in the preflight, or an error
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":
