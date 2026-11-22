@@ -138,7 +138,7 @@ R0 and R1 contain the oracle, so they are correct by construction on C0, C1, C2a
 
 All systems get the same conventions page (decision table, encoding choices, input rules, code lists, reason taxonomy) and return the same output schema (`SPEC.md` sec. 6.1). The verifier checks provenance and arithmetic only (`SPEC.md` sec. 6.2): cited rows and quotes exist and match; the inputs required by the row the system itself names are covered; each computed risk is reproduced within 0.1 percentage point; each absence claim is confirmed by a fixed query. It never evaluates the decision table and never reads the ledger. On failure the system is told only the number of the failed check and the index of the claim.
 
-A reply that is not one schema-valid JSON object gets one re-ask; the re-ask may use the rounds of tool calls left in the same limit. A case with no valid output after that, or with a request the server rejects, is scored as incorrect for that system. In A2, a repair that ends this way is a failed repair: the answer is the forced CANNOT_DETERMINE, scored like any forced fallback.
+A reply that is not one schema-valid JSON object gets one re-ask; the re-ask may use the rounds of tool calls left in the same limit. A case with no valid output after that, or with a request the server rejects, is scored as incorrect for that system. In A2, a repair that ends this way is a failed repair: the answer is the forced CANNOT_DETERMINE, scored like any forced fallback. A request the server rejects means HTTP 400 from llama-server. Any other failure of a request (another 4xx, a 5xx, a lost connection, no reply within 1,800 s) or a case not finished within 2,400 s is a failed attempt: the case is run again from its start, at most 2 attempts per invocation of the runner (`docs/SERVING.md`). A case whose 4th counted attempt fails (attempts are counted across resumes; an attempt the runner itself interrupts because of a stop signal or a pod that is gone is not counted) gets, written by the runner, a record for every system of that case with no output, schema_valid false and the error "attempts exhausted (4): <last error text>". It is logged in the timeline and listed in `status.json`, and it is scored as no valid output (incorrect).
 
 **Harness settings** (the task prompts state the same limits to the model):
 
@@ -204,7 +204,7 @@ Accuracy of any system on any set is not a criterion. Development accuracy is re
 | Training data cut-off stated by the publisher | Not stated on either model card (checked 2026-11-22) |
 | Serving engine, version or commit, container image digest | llama.cpp `llama-server` b12464 (commit `d3c3e242`), CUDA server image `ghcr.io/ggml-org/llama.cpp@sha256:ae96e52f8b2106ea82bad786ee2d08bb9b0a8c93403df9c27ae1bf065a118089`; f16 KV cache, flash attention on, context shift off, multi-token prediction off |
 | GPU, provider and tier | One NVIDIA RTX PRO 6000 Blackwell Server Edition (96 GB), RunPod Community Cloud |
-| Chat template file and sha256 | `[FILL: path in the repository]` (9,993 bytes), sha256 `12827f24b742ea4e80cdc12dbcf9622227056b9f797252a3149263d4f9aaadce`, passed to the server with `--chat-template-file` |
+| Chat template file and sha256 | The metadata key `tokenizer.chat_template` of the first model file, extracted on the pod by `gpu/pod_start.sh` (no template file is shipped; the server refuses to start on a mismatch), 9,993 bytes, sha256 `12827f24b742ea4e80cdc12dbcf9622227056b9f797252a3149263d4f9aaadce`, passed to the server with `--chat-template-file`; the same bytes as in the development runs |
 | Served context length; `context_limit`; `chars_per_token` | 49,152 tokens per request slot; 45,056; 2.26 |
 
 **Decoding settings:**
@@ -253,7 +253,7 @@ All pre-specified, all with 95% intervals from the same bootstrap, all on run 1 
 5. C3a miss rate (status other than DOCUMENTED_REASON). Answer-change rate in C2a, C2b, C3b and C4, each and pooled: the status differs from the same system's status on the same patient's C0 case; an invalid or missing output on either case counts as changed. C3a citation overlap with the planted sentence.
 6. Unsupported-claim rate: share of DOCUMENTED and ABSENT claims in final answers that fail verifier check 1 or 4. Beside it, the share of final answers that pass all four verifier checks, for L1, A1 and A2 (A2's answers pass or are forced, by construction).
 7. Run-to-run stability: share of cases with the same status in runs 1, 2 and 3, for L1, A1 and A2 (sec. 11).
-8. Tool calls, tokens and seconds per case; schema-invalid outputs; forced fallbacks per condition; parser failures; verifier first-round rejections by check number, and how many were repaired or forced; cost per case: GPU-hours times the hourly rate, divided by the number of cases.
+8. Tool calls, tokens and seconds per case; schema-invalid outputs; forced fallbacks per condition; parser failures; verifier first-round rejections by check number, and how many were repaired or forced; cost per case: GPU-hours times the hourly rate, divided by the number of cases. GPU-hours are the billed hours of every pod of run 1, over all sessions and resumes, each from its creation to its termination; the rate is the billed USD estimate (each pod at its own price, disk included) divided by those hours. The case-queue wall time is reported separately and is not a cost.
 9. Sensitivity analyses (sec. 9).
 10. The H2 and H3 comparisons of sec. 1.
 
@@ -290,7 +290,7 @@ No development-set accuracy is reported as a result.
 - **Only run 1 is reported first.** The first report of results covers run 1 and is published before runs 2 and 3 are made.
 - **Runs 2 and 3 come later** and serve only secondary outcome 7 (stability). L1, A1 and A2, non-zero temperature, seeds 2 and 3 (sec. 6). Until they are done, `RUNS.md` lists them as pending. They never replace or change a run 1 number. If they are not run, `RUNS.md` says so and outcome 7 is reported as not done.
 - **No interim analysis.** Test outputs are not scored until run 1 is complete for all systems.
-- **Complete** means every test case has, for every system, an output or a logged error.
+- **Complete** means every test case has, for every system, an output or a logged error, the records of exhausted cases (sec. 5) included.
 - **Crashes.** If a run stops (lost connection, server error, machine failure), it is resumed on the cases without an output, with the same commit, model, server settings and prompts, and the event is logged in `RUNS.md`. A case that already has an output, valid or not, is never run again.
 - **Order.** The test set's sha256 is committed to `RUNS.md` before the first model call (sec. 14).
 
@@ -342,7 +342,7 @@ Visible in the commit history and in `RUNS.md`:
 2. Model chosen by the rule in sec. 6; every `[FILL]` in this file completed.
 3. Tag on the protocol commit, pushed to the public repository, and published as a GitHub Release (server-side time stamp).
 4. Beacon pulse at T; seed derived; both recorded in `RUNS.md`.
-5. Test set built by the tag commit, unchanged, from a clean working tree; its sha256 (the sha256 of the case set's `manifest.json`, which lists the sha256 of every file) committed to `RUNS.md` and pushed before any model call.
+5. Test set built by the tag commit, unchanged, from a clean working tree; its sha256 (the sha256 of the case set's `manifest.json`, which lists the sha256 of every file) committed to `RUNS.md` and pushed before any model call. Commands: `docs/SERVING.md` sec. 11.
 6. Run 1; scoring; results published with `RUNS.md` and `DEVIATIONS.md` updated.
 
 External registration: none.
