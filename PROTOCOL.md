@@ -205,7 +205,7 @@ Accuracy of any system on any set is not a criterion. Development accuracy is re
 | Serving engine, version or commit, container image digest | llama.cpp `llama-server` b12464 (commit `d3c3e242`), CUDA server image `ghcr.io/ggml-org/llama.cpp@sha256:ae96e52f8b2106ea82bad786ee2d08bb9b0a8c93403df9c27ae1bf065a118089`; f16 KV cache, flash attention on, context shift off, multi-token prediction off |
 | GPU, provider and tier | One NVIDIA RTX PRO 6000 Blackwell Server Edition (96 GB), RunPod Community Cloud |
 | Chat template file and sha256 | The metadata key `tokenizer.chat_template` of the first model file, extracted on the pod by `gpu/pod_start.sh` (no template file is shipped; the server refuses to start on a mismatch), 9,993 bytes, sha256 `12827f24b742ea4e80cdc12dbcf9622227056b9f797252a3149263d4f9aaadce`, passed to the server with `--chat-template-file`; the same bytes as in the development runs |
-| Served context length; `context_limit`; `chars_per_token` | 49,152 tokens per request slot; 45,056; 2.26 |
+| Served context length; `context_limit`; `chars_per_token` | 49,152 tokens per request slot (8 slots, one request at a time); 45,056; 2.26 |
 
 **Decoding settings:**
 
@@ -291,7 +291,7 @@ No development-set accuracy is reported as a result.
 - **Runs 2 and 3 come later** and serve only secondary outcome 7 (stability). L1, A1 and A2, non-zero temperature, seeds 2 and 3 (sec. 6). Until they are done, `RUNS.md` lists them as pending. They never replace or change a run 1 number. If they are not run, `RUNS.md` says so and outcome 7 is reported as not done.
 - **No interim analysis.** Test outputs are not scored until run 1 is complete for all systems.
 - **Complete** means every test case has, for every system, an output or a logged error, the records of exhausted cases (sec. 5) included.
-- **Crashes.** If a run stops (lost connection, server error, machine failure), it is resumed on the cases without an output, with the same commit, model, server settings and prompts, and the event is logged in `RUNS.md`. A case that already has an output, valid or not, is never run again.
+- **Crashes.** If a run stops (lost connection, server error, machine failure, a budget stop), it is resumed with the same commit, model, server settings and prompts, and the event is logged in `RUNS.md`. A case with a usable record for every system (sec. 5: an output, an HTTP 400 record or an exhausted record) is never run again; any other attempt is run again from its start, and its files are kept in `aborted/` and released.
 - **Order.** The test set's sha256 is committed to `RUNS.md` before the first model call (sec. 14).
 
 ## 12. Deviations

@@ -30,8 +30,8 @@ distractors). The pregnancy reason counts only at ages 30-49
 (`oracle.applicable_reasons`).
 
 Rules (SPEC 5.2, 8): 20 dev and 30 test phrasings per type, dev and test
-disjoint, each test phrasing used at most once, reviewed by a clinician on a
-sample. The dev split is frozen before the test phrasings are written, and
+disjoint, each test phrasing used at most once, read for clinical plausibility by
+two LLM agents (no clinician; PROTOCOL.md sec. 4). The dev split is frozen before the test phrasings are written, and
 R1 (`gapcheck.baselines`) is written from the dev split only.
 """
 from __future__ import annotations

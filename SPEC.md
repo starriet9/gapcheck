@@ -283,7 +283,7 @@ On failure the system is told only the number of the failed check and the index 
 ## 10. Compute and cost
 
 - Synthea, DuckDB, patches, oracle, R0/R1: local CPU.
-- LLM systems: one rented GPU, chosen with the model under `PROTOCOL.md` sec. 6 (RTX PRO 6000 96 GB for candidate 1, L40S 48 GB for candidate 2); the cost cap for run 1 is set there (gate G4).
+- LLM systems: one rented GPU, chosen with the model under `PROTOCOL.md` sec. 6 (RTX PRO 6000 96 GB for candidate 1, L40S 48 GB for candidate 2); gate G4 there compares the projected cost of run 1 with a cap, to choose the model.
 - Optional hosted-model arm: 200-case subsample, capped, priced before use.
 
 ## 11. Limits (fixed text for README, dashboard and write-up)

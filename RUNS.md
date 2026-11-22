@@ -82,14 +82,14 @@ Per run, after it finishes: cases with an output per system; schema-invalid outp
 
 None as of 2026-11-20.
 
-Entry format: date; run; commit; what failed; which case ids had no output; how the run was resumed. Cases that already have an output are never run again.
+Entry format: date; run; commit; what failed; which case ids had no output; how the run was resumed. Cases with a usable record for every system are never run again; any other attempt is run again from its start (`PROTOCOL.md` sec. 11).
 
 ## 7. Analysis outputs
 
 | Field | Value |
 |---|---|
 | Scoring commit | pending |
-| Command | `python scripts/score_runs.py --cases <test set> --run <run 1>` |
+| Command | `python scripts/score_runs.py --cases <test set> --run <run 1> --gpu-hours <billed pod hours> --usd-per-hour <rate>`, run by `gpu/session.py` when run 1 is complete |
 | `score.json` sha256 | pending |
 | Figure 1 file and sha256 | pending |
 | Date the results were first published | pending |
