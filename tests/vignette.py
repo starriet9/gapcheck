@@ -32,7 +32,7 @@ ASCVD_CODE = {"MI": "22298006", "STROKE": "230690007", "IHD": "414545008", "REVA
 
 def make(age=50, sex="M", ldl=120.0, tc=200.0, hdl=50.0, sbp=130.0, smoker=False,
          egfr=90.0, egfr_p1=False, diabetes=False, dm_years=None, ckd=None, ascvd=(),
-         statin=False, statin_stop: date | None = None, bp=False, hiv=False, esrd=False,
+         statin=False, statin_stop: date | None = None, bp=False, hiv=False, esrd=False, hf=False, anthracycline_stop="none",
          retinopathy=False, neuropathy=False, albuminuria=False, pregnancy=False,
          vet=False, allergies=(), lipid=True, smoking_value=None,
          ldl_ever_max=None, ldl_earlier_ge190=(), ties=(), structured=(),
@@ -98,6 +98,10 @@ def make(age=50, sex="M", ldl=120.0, tc=200.0, hdl=50.0, sbp=130.0, smoker=False
         albuminuria=(coded("conditions", "90781000119102"),) if albuminuria else (),
         ascvd=asc, hiv=(coded("conditions", "86406008"),) if hiv else (),
         esrd=(coded("conditions", "46177005"),) if esrd else (),
+        heart_failure=(coded("conditions", "88805009"),) if hf else (),
+        anthracyclines=() if anthracycline_stop == "none" else (CodedRow(
+            "medications", "rx-anthracycline", "1790099", "doxorubicin", "", date(2020, 1, 1),
+            anthracycline_stop),),
         pregnancy=(coded("conditions", "72892002"),) if pregnancy else (),
         hyperlipidemia_55822004=(coded("conditions", "55822004"),) if vet else (),
         statins=st if statin and (statin_stop is None or statin_stop > index) else (),

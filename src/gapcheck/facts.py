@@ -237,6 +237,8 @@ class PatientFacts:
     reason_entries: tuple[ReasonEntry, ...] = ()
     diabetes_evidence: tuple[CodedRow, ...] = ()  # complications, glucose-lowering drugs
     diabetes_coded: bool = False  # any diabetes code on or before index (active or not)
+    heart_failure: tuple[CodedRow, ...] = ()  # any code on or before index (not sampled)
+    anthracyclines: tuple[CodedRow, ...] = ()  # any prescription starting on or before index
 
     # convenience flags
     @property
@@ -279,6 +281,13 @@ class PatientFacts:
     def s2_rule(self) -> bool:
         """Latest LDL-C >= 190 and at least one earlier LDL-C >= 190 (SPEC 4.1)."""
         return self.ldl is not None and self.ldl >= 190 and bool(self.ldl_ge190_earlier)
+
+    @property
+    def anthracycline_365d(self) -> bool:
+        """An anthracycline active at index or stopped within 365 days before it (not
+        sampled, SPEC 5.1; sec. 4.2.8.10 rec 3 is not encoded)."""
+        return any(r.stop is None or (self.index_date - r.stop).days <= 365
+                   for r in self.anthracyclines)
 
     @property
     def diabetes_evidence_without_diagnosis(self) -> bool:
@@ -516,6 +525,8 @@ def facts_at_index(rec: PatientRecord) -> PatientFacts:
         albuminuria=_coded(cond, "conditions", C.ALBUMINURIA, ix, active=True),
         ascvd=tuple(sorted(ascvd, key=lambda x: (x.start, x.row_id))),
         hiv=_coded(cond, "conditions", C.HIV, ix, active=False),
+        heart_failure=_coded(cond, "conditions", C.HEART_FAILURE, ix, active=False),
+        anthracyclines=_coded(med, "medications", C.ANTHRACYCLINES, ix, active=False),
         esrd=tuple(sorted(esrd, key=lambda x: (x.start, x.row_id))),
         pregnancy=_coded(cond, "conditions", C.PREGNANCY, ix, active=True),
         hyperlipidemia_55822004=_coded(cond, "conditions", C.HYPERLIPIDEMIA_VETERAN, ix, active=False),

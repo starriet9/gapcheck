@@ -389,9 +389,37 @@ KIDNEY_RELATED_PROCEDURES = _index(
 
 # --------------------------------------------------------------------------
 # HIV (excluded from the cohort). Any code on or before index.
-# Found by: source (hiv_diagnosis.json); data.
+# Found by: source (hiv_diagnosis.json diagnoses later years as 86406008 and
+# early years as AIDS, 62479008); data (no patient has both; every patient
+# with antiretroviral prescriptions has one of them).
 # --------------------------------------------------------------------------
-HIV = _index([Code("86406008", "Human immunodeficiency virus infection (disorder)")])
+HIV = _index([
+    Code("86406008", "Human immunodeficiency virus infection (disorder)"),
+    Code("62479008", "Acquired immune deficiency syndrome (disorder)"),
+])
+
+# --------------------------------------------------------------------------
+# Heart failure (not sampled; sec. 4.2.6 rec 8 and sec. 4.2.8.6 rec 1 are not
+# encoded). Any code on or before index, stop dates ignored.
+# Found by: source grep of the v4.0.0 modules for "heart failure",
+# "cardiac failure", "cardiomyopathy", "ventricular dysfunction" (conditions:
+# congestive_heart_failure.json, covid19/outcomes.json); data.
+# --------------------------------------------------------------------------
+HEART_FAILURE = _index([
+    Code("88805009", "Chronic congestive heart failure (disorder)"),
+    Code("84114007", "Heart failure (disorder)"),
+])
+
+# --------------------------------------------------------------------------
+# Anthracyclines (not sampled when active at index or within 365 days before;
+# sec. 4.2.8.10 rec 3 is not encoded).
+# Found by: source grep of the v4.0.0 modules for "rubicin" (breast_cancer.json,
+# breast_cancer/chemotherapy_breast.json); data.
+# --------------------------------------------------------------------------
+ANTHRACYCLINES = _index([
+    Code("1790099", "10 ML Doxorubicin Hydrochloride 2 MG/ML Injection"),
+    Code("1732186", "100 ML Epirubicin Hydrochloride 2 MG/ML Injection"),
+])
 
 # --------------------------------------------------------------------------
 # Hospice and palliative care: structured reasons of category "palliative"
@@ -504,7 +532,9 @@ GLUCOSE_LOWERING_DRUGS = _index([
 TC = Code("2093-3", "Cholesterol [Mass/volume] in Serum or Plasma", "mg/dL")
 HDL = Code("2085-9", "Cholesterol in HDL [Mass/volume] in Serum or Plasma", "mg/dL")
 LDL = Code("18262-6", "Cholesterol in LDL [Mass/volume] in Serum or Plasma by Direct assay", "mg/dL",
-           note="computed by the generator with Friedewald, despite the display")
+           note="computed by the generator with Friedewald, despite the display, except in "
+                "the fixed-range panels of the cardiac, CABG, veteran and HIV modules (about "
+                "13% of panels at 10k; some have LDL-C above TC - HDL-C)")
 TG = Code("2571-8", "Triglyceride [Mass/volume] in Serum or Plasma", "mg/dL")
 LIPID_PANEL = (TC, HDL, LDL, TG)
 
@@ -564,6 +594,8 @@ CODE_LISTS: dict[str, dict[str, Code]] = {
     "kidney_related_conditions": KIDNEY_RELATED_CONDITIONS,
     "kidney_related_procedures": KIDNEY_RELATED_PROCEDURES,
     "hiv": HIV,
+    "heart_failure": HEART_FAILURE,
+    "anthracyclines": ANTHRACYCLINES,
     "pregnancy": PREGNANCY,
     "palliative_encounters": PALLIATIVE_ENCOUNTERS,
     "palliative_procedures": PALLIATIVE_PROCEDURES,
@@ -577,7 +609,7 @@ CODE_LISTS: dict[str, dict[str, Code]] = {
 }
 # Table each list is matched against.
 LIST_TABLE = {
-    "glucose_lowering_drugs": "medications",
+    "glucose_lowering_drugs": "medications", "anthracyclines": "medications",
     "ascvd_procedures": "procedures", "esrd_procedures": "procedures",
     "kidney_related_procedures": "procedures",
     "palliative_procedures": "procedures", "palliative_encounters": "encounters",

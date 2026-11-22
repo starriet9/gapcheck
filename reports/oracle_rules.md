@@ -17,7 +17,7 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
 
 ### Row X · Excluded from the cohort → **EXCLUDED**
 
-- Rule: HIV infection, or ESRD, maintenance dialysis or kidney transplant (any code on or before index). Checked before row 1.
+- Rule: HIV infection or AIDS, or ESRD, maintenance dialysis or kidney transplant (any code on or before index). Checked before row 1.
 - Effective scope: Patients not on a statin (row 0 first).
 - Sources:
   - Sec. 4.2.8.9, rec 1 · COR 1 · LOE B-R · journal p. 2703 (PDF p. 80)
@@ -26,9 +26,9 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
     > In adults with CKD who require maintenance hemodialysis, it may be reasonable to continue statin therapy to reduce the risk of ASCVD events.
   - Sec. 4.2.8.8, supportive text 3 · journal p. 2703 (PDF p. 80)
     > In adults with CKD who require dialysis treatment, initiation of a statin has not been shown to be beneficial in 2 large randomized clinical trials and in a subgroup analysis of a trial that included patients on dialysis.
-- [encoding] Encoded but excluded from the cohort: HIV needs antiretroviral data we lack.
+- [encoding] Encoded but excluded from the cohort: HIV. Rec 1 covers people 'on stable combination antiretroviral therapy'. The generated data has antiretroviral prescriptions, but the record gives no way to judge 'stable', and the dev cohort has 25 patients with HIV or AIDS in 9,883; the exclusion is a design decision.
 - [encoding] Dialysis: rec 3 covers only continuation, and supportive text 3 reports no benefit from starting a statin.
-- [encoding] Kidney transplant and stage 5 CKD without dialysis have no recommendation of their own; their exclusion is a design decision.
+- [encoding] Kidney transplant has no recommendation of its own; its exclusion is a design decision. Stage 5 CKD without dialysis would fall under sec. 4.2.8.8 rec 1 ('stage 3 or higher'), but no stage 5 code is generated and every ESRD-coded patient in the dev cohort also has dialysis or a transplant.
 - Sampling: Never a base patient or twin (not in the cohort).
 
 ### Row 1 · Clinical ASCVD → **GAP**
@@ -332,10 +332,11 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
 ### Not encoded
 
 - 4.2.3.6 recs 1, 3 and 5 (COR 1); 4.2.7: Coronary artery calcium: use CAC when the decision is uncertain, start LLT if CAC > 0, consider incidental CAC. No CAC data.
-- 4.2.3.3; 4.2.3.4 (COR 2a): Risk enhancers and reproductive risk markers personalize the discussion within the DISCUSS zone; they never create a COR 1 start. Synthea generates some (for example preeclampsia, rheumatoid arthritis); not used.
+- 4.2.3.3; 4.2.3.4 (COR 2a): Risk enhancers and reproductive risk markers personalize the discussion within the DISCUSS zone; they never create a COR 1 start. Synthea generates some (for example preeclampsia, rheumatoid arthritis); not used. hs-CRP (4.2.3.3 rec 2) is not generated.
 - 4.2.4.4: Familial hypercholesterolemia: not generated.
 - 4.2.10: Lipoprotein(a): not generated.
 - 4.2.9 rec 5 (COR 1): Persistently elevated triglycerides at 40-75 without ASCVD or diabetes: estimate PREVENT risk to guide the discussion; the oracle uses PREVENT anyway, and triglycerides are not an input.
-- 4.2.6 rec 8 (COR 2b): HFrEF due to ischemic heart disease with a reasonable life expectancy: no ejection-fraction data.
-- 4.2.4.3 rec 1; 4.2.5 rec 6; 4.2.8.3 rec 2: Secondary causes before treating LDL-C >= 190; life-expectancy conditions.
+- 4.2.6 rec 8 (COR 2b); 4.2.8.6 rec 1 (COR 3: No Benefit): Heart failure with reduced ejection fraction: a moderate-intensity statin may be considered when it is due to ischemic heart disease and the patient is not already on a statin for ASCVD (rec 8; row 1 would answer GAP); starting LLT is not recommended without clinical ASCVD or another indication (4.2.8.6 rec 1). Not encoded. The generated data has heart failure diagnoses and ejection-fraction values, so patients with a heart failure diagnosis on or before index are not sampled. HFrEF is read only from a heart failure diagnosis, never from an ejection fraction alone: the CABG work-up records an ejection fraction of 30-49% without a heart failure diagnosis, and those patients are labeled by row 1.
+- 4.2.8.10 rec 3 (COR 2b): Active cancer: starting a statin may be considered to prevent anthracycline-induced cardiotoxicity (cardioprotection, not ASCVD prevention). Not encoded. Patients with an anthracycline active at index or within 365 days before are not sampled.
+- 4.2.4.3 rec 1; 4.2.5 rec 6; 4.2.8.3 rec 2; 4.2.8.10 rec 1: Secondary causes before treating LDL-C >= 190; life-expectancy conditions.
 - Scope: Dose intensity, LDL-C goals and non-statin therapy.

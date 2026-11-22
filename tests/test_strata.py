@@ -1,10 +1,11 @@
 """Stratum assignment and the 'not sampled' rules (SPEC 5.1), on hand-built facts."""
 from dataclasses import replace
+from datetime import timedelta
 
 import numpy as np
 
 from gapcheck import oracle, prevent, strata
-from vignette import make
+from vignette import INDEX, make
 
 P5 = dict(age=55, sex="M", tc=200.0, hdl=50.0, ldl=120.0)
 LOW = dict(age=45, sex="F", tc=170.0, hdl=65.0, ldl=90.0, sbp=112.0)
@@ -215,3 +216,25 @@ def test_cannot_determine_and_row3b_not_sampled():
     assert s.candidate is None and "row3b_ckd" in s.exclusions
     s = st(make(hiv=True))
     assert s.indication_row == "X" and s.exclusions == ("hiv",)
+
+
+def test_heart_failure_not_sampled_whatever_the_row():
+    # Sec. 4.2.6 rec 8 and sec. 4.2.8.6 rec 1 are not encoded: the label stays the
+    # row's, but no patient with a heart failure code is a base patient.
+    for kw in ({"ascvd": ("IHD",)}, {"age": 50, "diabetes": True}, {}):
+        s = st(make(hf=True, **kw))
+        assert "heart_failure" in s.exclusions and s.stratum is None, kw
+        assert st(make(**kw)).indication_row == s.indication_row
+
+
+def test_anthracycline_within_365_days_not_sampled():
+    # Sec. 4.2.8.10 rec 3 (COR 2b) is not encoded.
+    assert "anthracycline_365d" in st(make(anthracycline_stop=None)).exclusions
+    assert "anthracycline_365d" in st(make(anthracycline_stop=INDEX - timedelta(days=365))).exclusions
+    assert "anthracycline_365d" not in st(make(anthracycline_stop=INDEX - timedelta(days=366))).exclusions
+    assert "anthracycline_365d" not in st(make()).exclusions
+
+
+def test_aids_code_is_hiv():
+    from gapcheck import codes
+    assert "62479008" in codes.HIV and "86406008" in codes.HIV

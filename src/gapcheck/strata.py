@@ -29,6 +29,10 @@ PRIMARY = ("S2", "S3", "S4", "S5")
 EXCLUSIONS: dict[str, tuple[tuple[str, ...], str]] = {
     "hiv": (STRATA, "HIV (row X)"),
     "esrd_dialysis_transplant": (STRATA, "ESRD, dialysis or kidney transplant (row X)"),
+    "heart_failure": (STRATA, "heart failure diagnosis on or before index (sec. 4.2.6 rec 8 and "
+                              "sec. 4.2.8.6 rec 1 not encoded)"),
+    "anthracycline_365d": (STRATA, "an anthracycline active at index or within 365 days before "
+                                   "(sec. 4.2.8.10 rec 3 not encoded)"),
     "cannot_determine": (STRATA, "indication group is CANNOT_DETERMINE"),
     "row3b_ckd": (STRATA, "row 3b (CKD stage 3-4, 40-75)"),
     "structured_reason_365d": (STRATA, "a structured reason within 365 days of index "
@@ -147,6 +151,10 @@ def assign(f) -> StrataRow:
         ex.append("hiv")
     if f.esrd:
         ex.append("esrd_dialysis_transplant")
+    if f.heart_failure:
+        ex.append("heart_failure")
+    if f.anthracycline_365d:
+        ex.append("anthracycline_365d")
     if ind.status == oracle.CANNOT_DETERMINE:
         ex.append("cannot_determine")
     if row == "3b":
