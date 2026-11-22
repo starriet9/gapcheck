@@ -82,6 +82,11 @@ Encoding choices where the guideline leaves room, the reason taxonomy, the open-
 
 Last commit that changed the decision table before the tag: `d60c5a2` (2026-11-19, oracle row 5).
 
+**Author checks of the oracle.** Two checks by the author, reported whatever they show:
+
+1. Before the tag, the author read each row of the decision table, each documented-reason category and each convention in `reports/oracle_rules.md` against the guideline text (2026-11-22; [FILL: result and any change, with its commit]). An LLM agent had earlier listed the places where the guideline can be read more than one way; the author decided each of them (sec. 9 re-scores the main ones the other way).
+2. After the tag and before any run 1 output is read, the author labels 30 development cases by hand, blind to the oracle label, the row, the condition and the edit. The cases come from `data/cases/dev_s20261120_utc_n10`: in ascending order of `sha256("20261122:handlabel:<case id>")`, a case is taken unless its expected status already has 5 or its base patient is already taken, so the 30 cases are 5 per status from 30 different patients (near-identical cards of one patient would show what was edited). They are shown in ascending order of `sha256("20261122:handlabel-order:<case id>")`. Each is shown as a card made from the case record by `scripts/hand_label_cards.py` (released with the results), with the PREVENT risks that the `prevent_risk` tool returns. Reported: agreement with the label of the tagged oracle (k of 30), and each disagreement with its cause: an error in the code, a row the author reads differently, or an author error. The primary analysis uses the oracle as tagged. If a disagreement is an error in the code, run 1 is also re-scored with the corrected oracle, reported as a deviation (sec. 12) with the number of test cases whose label changes.
+
 ## 4. Cohort, conditions and expected counts
 
 **Base patients** (40 per stratum; rules and every exclusion in `SPEC.md` sec. 5.1):
@@ -343,7 +348,7 @@ Visible in the commit history and in `RUNS.md`:
 3. Tag on the protocol commit, pushed to the public repository, and published as a GitHub Release (server-side time stamp).
 4. Beacon pulse at T; seed derived; both recorded in `RUNS.md`.
 5. Test set built by the tag commit, unchanged, from a clean working tree; its sha256 (the sha256 of the case set's `manifest.json`, which lists the sha256 of every file) committed to `RUNS.md` and pushed before any model call. Commands: `docs/SERVING.md` sec. 11.
-6. Run 1; scoring; results published with `RUNS.md` and `DEVIATIONS.md` updated.
+6. Run 1, and during it the author's hand labels (sec. 3), finished before any run 1 output is read; scoring; results published with `RUNS.md` and `DEVIATIONS.md` updated.
 
 External registration: none.
 
@@ -351,7 +356,7 @@ Approved by the author: `[FILL: name, date]`.
 
 ## 15. Released with the results
 
-The synthetic test set, the augmentation and edit ledgers, all model outputs and traces, run manifests, `score.json`, and the code. `make reproduce` rebuilds data, patches and edits, runs R0 and R1, re-scores the saved model outputs and redraws the figures from a clean clone. Re-running the LLM systems needs a GPU and is a separate target. Reporting follows TRIPOD-LLM (`docs/TRIPOD-LLM.md`).
+The synthetic test set, the augmentation and edit ledgers, all model outputs and traces, run manifests, `score.json`, the hand-label cards with the author's labels and their comparison with the oracle (sec. 3), and the code. `make reproduce` rebuilds data, patches and edits, runs R0 and R1, re-scores the saved model outputs and redraws the figures from a clean clone. Re-running the LLM systems needs a GPU and is a separate target. Reporting follows TRIPOD-LLM (`docs/TRIPOD-LLM.md`).
 
 ## References
 
