@@ -8,6 +8,7 @@ Departures from `PROTOCOL.md` after the protocol tag (policy: `PROTOCOL.md` sec.
 
 - A deviation: anything done differently from the tagged protocol that touches the test set, the systems, the prompts, the model or its settings, the scoring, the analysis, or what is reported.
 - Not a deviation, logged in `RUNS.md` instead: a crash and the resumed run; use of the fallback beacon under the rule in sec. 13; raising the served context length before any model call so that every test case fits (sec. 5).
+- Entered here and in `RUNS.md`, marked "runner fix": a code change after the tag that changes only `gpu/`, `tests/gpu/` or `docs/` and alters neither the test set nor the scoring (`PROTOCOL.md` sec. 12).
 - Not a deviation: changes made before the tag. They are in the commit history of `SPEC.md` and `PROTOCOL.md`.
 
 ## Entry format

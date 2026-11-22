@@ -1,6 +1,6 @@
 # gapcheck: design specification
 
-Status: draft v0.4 (2026-11-19). This file is the design. `PROTOCOL.md` (the pre-registration) is written from it and frozen before the test set is determined. Anything changed after that goes in `DEVIATIONS.md`.
+Status: v1.0, frozen with `PROTOCOL.md` at the protocol release tag (`RUNS.md` sec. 1). This file is the design; `PROTOCOL.md` (the pre-registration) is written from it. Anything changed after the tag goes in `DEVIATIONS.md`.
 
 ## 1. Question
 
@@ -284,7 +284,6 @@ On failure the system is told only the number of the failed check and the index 
 
 - Synthea, DuckDB, patches, oracle, R0/R1: local CPU.
 - LLM systems: one rented GPU, chosen with the model under `PROTOCOL.md` sec. 6 (RTX PRO 6000 96 GB for candidate 1, L40S 48 GB for candidate 2); gate G4 there compares the projected cost of run 1 with a cap, to choose the model.
-- Optional hosted-model arm: 200-case subsample, capped, priced before use.
 
 ## 11. Limits (fixed text for README, dashboard and write-up)
 

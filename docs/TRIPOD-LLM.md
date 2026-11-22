@@ -36,15 +36,15 @@ Reporting guideline: Gallifant J, et al. The TRIPOD-LLM reporting guideline for 
 | 7e | Comparison with other LLMs, humans, benchmarks | Yes | `PROTOCOL.md` secs. 5 and 7: rule baselines R0 and R1, single call L1, agent A1, agent with verifier A2, all on the same cases. One model; no human comparison | Answered |
 | 8a | Annotation method and guidelines | Yes | No human annotation. Labels are computed: oracle on the record (C0) and edit ledger (C1–C5). `PROTOCOL.md` sec. 3; `reports/oracle_rules.md` | Answered |
 | 8b | Number of annotators, double annotation, agreement | Yes | Not applicable to computed labels. The decision table was checked against the guideline text by the author; every test phrasing was read for clinical plausibility by two LLM agents, not by a clinician (`PROTOCOL.md` sec. 4) | At tag |
-| 8c | Annotators' background, or models involved in labelling | Yes | No model assigns a label. The phrase library was written by an LLM agent that did not see the prompts, R1 or run outputs (`PROTOCOL.md` sec. 4). Author's background: `[FILL: author]` | At tag |
+| 8c | Annotators' background, or models involved in labelling | Yes | No model assigns a label. The phrase library was written by an LLM agent that did not see the prompts, R1 or run outputs (`PROTOCOL.md` sec. 4). Author's background: README, section Author | At tag |
 | 9a | Prompt design, curation and selection | Yes | `PROTOCOL.md` secs. 5 and 14 (order of work); commit history of `src/gapcheck/prompts/` | At tag |
 | 9b | Data used to develop the prompts | Yes | Development sets only (fixed seeds 20261118–20261120, development phrasings). The test set does not exist when the prompts are frozen; test phrasings are disjoint | Answered |
 | 10 | Preprocessing before summarization | No (summarization tasks only) | – | Not applicable |
 | 11 | Instruction tuning or alignment | No (M, D only; none done) | – | Not applicable |
 | 12 | Compute | Yes | `SPEC.md` sec. 10 (plan); `RUNS.md` sec. 5 (GPU-hours, cost); secondary outcome 8 (tool calls, tokens, seconds and cost per case) | With results |
-| 13 | Ethics approval and consent | Yes | Synthetic records only; no human participants or patient data; no ethics review was sought. Stated in the README `[FILL: confirm wording]` | Planned |
-| 14a | Funding and role of funders | Yes | README `[FILL]` | Planned |
-| 14b | Conflicts of interest | Yes | README `[FILL]` | Planned |
+| 13 | Ethics approval and consent | Yes | Synthetic records only; no human participants or patient data; no ethics review was sought. Stated in the README, section Ethics, funding and conflicts | Planned |
+| 14a | Funding and role of funders | Yes | README, section Ethics, funding and conflicts | Planned |
+| 14b | Conflicts of interest | Yes | README, section Ethics, funding and conflicts | Planned |
 | 14c | Protocol access | H only; answered | `PROTOCOL.md` at the release tag; release URL in `RUNS.md` sec. 1 | At tag |
 | 14d | Registration | H only; answered | Not in a trial or study registry. Time-stamped by a tagged commit and a GitHub Release; the test seed comes from a public randomness beacon pulse after the release (`PROTOCOL.md` sec. 13). Any external registration is listed in `RUNS.md` sec. 1 | At tag |
 | 14e | Data availability | Yes | `SPEC.md` sec. 8: test set, augmentation and edit ledgers, model outputs and traces are released; generator data is public domain | With results |
