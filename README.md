@@ -81,7 +81,7 @@ Code was written with AI coding agents; the design, protocol and review are mine
 
 ## License and data
 
-<!-- USER: confirm the license and add a LICENSE file (pyproject.toml says MIT) -->
+Code: MIT ([LICENSE](LICENSE)). The guideline sentences quoted in `reports/oracle_rules.md` are short excerpts for reference; their text belongs to the guideline's publishers.
 Generated data is synthetic (Synthea, whose output is public domain per the Synthea wiki; Synthea itself is Apache-2.0).
 
 ## Contact
