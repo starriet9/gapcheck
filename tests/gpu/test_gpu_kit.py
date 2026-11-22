@@ -289,8 +289,11 @@ def test_tag_and_runner_fix_rules(tmp_path):
     subprocess.run(["git", "reset", "-q", "--hard", c1], cwd=r, check=True)
     f1 = commit(r, {"gpu/session.py": "2", "docs/x.md": "fix"}, "runner fix")
     assert session.runner_fix_check(c1, f1, cwd=r) == (["docs/x.md", "gpu/session.py"], [])
+    subprocess.run(["git", "reset", "-q", "--hard", f1], cwd=r, check=True)
+    f2 = commit(r, {"tests/gpu/t.py": "x"}, "runner fix with a test")
+    assert session.runner_fix_check(c1, f2, cwd=r)[1] == []
     for files in ({"src/gapcheck/a.py": "3"}, {"configs/run1.json": "{}"}, {"scripts/s.py": "x"},
-                  {"tests/gpu/t.py": "x"}):
+                  {"tests/t.py": "x"}):
         subprocess.run(["git", "reset", "-q", "--hard", f1], cwd=r, check=True)
         bad = commit(r, files, "not a runner fix")
         assert session.runner_fix_check(c1, bad, cwd=r)[1] == list(files)
