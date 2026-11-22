@@ -80,7 +80,7 @@ Encoding choices where the guideline leaves room, the reason taxonomy, the open-
 | `src/gapcheck/facts.py` | `[FILL]` |
 | `reports/oracle_rules.md` | `[FILL]` |
 
-Last commit that changed the decision table before the tag: `[FILL: commit sha]` (in this draft: `d60c5a2`).
+Last commit that changed the decision table before the tag: `d60c5a2` (2026-11-19, oracle row 5).
 
 ## 4. Cohort, conditions and expected counts
 
@@ -109,9 +109,9 @@ Last commit that changed the decision table before the tag: `[FILL: commit sha]`
 | C4 | A distractor sentence in a note: negation, a relative's statin, deferral, stable liver disease; GAP and NOT_INDICATED patients | Unchanged | Must not change |
 | C5 | One value moved across a cut: risk 5% or 3% (SBP by at most ±30 mm Hg or TC by at most ±50 mg/dL; twins land 0.5 to 1.0 point from the cut), LDL-C to 185 and 195, or smoking set to current | The new oracle label; a pair is used only if its two labels differ | Must change |
 
-C1 and C2a use one deletion per base patient; if several inputs qualify, one is chosen by the `edits` sub-seed. C2b is `[FILL: kept | dropped; proposed: kept]`; if dropped, the limit reads "C2 covers only inputs made irrelevant by an earlier row", and the primary outcome averages seven conditions.
+C1 and C2a use one deletion per base patient; if several inputs qualify, one is chosen by the `edits` sub-seed. C2b is kept.
 
-**Phrases.** 30 test phrasings per planted fact type, each used at most once, disjoint from the 20 development phrasings per type. A phrasing whose words state the patient's sex (a pronoun, a spouse, pregnancy) is planted only in patients of that sex (`SPEC.md` sec. 5.2). Test phrasings are written by an author who reads neither the prompts, the R1 rules nor any run output, and the authors of the prompts and R1 never read the test phrasings; R1 was frozen before they were written (its last change predates the phrase file's first commit). Test phrasings are used in no run before the tag. `[FILL: who read which sample of the test phrasings, and what was removed]`. Phrase file `src/gapcheck/phrases/test.json` (version `test-1`), sha256 at the tag: `[FILL]`.
+**Phrases.** 30 test phrasings per planted fact type, each used at most once, disjoint from the 20 development phrasings per type. A phrasing whose words state the patient's sex (a pronoun, a spouse, pregnancy) is planted only in patients of that sex (`SPEC.md` sec. 5.2). Test phrasings are written by an author who reads neither the prompts, the R1 rules nor any run output, and the authors of the prompts and R1 never read the test phrasings; R1 was frozen before they were written (its last change predates the phrase file's first commit). Test phrasings are used in no run before the tag. The test phrasings were written by a separate agent (Claude Opus 5.5, commit `e8d3352`) that was told not to open the prompts, the R1 rules or any run output. Two clinical reviews by separate agents (Claude Fable 5.2) under the same rule read all 300: the first reworded 17 (`61d892a`); the second, made before reading the first, found none wrong and 4 open to clinical dispute, and one of the 4 was reworded by a third such agent (`b05c7f5`). None was removed. The agent that wrote the prompts has read none of them; the project author was shown the 4 disputed phrasings in the second review. Phrase file `src/gapcheck/phrases/test.json` (version `test-1`), sha256 at the tag: `[FILL]`.
 
 **Expected counts.** The exact counts are fixed by the tagged code and the seed, not by the author, and are entered in `RUNS.md` before any model call.
 
@@ -188,7 +188,7 @@ The first candidate that passes every gate is used. Candidate 1 is first because
 - G1. The pinned build loads, its file hashes match, and the served context holds the largest development L1 prompt plus the output allowance.
 - G2. A schema-valid final answer on at least 95% of development cases, for L1 and for the agent run.
 - G3. Concurrency check: on a fixed prompt of about 18,000 tokens that asks for 37 identifiers scattered through it, the number returned correctly is the same when the request is sent alone and when it is sent among concurrent requests.
-- G4. Projected cost of run 1 on the test set is within `[FILL: cost cap for run 1, USD]`.
+- G4. Projected cost of run 1 on the test set is within USD 45.
 
 Accuracy of any system on any set is not a criterion. Development accuracy is recorded and does not enter the choice.
 
@@ -196,30 +196,30 @@ Accuracy of any system on any set is not a criterion. Development accuracy is re
 
 | Field | Value |
 |---|---|
-| Candidate chosen and gate results (G1–G4, for each candidate tested) | `[FILL]` |
-| Model repository, revision, quantization, file sha256 | `[FILL]` |
-| License | `[FILL]` |
-| Training data cut-off stated by the publisher | `[FILL]` |
-| Serving engine, version or commit, container image digest | `[FILL]` |
-| GPU, provider and tier | `[FILL]` |
-| Chat template file and sha256 | `[FILL]` |
-| Served context length; `context_limit`; `chars_per_token` | `[FILL]` |
+| Candidate chosen and gate results (G1–G4, for each candidate tested) | Candidate 1; candidates 2 and 3 not tested. GPU smoke test, 2026-11-20, 60 development cases: G1 pass (the 4 file hashes match; largest development L1 prompt 32,197 tokens + 4,096 output ≤ 49,152 served); G2 pass (L1 60/60, agent 59/60; 200/200 for L1, A1 and A2 in the two development runs of 2026-11-21 and 11-22); G3 pass (37/37 alone and among 3 or 7 concurrent requests, 18,058-token prompt); G4 pass (run 1 projected at USD 37–41 with one request at a time) |
+| Model repository, revision, quantization, file sha256 | `unsloth/Qwen3.8-Flash-Next-GGUF` at `766911a6b7369840a91dbcd95f9f997acaab6cd6`, UD-Q4_K_XL (GGUF of `Qwen/Qwen3.8-Flash-Next`), 4 files: `-00001-of-00004.gguf` `4448186216b3af4cc558bbce2c3213f01608f8f8b2e5267a9767971dd3ec8082`; `-00002` `3f342f1c1580473f1ee94ddd5b28206e8c07a70fa1a366f59d1d6c922919a6c9`; `-00003` `56758f40269cad5cd9b0d3d6fbae0f40f6d5be6de49e4ab392dbe83157d9cbd3`; `-00004` `753bda48b98ba4f1636134a90a967de1b2d3908a236c026e464777342e53510a` |
+| License | Qwen Community License 1.0 (`qwen-community-1.0`, both repositories) |
+| Training data cut-off stated by the publisher | Not stated on either model card (checked 2026-11-22) |
+| Serving engine, version or commit, container image digest | llama.cpp `llama-server` b12464 (commit `d3c3e242`), CUDA server image `ghcr.io/ggml-org/llama.cpp@sha256:ae96e52f8b2106ea82bad786ee2d08bb9b0a8c93403df9c27ae1bf065a118089`; f16 KV cache, flash attention on, context shift off, multi-token prediction off |
+| GPU, provider and tier | One NVIDIA RTX PRO 6000 Blackwell Server Edition (96 GB), RunPod Community Cloud |
+| Chat template file and sha256 | `[FILL: path in the repository]` (9,993 bytes), sha256 `12827f24b742ea4e80cdc12dbcf9622227056b9f797252a3149263d4f9aaadce`, passed to the server with `--chat-template-file` |
+| Served context length; `context_limit`; `chars_per_token` | 49,152 tokens per request slot; 45,056; 2.26 |
 
 **Decoding settings:**
 
 | Setting | Run 1 (primary) | Runs 2 and 3 |
 |---|---|---|
-| Temperature | 0 | `[FILL: the model card's non-thinking value; 0.7 for the Qwen candidates]` |
-| top_p, top_k | not sent | `[FILL: model card values; 0.8 and 20 for the Qwen candidates]` |
+| Temperature | 0 | 0.7 (the model card's non-thinking value) |
+| top_p, top_k | not sent | 0.8 and 20 (model card) |
 | Presence or repetition penalty | none | none (a penalty works against exact quotes and repeated row ids) |
 | Seed | 1 | 2 and 3 |
 | Thinking | off (`enable_thinking: false`) | off |
-| Output limit (`max_tokens`) | `[FILL: proposed 4096]` | same |
+| Output limit (`max_tokens`) | 4096 | same |
 | Parallel tool calls | allowed | allowed |
 | Speculative or multi-token decoding | off | off |
-| Client concurrency | `[FILL]` | same |
+| Client concurrency | 1 (one request at a time) | same |
 
-Temperature 0 departs from the model card's sampling advice; it is chosen so that run 1 has no sampling noise. Temperature 0 is not assumed to be deterministic on these engines: before the tag, `[FILL: number]` development cases are run twice, and the number of differing final statuses is reported in `RUNS.md` with the results.
+Temperature 0 departs from the model card's sampling advice; it is chosen so that run 1 has no sampling noise. Temperature 0 is not assumed to be deterministic on these engines: before the tag, 4 development cases were run twice with one request at a time (GPU smoke test, 2026-11-20); the final outputs and the model's tool-call traces were identical. With concurrent requests on the same server, 2 to 4 of 20 statuses changed between runs, which is why run 1 sends one request at a time. Both are reported in `RUNS.md` with the results.
 
 Tool-call parser failures are counted per case and reported: a reply that ends with a tool-call signal and no call; a call with empty arguments for a tool with required parameters; arguments that do not parse.
 
@@ -238,7 +238,7 @@ Tool-call parser failures are counted per case and reported: a reply that ends w
 - In every resample, each condition's accuracy and the macro-average are recomputed for all systems from the same resampled clusters; a condition with no case in a resample is left out of that resample's average.
 - 10,000 resamples; NumPy `default_rng(20261120)`. Point estimates come from the full set.
 
-**Precision.** Expected half-width of the interval of A2 − L1, simulated from development results: `[FILL: after the development run]`. For scale: a condition with 80 cases gives a single-proportion half-width of about ±7 points at 0.90 and ±11 at 0.50.
+**Precision.** Expected half-width of the interval of A2 − L1, simulated from development results: about ±2.5 points (260 clusters drawn with replacement from the 64 development clusters, A2 from the second GPU development run and L1 from the first; 4,000 draws; on the 64 development clusters themselves, ±5.2). For scale: a condition with 80 cases gives a single-proportion half-width of about ±7 points at 0.90 and ±11 at 0.50.
 
 ## 8. Secondary outcomes
 
