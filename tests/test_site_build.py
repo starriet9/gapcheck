@@ -101,3 +101,16 @@ def test_heading_hyphens_do_not_break():
     assert m.no_break_hyphens("A care-gap agent. No alert until code re-checks it.") == (
         "A care\u2011gap agent. No alert until code re\u2011checks it.")
     assert m.no_break_hyphens("2026-11-22 and A2 - A1") == "2026-11-22 and A2 - A1"
+
+
+def test_public_leaves_out_unwritten_author_text():
+    m = _mod()
+    secs = {"next": "<!-- USER: one sentence -->", "author": "Jane Doe, MD."}
+    m.PUBLIC, m.HIDDEN[:] = False, []
+    assert 'class="user"' in m.user_block(secs, "next")
+    m.PUBLIC = True
+    try:
+        assert m.user_block(secs, "next") == "" and m.HIDDEN == ["next"]
+        assert m.user_block(secs, "author") == "<p>Jane Doe, MD.</p>"
+    finally:
+        m.PUBLIC, m.HIDDEN[:] = False, []

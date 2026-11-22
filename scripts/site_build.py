@@ -1,7 +1,7 @@
 """Build the project page (pages/index.html) from repository files.
 
 Usage:
-  python scripts/site_build.py [--out pages] [--strict] [--results FILE]
+  python scripts/site_build.py [--out pages] [--strict] [--public] [--results FILE]
 
 Inputs (all in the repository; nothing is fetched, at build time or by the page):
   site/config.json      page text that is not the author's prose: title, subtitle,
@@ -24,6 +24,9 @@ inputs give the same bytes.
 
 --strict (use before publishing) stops if an author placeholder is left, a
 timeline row does not resolve, or a listed file is missing from the repository.
+
+--public leaves out the author's sections that are not written yet (a public page
+before the author's text exists); with --strict every other check still applies.
 """
 from __future__ import annotations
 
@@ -41,6 +44,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "site"
 PROBLEMS: list[str] = []  # reported at the end; fatal with --strict
+HIDDEN: list[str] = []
+PUBLIC = False  # --public: an unwritten author section is left out instead of shown as a placeholder
 MAX_TIMELINE = 6
 
 
@@ -268,6 +273,9 @@ def user_block(sections: dict[str, str], key: str, cls: str = "") -> str:
     hint = re.fullmatch(r"<!--\s*USER:\s*(.*?)\s*-->", body, re.S)
     if hint or not body:
         h = " ".join((hint.group(1) if hint else key).split())
+        if PUBLIC:
+            HIDDEN.append(key)
+            return ""
         problem(f"author placeholder left: site/user_text.md ## {key}")
         return f'<!-- USER: {e(h)} --><div class="user" data-slot="{e(key)}">{e(h)}</div>'
     paras = [p.strip() for p in re.split(r"\n\s*\n", body) if p.strip()]
@@ -1037,10 +1045,11 @@ def build(out_dir: Path, res_p: Path | None = None) -> Path:
     rigor = f'<p class="rigor">{" · ".join(rig)}</p>'
 
     # 8-9
+    nb, ab = user_block(user, "next"), user_block(user, "author")
     next_sec = (f'<section class="s s-tight" id="next" aria-labelledby="h-next"><h2 id="h-next">Next</h2>'
-                f'{user_block(user, "next")}</section>')
+                f'{nb}</section>') if nb else ""
     author = (f'<section class="s s-tight" id="author" aria-labelledby="h-author"><h2 id="h-author">Author</h2>'
-              f'{user_block(user, "author")}</section>')
+              f'{ab}</section>') if ab else ""
 
     # folded
     conds, systems = spec_conditions(spec), spec_systems(spec)
@@ -1135,9 +1144,14 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="pages")
     ap.add_argument("--strict", action="store_true")
+    ap.add_argument("--public", action="store_true",
+                    help="leave out author sections not written yet (for a public page before the "
+                         "author's text exists); every other --strict check still applies")
     ap.add_argument("--results", help="score file to use instead of site/score.json "
                     "(for trying the results layout on a mock run; not for publishing)")
     a = ap.parse_args()
+    global PUBLIC
+    PUBLIC = a.public
     out = Path(a.out) if Path(a.out).is_absolute() else ROOT / a.out
     page = build(out, Path(a.results).resolve() if a.results else None)
     size = page.stat().st_size
@@ -1147,6 +1161,8 @@ def main() -> None:
         problem(f"page is {size / 1024:.0f} KB; the budget is 300 KB")
     for p in PROBLEMS:
         print("  note:", p, file=sys.stderr)
+    if HIDDEN:
+        print("  left out (not written yet):", ", ".join(HIDDEN), file=sys.stderr)
     if a.strict and PROBLEMS:
         raise SystemExit(f"--strict: {len(PROBLEMS)} problem(s)")
 
