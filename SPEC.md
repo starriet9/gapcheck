@@ -115,7 +115,7 @@ The oracle returns CANNOT_DETERMINE, naming every such X, when a deciding X is a
 - Cross-checks, all pinned:
   - `pyprevent` 0.1.7 (MIT) on 1,000 random valid inputs (with a valid BMI, which it validates).
   - `preventr` 0.12.2 (MIT, R) on the same inputs, in a project-local R environment, skipping SBP > 180 (which it rejects). Its public output is rounded to three decimals, so the comparison uses its internal full-precision path. If R cannot be run without a system install, this check is dropped and recorded as a deviation.
-  - 10 entries in the AHA online PREVENT calculator.
+  - 10 entries in the AHA online PREVENT calculator (2026-11-23, `reports/aha_calculator_check.md`). The 8 it accepted agree within its display rounding (largest difference 0.044 percentage point). It rejected the 2 with eGFR above 140.
   - Agreement: absolute difference < 0.1 percentage point on every row. A larger difference blocks the oracle until explained.
 - At least 30 hand-written vignette tests of the decision table, including every row boundary.
 
