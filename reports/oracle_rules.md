@@ -44,6 +44,8 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
     > †Clinical ASCVD includes ACS, a history of MI, stable or unstable angina, coronary or other arterial revascularization, stroke, TIA, lower-extremity PAD, or other atherosclerotic forms of PAD, including aortic aneurysm.
   - Table 1, sec. 4.2.6, 2018 recommendation (revised in 2026) · journal p. 2630 (PDF p. 7) · context, not the basis of the label
     > COR 1: In patients who are 75 years of age or younger with clinical ASCVD, high-intensity statin therapy should be initiated or continued with the aim of achieving a 50% or greater reduction in LDL-C levels.
+  - Sec. 4.2.8.3, synopsis · journal p. 2697 (PDF p. 74) · context, not the basis of the label
+    > Additional recommendations for adults >75 years of age are included in Sections 4.2.3, “Primary Prevention in Adults,” 4.2.5, “Diabetes in Adults Without Established ASCVD,” and 4.2.6, “Secondary ASCVD Prevention.”
 - [encoding] Ischemic heart disease code 414545008 counts as clinical ASCVD.
 - [encoding] No age limit: Table 1 lists the 2018 recommendation ('75 years of age or younger') as revised; the 2026 recommendation reads 'In adults with clinical ASCVD'.
 - [data] PAD, TIA, aortic aneurysm and stable angina are not generated; row 1 is tested on MI, revascularization, ischemic heart disease and stroke.
@@ -58,9 +60,9 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
     > In adults with severe hypercholesterolemia with an LDL-C ≥190 mg/dL (4.9 mmol/L),* treatment with maximally tolerated statin therapy is recommended to lower LDL-C and reduce ASCVD risk.
   - Sec. 4.2.4.3, rec 1 · COR 1 · LOE B-NR · journal p. 2674 (PDF p. 51)
     > In adults with severe hypercholesterolemia with an LDL-C ≥190 mg/dL (4.9 mmol/L),* secondary causes of dyslipidemia should be excluded and addressed to reduce LDL-C (Table 15).
-- [encoding] Rec 1 (exclude secondary causes first) is not encoded; rec 2 is not conditional on it.
+- [encoding] Rec 1 (exclude secondary causes first) is not encoded; rec 2 is not conditional on it. Its patients are sampled, because rec 1 does not change a label.
 - [encoding] The recommendations read '≥190'; one table footnote reads 'LDL-C >190 mg/dL'. The oracle uses >= 190, applied to the recorded value without rounding (189.6 is below 190).
-- [encoding] The footnote's non-HDL-C and apoB values are not encoded (rec 2 requires LDL-C >= 190).
+- [encoding] The footnote (on recs 1-5) reads severe hypercholesterolemia as 'LDL-C >190 mg/dL, non–HDL-C >220 mg/dL, and/or apoB >140 mg/dL'. Its non-HDL-C and apoB values are not encoded (rec 2 requires LDL-C >= 190), so the guideline reads two ways here. Patients it would change (LDL-C < 190 with non-HDL-C >= 220) are not sampled in S4-S5, and twins in that zone are not used where it would change their label. apoB is not generated.
 - [encoding] No age limit, so ages 76-79 with LDL-C >= 190 are GAP while other primary prevention at 76-79 is DISCUSS (row 6); such patients are not sampled.
 - Sampling: S2 base patients: latest LDL-C >= 190 and an earlier value >= 190; not if they also meet row 3 or are aged 76-79 or have diabetes outside 40-75.
 
@@ -88,6 +90,7 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
 - [encoding] Defined by diagnosis code (highest active stage), not by a single eGFR value.
 - [encoding] LDL-C 70-189 as in rec 1. Take-home message 8 says 'regardless of LDL-C level'; CKD patients with LDL-C < 70 fall to row 7 and are not sampled (row 7 rule).
 - [data] Stage 5 is not generated; ESRD is excluded (row X).
+- [data] CKD stage 3 is defined by eGFR, and the oracle reads only codes. A latest eGFR < 60 with no active CKD stage 3-4 code is not sampled in S4-S5. In the dev cohort no patient reaching rows 8-11b has one.
 - Sampling: Not sampled as base patients (SPEC 5.1).
 
 ### Row 4 · Diabetes, >75 → **DISCUSS**
@@ -134,7 +137,7 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
     > In adults aged >75 years with an estimated life expectancy of at least 2.5 years, it may be reasonable to initiate moderate-intensity statin therapy after a clinician–patient discussion of potential benefits and risks to reduce ASCVD risk.
   - Top take-home messages, message 8 · journal p. 2633 (PDF p. 10)
     > After age 75 years, LDL-C–lowering pharmacotherapy can be considered in conjunction with lifestyle interventions to reduce ASCVD risk.
-- [encoding] Sec. 4.2.3.7 covers ages 30-79 but this COR 2b recommendation covers all adults > 75; DISCUSS is the conservative reading (SPEC 3.2).
+- [encoding] Sec. 4.2.3.7 covers ages 30-79, and this COR 2b recommendation is read as primary prevention above 75; DISCUSS is the conservative reading (SPEC 3.2). Secondary prevention above 75 follows sec. 4.2.6 (row 1, GAP), as the section's synopsis cross-references (row 1 sources).
 - [encoding] Life-expectancy condition not encoded.
 - Sampling: Primary prevention at 76-79 is not sampled.
 
@@ -262,7 +265,7 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
   - Sec. 4.2.8.4, rec 5 · COR 2b · LOE C-LD · journal p. 2698 (PDF p. 75) · context, not the basis of the label
     > In pregnant individuals with FH or a history of clinical ASCVD, it may be reasonable to continue statin therapy to lower LDL-C and ASCVD risk following an individualized benefit-risk discussion.
 - [encoding] Recognised whatever the patient's ASCVD risk, also in rows 1-2: the taxonomy classifies what is documented, not whether stopping is clinically right. Rec 1 is limited to persons 'not at high risk for ASCVD', and rec 5 (COR 2b) allows continuing a statin in pregnancy with FH or clinical ASCVD.
-- [encoding] Women aged 30-49 only, in the oracle and for planted reasons. Sampling is broader on purpose: any structured pregnancy entry within 365 days, or a pregnancy active at index, removes a patient at any age or sex, so no base patient carries a pregnancy entry that the oracle ignores.
+- [encoding] Women aged 30-49 only, in the oracle and for planted reasons. Sampling is broader on purpose: any structured pregnancy entry within 365 days, or a pregnancy active at index, removes a patient at any age or sex, so no base patient carries a pregnancy entry that the oracle ignores. A pregnancy entry whose stop (start if it has no stop) is within 5 years before index also removes a patient: the reason window is 365 days, but sec. 4.2.8.4 supportive text 2 speaks of deferring statins 'for a period of 1 year, and possibly, several years'.
 - [data] No structured lactation code exists in Synthea v4.0.0 or the dev data; lactation can be documented only in notes.
 
 ### Reason `liver_failure`: Decompensated cirrhosis or acute liver failure.
@@ -277,6 +280,7 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
     > Unlike in active liver disease, statins are not contraindicated in patients with chronic, stable liver disease, including metabolic dysfunction-associated steatotic liver disease (MASLD).
 - [encoding] Stable chronic liver disease (including MASLD) is not a reason.
 - [encoding] Notes only: no structured liver-failure entry is counted.
+- [data] Synthea v4.0.0 generates no acute liver failure or decompensated cirrhosis diagnosis, and none occurs in the dev data.
 
 ### Reason `palliative`: Hospice, palliative care or limited life expectancy.
 
@@ -286,6 +290,8 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
     > In individuals with a life expectancy of <1 year, it may be reasonable to discontinue LLT that was prescribed for primary prevention purposes to avoid unnecessary medication use or adverse medication effects.
   - Sec. 4.2.8.3, rec 3 · COR 2b · LOE B-R · journal p. 2697 (PDF p. 74)
     > In patients with a life expectancy of <1 year, it may be reasonable to discontinue LDL-lowering therapy to avoid unnecessary medication use or adverse medication effects.
+  - Sec. 4.2.8.3, synopsis · journal p. 2697 (PDF p. 74) · context, not the basis of the label
+    > Decisions to not initiate or deprescribe LLT are reasonable in older adults when aligned with patient priorities and when potential risks outweigh potential benefits.
 - [encoding] The recommendations concern discontinuation; a documented care goal is taken as a reason not to start.
 
 ### Context: GAP is a prompt for review, not a finding of an error in care
@@ -301,7 +307,7 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
 
 ### Reason window
 
-- [convention] A reason counts if dated 0-365 days before index (a structured statin allergy active at index counts whatever its start date). The window is a project convention: no guideline sentence sets it. A reason changes GAP to DOCUMENTED_REASON and nothing else. Deferral ('will revisit next visit') is not a reason.
+- [convention] A reason counts if dated 0-365 days before index (a structured statin allergy active at index counts whatever its start date). The window is a project convention: no guideline sentence sets it. A reason changes GAP to DOCUMENTED_REASON and nothing else. Deferral ('will revisit next visit') is not a reason. Since the sentence below speaks of 'several years', a patient with a pregnancy entry in the 5 years before index is not sampled (SPEC 5.1).
 - Sources:
   - Sec. 4.2.8.4, supportive text 2 · journal p. 2700 (PDF p. 77) · context, not the basis of the label
     > Considering the length of time for conception, pregnancy, and lactation, an individual may have to defer systemic LLT (especially statins) use for a period of 1 year, and possibly, several years.
@@ -309,6 +315,7 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
 ### 'Latest' values
 
 - [encoding] 'Latest' means the latest value on or before index, with no lookback limit. The lipid panel is TC, HDL-C and LDL-C from the latest date on which all three were measured; a later LDL-C without TC and HDL-C is not used. Rec 12 of sec. 4.2.3.7 reads 'baseline untreated LDL-C'; the oracle uses the latest value even if it was measured during past statin use (generated statins do not lower later values; a phase 2 issue). If two values of a deciding input share the latest timestamp, the smallest row id is used and the patient is not sampled.
+- [data] No LDL-C value without TC and HDL-C on the same date occurs in the dev data (every LDL-C on or before index has both at the same timestamp).
 
 ### Thresholds
 
@@ -331,12 +338,13 @@ Labels: a COR 1 recommendation to start a statin gives GAP, COR 2a or 2b only gi
 
 ### Not encoded
 
-- 4.2.3.6 recs 1, 3 and 5 (COR 1); 4.2.7: Coronary artery calcium: use CAC when the decision is uncertain, start LLT if CAC > 0, consider incidental CAC. No CAC data.
+- 4.2.3.6 recs 1, 3 and 5 (COR 1) and rec 2 (COR 2a), pp. 2664-2665; 4.2.7: Coronary artery calcium: use CAC when the decision is uncertain (rec 1), start LLT if CAC > 0 (rec 3), consider incidental CAC (rec 5); with CAC = 0, a preference to avoid LLT and no higher-risk condition, 'it is reasonable to defer therapy' (rec 2). Recs 4 and 6 concern intensity (out of scope). No CAC data.
 - 4.2.3.3; 4.2.3.4 (COR 2a): Risk enhancers and reproductive risk markers personalize the discussion within the DISCUSS zone; they never create a COR 1 start. Synthea generates some (for example preeclampsia, rheumatoid arthritis); not used. hs-CRP (4.2.3.3 rec 2) is not generated.
 - 4.2.4.4: Familial hypercholesterolemia: not generated.
 - 4.2.10: Lipoprotein(a): not generated.
 - 4.2.9 rec 5 (COR 1): Persistently elevated triglycerides at 40-75 without ASCVD or diabetes: estimate PREVENT risk to guide the discussion; the oracle uses PREVENT anyway, and triglycerides are not an input.
 - 4.2.6 rec 8 (COR 2b); 4.2.8.6 rec 1 (COR 3: No Benefit): Heart failure with reduced ejection fraction: a moderate-intensity statin may be considered when it is due to ischemic heart disease and the patient is not already on a statin for ASCVD (rec 8; row 1 would answer GAP); starting LLT is not recommended without clinical ASCVD or another indication (4.2.8.6 rec 1). Not encoded. The generated data has heart failure diagnoses and ejection-fraction values, so patients with a heart failure diagnosis on or before index are not sampled. HFrEF is read only from a heart failure diagnosis, never from an ejection fraction alone: the CABG work-up records an ejection fraction of 30-49% without a heart failure diagnosis, and those patients are labeled by row 1.
 - 4.2.8.10 rec 3 (COR 2b): Active cancer: starting a statin may be considered to prevent anthracycline-induced cardiotoxicity (cardioprotection, not ASCVD prevention). Not encoded: it would change only NOT_INDICATED or CANNOT_DETERMINE labels, and there it reads two ways (for example at a 10-year risk below 3%): the recommendation names any adult with active cancer, the synopsis 'patients at borderline or higher ASCVD risk when initiation of statin therapy was otherwise uncertain'; neither says how long after the last dose it applies. Patients with an anthracycline active at index or within 365 days before are not sampled.
+- Table 25 (statin contraindications), p. 2718: Severe underlying neuromuscular disease (eg, dermatomyositis, muscular dystrophy) is not a reason category. Synthea v4.0.0 generates no such diagnosis, and none occurs in the dev data. Lactation, also listed there, is part of the pregnancy reason (notes only).
 - 4.2.4.3 rec 1; 4.2.5 rec 6; 4.2.8.3 rec 2; 4.2.8.10 rec 1: Secondary causes before treating LDL-C >= 190; life-expectancy conditions.
 - Scope: Dose intensity, LDL-C goals and non-statin therapy.

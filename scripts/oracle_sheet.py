@@ -121,6 +121,7 @@ def convention_block(c: oracle.Convention) -> str:
     if c.sources:
         L.append("- Sources:")
         L += ["  " + x for s in c.sources for x in _source(s)]
+    L += _tagged("data", c.data_limits)
     return "\n".join(L)
 
 

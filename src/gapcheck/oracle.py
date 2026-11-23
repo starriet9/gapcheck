@@ -177,7 +177,11 @@ ROWS: tuple[Row, ...] = (
          _src("Table 1", "sec. 4.2.6, 2018 recommendation (revised in 2026)", None, None, 2630,
               "COR 1: In patients who are 75 years of age or younger with clinical ASCVD, "
               "high-intensity statin therapy should be initiated or continued with the aim of "
-              "achieving a 50% or greater reduction in LDL-C levels.", role="context")),
+              "achieving a 50% or greater reduction in LDL-C levels.", role="context"),
+         _src("4.2.8.3", "synopsis", None, None, 2697,
+              "Additional recommendations for adults >75 years of age are included in Sections "
+              "4.2.3, “Primary Prevention in Adults,” 4.2.5, “Diabetes in Adults Without "
+              "Established ASCVD,” and 4.2.6, “Secondary ASCVD Prevention.”", role="context")),
         ("Ischemic heart disease code 414545008 counts as clinical ASCVD.",
          "No age limit: Table 1 lists the 2018 recommendation ('75 years of age or younger') "
          "as revised; the 2026 recommendation reads 'In adults with clinical ASCVD'."),
@@ -195,12 +199,16 @@ ROWS: tuple[Row, ...] = (
               "(4.9 mmol/L),* secondary causes of dyslipidemia should be excluded and "
               "addressed to reduce LDL-C (Table 15).")),
         ("Rec 1 (exclude secondary causes first) is not encoded; rec 2 is not conditional on "
-         "it.",
+         "it. Its patients are sampled, because rec 1 does not change a label.",
          "The recommendations read '≥190'; one table footnote reads 'LDL-C >190 mg/dL'. The "
          "oracle uses >= 190, applied to the recorded value without rounding (189.6 is below "
          "190).",
-         "The footnote's non-HDL-C and apoB values are not encoded (rec 2 requires LDL-C "
-         ">= 190).",
+         "The footnote (on recs 1-5) reads severe hypercholesterolemia as 'LDL-C >190 mg/dL, "
+         "non–HDL-C >220 mg/dL, and/or apoB >140 mg/dL'. Its non-HDL-C and apoB values are not "
+         "encoded (rec 2 requires LDL-C >= 190), so the guideline reads two ways here. Patients "
+         "it would change (LDL-C < 190 with non-HDL-C >= 220) are not sampled in S4-S5, and "
+         "twins in that zone are not used where it would change their label. apoB is not "
+         "generated.",
          "No age limit, so ages 76-79 with LDL-C >= 190 are GAP while other primary prevention "
          "at 76-79 is DISCUSS (row 6); such patients are not sampled."),
         scope="Cohort patients not on a statin, no ASCVD (rows 0-1 first).",
@@ -231,7 +239,10 @@ ROWS: tuple[Row, ...] = (
          "LDL-C 70-189 as in rec 1. Take-home message 8 says 'regardless of LDL-C level'; CKD "
          "patients with LDL-C < 70 fall to row 7 and are not sampled (row 7 rule)."),
         scope="Age 40-75, no ASCVD, no diabetes (rows 1-3 first).",
-        data_limits=("Stage 5 is not generated; ESRD is excluded (row X).",),
+        data_limits=("Stage 5 is not generated; ESRD is excluded (row X).",
+                     "CKD stage 3 is defined by eGFR, and the oracle reads only codes. A latest "
+                     "eGFR < 60 with no active CKD stage 3-4 code is not sampled in S4-S5. In the "
+                     "dev cohort no patient reaching rows 8-11b has one."),
         not_sampled="Not sampled as base patients (SPEC 5.1)."),
     Row("4", "Diabetes, >75", "Active diabetes and age 76-79.", DISCUSS,
         (_src("4.2.5", "6", "2b", "C-LD", 2681,
@@ -303,8 +314,10 @@ ROWS: tuple[Row, ...] = (
          _src("Top take-home messages", "message 8", None, None, 2633,
               "After age 75 years, LDL-C–lowering pharmacotherapy can be considered in "
               "conjunction with lifestyle interventions to reduce ASCVD risk.")),
-        ("Sec. 4.2.3.7 covers ages 30-79 but this COR 2b recommendation covers all adults "
-         "> 75; DISCUSS is the conservative reading (SPEC 3.2).",
+        ("Sec. 4.2.3.7 covers ages 30-79, and this COR 2b recommendation is read as primary "
+         "prevention above 75; DISCUSS is the conservative reading (SPEC 3.2). Secondary "
+         "prevention above 75 follows sec. 4.2.6 (row 1, GAP), as the section's synopsis "
+         "cross-references (row 1 sources).",
          "Life-expectancy condition not encoded."),
         scope="Age 76-79, no ASCVD, no diabetes, LDL-C < 190; includes CKD stage 3-4 (row 3b "
               "is limited to 40-75).",
@@ -498,7 +511,10 @@ REASONS: tuple[ReasonCategory, ...] = (
          "Women aged 30-49 only, in the oracle and for planted reasons. Sampling is broader on "
          "purpose: any structured pregnancy entry within 365 days, or a pregnancy active at "
          "index, removes a patient at any age or sex, so no base patient carries a pregnancy "
-         "entry that the oracle ignores."),
+         "entry that the oracle ignores. A pregnancy entry whose stop (start if it has no "
+         "stop) is within 5 years before index also removes a patient: the reason window is "
+         "365 days, but sec. 4.2.8.4 supportive text 2 speaks of deferring statins 'for a "
+         "period of 1 year, and possibly, several years'."),
         ("No structured lactation code exists in Synthea v4.0.0 or the dev data; lactation "
          "can be documented only in notes.",)),
     ReasonCategory(
@@ -516,7 +532,9 @@ REASONS: tuple[ReasonCategory, ...] = (
               "with chronic, stable liver disease, including metabolic dysfunction-associated "
               "steatotic liver disease (MASLD).", role="context")),
         ("Stable chronic liver disease (including MASLD) is not a reason.",
-         "Notes only: no structured liver-failure entry is counted."),),
+         "Notes only: no structured liver-failure entry is counted."),
+        ("Synthea v4.0.0 generates no acute liver failure or decompensated cirrhosis diagnosis, "
+         "and none occurs in the dev data.",)),
     ReasonCategory(
         "palliative", "Hospice, palliative care or limited life expectancy.",
         "Encounter 305336008 (admission to hospice), procedures 385763009 (hospice care) and "
@@ -530,7 +548,11 @@ REASONS: tuple[ReasonCategory, ...] = (
          _src("4.2.8.3", "3", "2b", "B-R", 2697,
               "In patients with a life expectancy of <1 year, it may be reasonable to "
               "discontinue LDL-lowering therapy to avoid unnecessary medication use or "
-              "adverse medication effects.")),
+              "adverse medication effects."),
+         _src("4.2.8.3", "synopsis", None, None, 2697,
+              "Decisions to not initiate or deprescribe LLT are reasonable in older adults when "
+              "aligned with patient priorities and when potential risks outweigh potential "
+              "benefits.", role="context")),
         ("The recommendations concern discontinuation; a documented care goal is taken as a "
          "reason not to start.",)),
 )
@@ -565,6 +587,7 @@ class Convention:
     tag: str                           # "encoding", "data" or "convention"
     text: str
     sources: tuple[Source, ...] = ()
+    data_limits: tuple[str, ...] = ()  # [data] what the generated data can and cannot test
 
 
 CONVENTIONS: tuple[Convention, ...] = (
@@ -573,7 +596,9 @@ CONVENTIONS: tuple[Convention, ...] = (
         "A reason counts if dated 0-365 days before index (a structured statin allergy active "
         "at index counts whatever its start date). The window is a project convention: no "
         "guideline sentence sets it. A reason changes GAP to DOCUMENTED_REASON and nothing "
-        "else. Deferral ('will revisit next visit') is not a reason.",
+        "else. Deferral ('will revisit next visit') is not a reason. Since the sentence below "
+        "speaks of 'several years', a patient with a pregnancy entry in the 5 years before "
+        "index is not sampled (SPEC 5.1).",
         (_src("4.2.8.4", "supportive text 2", None, None, 2700,
               "Considering the length of time for conception, pregnancy, and lactation, an "
               "individual may have to defer systemic LLT (especially statins) use for a period "
@@ -586,7 +611,9 @@ CONVENTIONS: tuple[Convention, ...] = (
         "reads 'baseline untreated LDL-C'; the oracle uses the latest value even if it was "
         "measured during past statin use (generated statins do not lower later values; a "
         "phase 2 issue). If two values of a deciding input share the latest timestamp, the "
-        "smallest row id is used and the patient is not sampled."),
+        "smallest row id is used and the patient is not sampled.",
+        data_limits=("No LDL-C value without TC and HDL-C on the same date occurs in the dev data "
+                     "(every LDL-C on or before index has both at the same timestamp).",)),
     Convention(
         "thresholds", "Thresholds", "encoding",
         "LDL-C and risk thresholds apply to the recorded LDL-C and the unrounded PREVENT "
@@ -619,9 +646,11 @@ CONVENTIONS: tuple[Convention, ...] = (
 
 # Recommendations that could bear on starting a statin but are not encoded (SPEC 3).
 NOT_ENCODED: tuple[tuple[str, str], ...] = (
-    ("4.2.3.6 recs 1, 3 and 5 (COR 1); 4.2.7",
-     "Coronary artery calcium: use CAC when the decision is uncertain, start LLT if CAC > 0, "
-     "consider incidental CAC. No CAC data."),
+    ("4.2.3.6 recs 1, 3 and 5 (COR 1) and rec 2 (COR 2a), pp. 2664-2665; 4.2.7",
+     "Coronary artery calcium: use CAC when the decision is uncertain (rec 1), start LLT if "
+     "CAC > 0 (rec 3), consider incidental CAC (rec 5); with CAC = 0, a preference to avoid LLT "
+     "and no higher-risk condition, 'it is reasonable to defer therapy' (rec 2). Recs 4 and 6 "
+     "concern intensity (out of scope). No CAC data."),
     ("4.2.3.3; 4.2.3.4 (COR 2a)",
      "Risk enhancers and reproductive risk markers personalize the discussion within the "
      "DISCUSS zone; they never create a COR 1 start. Synthea generates some (for example "
@@ -650,6 +679,10 @@ NOT_ENCODED: tuple[tuple[str, str], ...] = (
      "'patients at borderline or higher ASCVD risk when initiation of statin therapy was otherwise "
      "uncertain'; neither says how long after the last dose it applies. Patients with an "
      "anthracycline active at index or within 365 days before are not sampled."),
+    ("Table 25 (statin contraindications), p. 2718",
+     "Severe underlying neuromuscular disease (eg, dermatomyositis, muscular dystrophy) is not a "
+     "reason category. Synthea v4.0.0 generates no such diagnosis, and none occurs in the dev "
+     "data. Lactation, also listed there, is part of the pregnancy reason (notes only)."),
     ("4.2.4.3 rec 1; 4.2.5 rec 6; 4.2.8.3 rec 2; 4.2.8.10 rec 1",
      "Secondary causes before treating LDL-C >= 190; life-expectancy conditions."),
     ("Scope", "Dose intensity, LDL-C goals and non-statin therapy."),
