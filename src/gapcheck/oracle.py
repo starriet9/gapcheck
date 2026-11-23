@@ -644,7 +644,11 @@ NOT_ENCODED: tuple[tuple[str, str], ...] = (
      "labeled by row 1."),
     ("4.2.8.10 rec 3 (COR 2b)",
      "Active cancer: starting a statin may be considered to prevent anthracycline-induced "
-     "cardiotoxicity (cardioprotection, not ASCVD prevention). Not encoded. Patients with an "
+     "cardiotoxicity (cardioprotection, not ASCVD prevention). Not encoded: it would change only "
+     "NOT_INDICATED or CANNOT_DETERMINE labels, and there it reads two ways (for example at a "
+     "10-year risk below 3%): the recommendation names any adult with active cancer, the synopsis "
+     "'patients at borderline or higher ASCVD risk when initiation of statin therapy was otherwise "
+     "uncertain'; neither says how long after the last dose it applies. Patients with an "
      "anthracycline active at index or within 365 days before are not sampled."),
     ("4.2.4.3 rec 1; 4.2.5 rec 6; 4.2.8.3 rec 2; 4.2.8.10 rec 1",
      "Secondary causes before treating LDL-C >= 190; life-expectancy conditions."),
