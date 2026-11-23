@@ -68,3 +68,30 @@ def test_no_ldl_twin_if_source_is_gap():
     b = _base(sbp=170, bp=True, hdl=40)
     assert b.result.status == oracle.GAP
     assert E.c5_ldl(b, 1) == []
+
+
+def test_no_ldl_twin_in_the_nonhdl_zone():
+    """Footnote * of the sec. 4.2.4.3 recommendations reads severe hypercholesterolemia as
+    'LDL-C >190 mg/dL, non-HDL-C >220 mg/dL, and/or apoB >140 mg/dL'. The 185 twin of this
+    source has TC 305 and HDL-C 85 (non-HDL-C 220) and a DISCUSS label, so the pair is not
+    used; with TC 0.1 lower it is."""
+    b = _base(ldl=175.0, tc=295.0, hdl=85, sbp=115)
+    assert b.result.status == oracle.DISCUSS
+    assert E.c5_ldl(b, 1) == []
+    lo, hi = E.c5_ldl(_base(ldl=175.0, tc=294.9, hdl=85, sbp=115), 1)
+    assert lo.result.status == oracle.DISCUSS and not E.nonhdl_zone(lo.facts, lo.result)
+
+
+def test_nonhdl_zone_only_where_row_2_would_change_the_label():
+    from vignette import make
+    zone = dict(tc=290.0, hdl=70.0, ldl=100.0)
+    for kw, status, used in ((dict(age=62, sex="F", sbp=105.0), oracle.NOT_INDICATED, False),
+                             (dict(age=50, diabetes=True), oracle.GAP, True),
+                             (dict(age=50, ascvd=("MI",)), oracle.GAP, True),
+                             (dict(age=62, sex="F", sbp=105.0, statin=True), oracle.ON_THERAPY,
+                              True)):
+        f = make(**zone, **kw)
+        r = oracle.label(f)
+        assert r.status == status and E.nonhdl_zone(f, r) == (not used), kw
+    f = make(age=62, sex="F", sbp=105.0, tc=289.9, hdl=70.0, ldl=100.0)
+    assert not E.nonhdl_zone(f, oracle.label(f))

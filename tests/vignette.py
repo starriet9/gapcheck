@@ -34,7 +34,7 @@ def make(age=50, sex="M", ldl=120.0, tc=200.0, hdl=50.0, sbp=130.0, smoker=False
          egfr=90.0, egfr_p1=False, diabetes=False, dm_years=None, ckd=None, ascvd=(),
          statin=False, statin_stop: date | None = None, bp=False, hiv=False, esrd=False, hf=False, anthracycline_stop="none",
          retinopathy=False, neuropathy=False, albuminuria=False, pregnancy=False,
-         vet=False, allergies=(), lipid=True, smoking_value=None,
+         pregnancy_past=(), vet=False, allergies=(), lipid=True, smoking_value=None,
          ldl_ever_max=None, ldl_earlier_ge190=(), ties=(), structured=(),
          dm_evidence=(), index=INDEX) -> PatientFacts:
     """A PatientFacts built from plain values. None means the open-world input is absent.
@@ -44,6 +44,8 @@ def make(age=50, sex="M", ldl=120.0, tc=200.0, hdl=50.0, sbp=130.0, smoker=False
     structured: (category, days before index) pairs of structured reason entries.
     dm_evidence: (table, code) pairs of diabetes evidence rows (codes.DIABETIC_COMPLICATIONS,
     codes.GLUCOSE_LOWERING_DRUGS) on record before index.
+    pregnancy_past: (start, stop) pairs of pregnancy conditions that start on or before
+    index (stop None: no stop date); `pregnancy=True` adds an active one as well.
     """
     t = lambda k: 2 if k in ties else 1
     panel = None
@@ -86,6 +88,7 @@ def make(age=50, sex="M", ldl=120.0, tc=200.0, hdl=50.0, sbp=130.0, smoker=False
                               stop is None or stop > index,
                               bool(re.search(C.STATIN_ALLERGY_PATTERN, desc, re.I))))
     alg = tuple(alg)
+    preg_active = (coded("conditions", "72892002"),) if pregnancy else ()
     return PatientFacts(
         patient=_rid("pat"), index_date=index, age=age, sex=sex,
         lipid_panel=panel, ldl_history_max=ldl_max, ldl_ge190_earlier=earlier,
@@ -102,7 +105,9 @@ def make(age=50, sex="M", ldl=120.0, tc=200.0, hdl=50.0, sbp=130.0, smoker=False
         anthracyclines=() if anthracycline_stop == "none" else (CodedRow(
             "medications", "rx-anthracycline", "1790099", "doxorubicin", "", date(2020, 1, 1),
             anthracycline_stop),),
-        pregnancy=(coded("conditions", "72892002"),) if pregnancy else (),
+        pregnancy=preg_active,
+        pregnancy_any=preg_active + tuple(coded("conditions", "72892002", start=a, stop=b)
+                                          for a, b in pregnancy_past),
         hyperlipidemia_55822004=(coded("conditions", "55822004"),) if vet else (),
         statins=st if statin and (statin_stop is None or statin_stop > index) else (),
         bp_drugs=bpd, allergies=alg,

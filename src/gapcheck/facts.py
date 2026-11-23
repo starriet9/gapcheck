@@ -35,6 +35,8 @@ Rules:
   `reason_in_window` give their rule: an allergy active at index counts
   whatever its start date, an ended one only if its STOP is 0-365 days
   before index.
+- Past pregnancies (`pregnancy_any`, for the sampling rule `pregnancy_5y`):
+  every pregnancy condition starting on or before index, active or not.
 """
 from __future__ import annotations
 
@@ -239,6 +241,7 @@ class PatientFacts:
     diabetes_coded: bool = False  # any diabetes code on or before index (active or not)
     heart_failure: tuple[CodedRow, ...] = ()  # any code on or before index (not sampled)
     anthracyclines: tuple[CodedRow, ...] = ()  # any prescription starting on or before index
+    pregnancy_any: tuple[CodedRow, ...] = ()  # any pregnancy starting on or before index
 
     # convenience flags
     @property
@@ -288,6 +291,14 @@ class PatientFacts:
         sampled, SPEC 5.1; sec. 4.2.8.10 rec 3 is not encoded)."""
         return any(r.stop is None or (self.index_date - r.stop).days <= 365
                    for r in self.anthracyclines)
+
+    @property
+    def pregnancy_5y(self) -> bool:
+        """A pregnancy condition whose STOP (START if it has no STOP) is at most 1,826 days
+        (5 years) before index; a STOP after index counts too (not sampled, SPEC 5.1). The
+        oracle's reason window stays 365 days."""
+        return any((self.index_date - (r.stop or r.start)).days <= PREGNANCY_SAMPLING_DAYS
+                   for r in self.pregnancy_any)
 
     @property
     def diabetes_evidence_without_diagnosis(self) -> bool:
@@ -418,6 +429,9 @@ def _years(start: date | None, index: date) -> float | None:
 
 
 REASON_WINDOW_DAYS = 365  # SPEC 3.3; a project convention, not a guideline number
+# Sampling rule `pregnancy_5y` (SPEC 5.1): sec. 4.2.8.4 supportive text 2 says statins
+# may be deferred "for a period of 1 year, and possibly, several years".
+PREGNANCY_SAMPLING_DAYS = 1826
 
 
 def reason_in_window(d: date | None, index: date, active_at_index: bool = False) -> bool:
@@ -529,6 +543,7 @@ def facts_at_index(rec: PatientRecord) -> PatientFacts:
         anthracyclines=_coded(med, "medications", C.ANTHRACYCLINES, ix, active=False),
         esrd=tuple(sorted(esrd, key=lambda x: (x.start, x.row_id))),
         pregnancy=_coded(cond, "conditions", C.PREGNANCY, ix, active=True),
+        pregnancy_any=_coded(cond, "conditions", C.PREGNANCY, ix, active=False),
         hyperlipidemia_55822004=_coded(cond, "conditions", C.HYPERLIPIDEMIA_VETERAN, ix, active=False),
         statins=_coded(med, "medications", C.STATINS, ix, active=True),
         bp_drugs=_coded(med, "medications", C.BP_DRUGS, ix, active=True),

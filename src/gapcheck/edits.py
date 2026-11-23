@@ -42,6 +42,10 @@ Conditions (who gets one, per base patient):
 
 Every twin must also keep its label and `missing` for every eGFR 60-140
 when the latest eGFR is a P1 value (the base patients' rule, SPEC 4.1).
+No twin is used whose label rests on a reading that the sampling rules keep
+out: age 60-75 with risk < 3% and LDL-C 160-189 (`rec3_age_zone`), and LDL-C
+< 190 with non-HDL-C >= 220 unless the label is GAP by another row,
+ON_THERAPY or DOCUMENTED_REASON (`nonhdl_zone`).
 """
 from __future__ import annotations
 
@@ -379,6 +383,21 @@ def rec3_age_zone(f: PatientFacts, res: oracle.OracleResult) -> bool:
     return res.row == "11a" and f.age >= 60 and f.ldl is not None and 160 <= f.ldl < 190
 
 
+# Labels that stay the same if row 2 also read non-HDL-C (row 0 and row 1 come first; GAP
+# by another row stays GAP, and a reason turns either GAP into DOCUMENTED_REASON).
+NONHDL_SAFE_STATUSES = (oracle.ON_THERAPY, oracle.GAP, oracle.DOCUMENTED_REASON)
+
+
+def nonhdl_zone(f: PatientFacts, res: oracle.OracleResult) -> bool:
+    """Latest panel LDL-C < 190 and non-HDL-C (TC - HDL-C) >= 220, with a label that is
+    not GAP by another row (nor ON_THERAPY, nor DOCUMENTED_REASON from a GAP): footnote *
+    of the sec. 4.2.4.3 recommendations reads severe hypercholesterolemia as "LDL-C >190
+    mg/dL, non-HDL-C >220 mg/dL, and/or apoB >140 mg/dL", which would make the label GAP
+    by row 2, so twins here are not used (SPEC 5.1, 5.2)."""
+    return strata.nonhdl_ge220_ldl_lt190(oracle.inputs_from_facts(f)) \
+        and res.status not in NONHDL_SAFE_STATUSES
+
+
 # ---------------------------------------------------------------- builders
 def _pick_note(base: Base, rng: np.random.Generator) -> tuple[str, date]:
     win = base.encounters_in_window()
@@ -481,7 +500,8 @@ def _fmt(v: float) -> str:
 
 def _c5_ok(tw: Twin) -> bool:
     return bool(tw.check and tw.p1_stable and margins_ok(tw.facts, tw.result)
-                and not rec3_age_zone(tw.facts, tw.result))
+                and not rec3_age_zone(tw.facts, tw.result)
+                and not nonhdl_zone(tw.facts, tw.result))
 
 
 def ldl_source_ok(f: PatientFacts, res: oracle.OracleResult) -> bool:
@@ -588,6 +608,7 @@ def _risk_twin(base: Base, kind: str, variant: str, target, partner_status=None)
             # first member of a two-twin pair: only its own rules here
             if tw.p1_stable and margins_ok(tw.facts, tw.result) \
                     and not rec3_age_zone(tw.facts, tw.result) \
+                    and not nonhdl_zone(tw.facts, tw.result) \
                     and tw.result.status != oracle.CANNOT_DETERMINE:
                 return tw
         elif _c5_ok(tw):
@@ -733,7 +754,8 @@ def build_twins(bases: list[Base], seed: int) -> tuple[list[Twin], dict]:
         if b.stratum not in (NEAR_STRATUM, LDL_STRATUM):
             mine += c5_risk(b, seed) + c5_smoking(b, seed)
         for tw in mine:
-            if tw.check and tw.p1_stable:
+            # nonhdl_zone: for C5 twins already checked in _c5_ok; here for every condition.
+            if tw.check and tw.p1_stable and not nonhdl_zone(tw.facts, tw.result):
                 twins.append(tw)
             else:
                 rejected[tw.condition] = rejected.get(tw.condition, 0) + 1

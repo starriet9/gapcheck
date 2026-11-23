@@ -444,7 +444,8 @@ PALLIATIVE_NOT_COUNTED = ("D9110",)
 # Pregnancy: active at index, or any pregnancy condition dated 0-365 days
 # before index (not sampled; structured reason "pregnancy", a category that
 # also covers planned pregnancy and lactation, counted by the oracle only for
-# women aged 30-49).
+# women aged 30-49). Also not sampled: a pregnancy condition whose STOP (START
+# if it has no STOP) is within 5 years before index (`pregnancy_5y`).
 # Found by: source (pregnancy.json: every pregnancy starts with 72892002,
 # which ends at delivery, abortion or miscarriage); data.
 # Lactation: no code. Neither the v4.0.0 modules (grep for lactat,

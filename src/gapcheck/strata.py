@@ -23,6 +23,7 @@ STRATUM_OF_ROW = {"1": "S1", "2": "S2", "3": "S3", "8": "S4", "9": "S4", "7": "S
 PREVENT_ROWS = frozenset({"5", "7", "8", "9", "10", "11a", "11b"})
 P1_EGFR_RANGE = (60.0, 140.0)
 P1_EGFR_VALUES = np.arange(60.0, 140.0 + 0.5, 1.0)
+NATIVE_EGFR_CHECKED_MAX = 140.0  # highest eGFR the external PREVENT checks accept (SPEC 3.5)
 PRIMARY = ("S2", "S3", "S4", "S5")
 
 # name -> (strata it applies to, description). Order is the report order.
@@ -38,6 +39,8 @@ EXCLUSIONS: dict[str, tuple[tuple[str, ...], str]] = {
     "structured_reason_365d": (STRATA, "a structured reason within 365 days of index "
                                        "(pregnancy, hospice or palliative care, statin "
                                        "allergy) or pregnancy active at index"),
+    "pregnancy_5y": (STRATA, "a pregnancy entry whose stop (start if it has no stop) is within "
+                             "5 years (1,826 days) before index (sec. 4.2.8.4 supportive text 2)"),
     "diabetes_evidence_without_diagnosis": (
         STRATA, "diabetes evidence without a diabetes code: a diabetic-complication diagnosis "
                 "or a glucose-lowering drug on or before index and no diabetes code on or "
@@ -51,9 +54,16 @@ EXCLUSIONS: dict[str, tuple[tuple[str, ...], str]] = {
     "age60_75_risk_lt3_ldl160_189": (
         PRIMARY, "age 60-75, risk < 3%, LDL-C 160-189 (row 11a by the reading of rec 3's age "
                  "limit)"),
+    "nonhdl_ge220_ldl_lt190": (
+        ("S4", "S5"), "S4-S5: latest panel LDL-C < 190 and non-HDL-C (TC - HDL-C) >= 220 (severe "
+                      "hypercholesterolemia by footnote * of sec. 4.2.4.3)"),
+    "egfr_lt60_no_ckd_code": (
+        ("S4", "S5"), "S4-S5: latest eGFR < 60 and no active CKD stage 3-4 code (sec. 4.2.8.8 "
+                      "rec 1)"),
     "prevent_input_missing_or_out_of_range": (
         PRIMARY, "a PREVENT input missing or out of range where PREVENT is needed"),
-    "native_egfr_gt150": (PRIMARY, "native (generator) eGFR > 150 where PREVENT is needed"),
+    "native_egfr_gt140": (PRIMARY, "native (generator) eGFR > 140 where PREVENT is needed (no "
+                                   "external check above 140)"),
     "p1_egfr_dependent": (STRATA, "latest eGFR is a P1 value and the indication row "
                                   "is not the same for every eGFR 60-140"),
     "tie_in_deciding_input": (STRATA, "two values at the latest timestamp of a deciding input"),
@@ -111,6 +121,22 @@ def row7_stays_at_ldl70(x: oracle.OracleInputs, p1: bool) -> bool:
     return oracle.evaluate(x70, ignore_row0=True)["status"] == oracle.NOT_INDICATED
 
 
+NONHDL_SEVERE = 220.0  # footnote * of sec. 4.2.4.3: "non-HDL-C >220 mg/dL"
+
+
+def nonhdl_ge220_ldl_lt190(x: oracle.OracleInputs) -> bool:
+    """Latest panel LDL-C < 190 and non-HDL-C (TC - HDL-C) >= 220: severe
+    hypercholesterolemia by the footnote of sec. 4.2.4.3, not by row 2 (SPEC 5.1)."""
+    return x.lipid_present and x.ldl < 190 and x.tc - x.hdl >= NONHDL_SEVERE
+
+
+def egfr_lt60_without_ckd_code(f) -> bool:
+    """Latest eGFR (the series the oracle reads) < 60 and no active CKD stage 3-4 code
+    (SPEC 5.1): CKD stage 3 is defined by eGFR, while the oracle reads codes only."""
+    return f.egfr is not None and float(f.egfr.value) < 60 \
+        and not any(r.group in ("3", "4") for r in f.ckd)
+
+
 def ascvd_type(f) -> str | None:
     t = f.ascvd_types
     if not t:
@@ -161,6 +187,10 @@ def assign(f) -> StrataRow:
         ex.append("row3b_ckd")
     if f.pregnancy or has_structured_reason(f):
         ex.append("structured_reason_365d")
+    if f.pregnancy_5y:
+        # Statins may be deferred "for a period of 1 year, and possibly, several years"
+        # around pregnancy (sec. 4.2.8.4 supportive text 2); the reason window stays 365 days.
+        ex.append("pregnancy_5y")
     if f.diabetes_evidence_without_diagnosis:
         # The record contradicts itself on diabetes (codes.DIABETIC_COMPLICATIONS,
         # codes.GLUCOSE_LOWERING_DRUGS); the oracle reads only diabetes codes.
@@ -193,12 +223,23 @@ def assign(f) -> StrataRow:
         ex.append("row7_label_changes_at_ldl70")
     if row == "11a" and f.age >= 60 and x.ldl is not None and 160 <= x.ldl < 190:
         ex.append("age60_75_risk_lt3_ldl160_189")
+    if nonhdl_ge220_ldl_lt190(x):
+        # Footnote * of the sec. 4.2.4.3 recommendations reads severe hypercholesterolemia as
+        # "LDL-C >190 mg/dL, non-HDL-C >220 mg/dL, and/or apoB >140 mg/dL"; row 2 reads
+        # LDL-C only (a two-way reading).
+        ex.append("nonhdl_ge220_ldl_lt190")
+    if egfr_lt60_without_ckd_code(f):
+        # CKD stage 3 is defined by eGFR; the oracle reads CKD stage from codes only.
+        ex.append("egfr_lt60_no_ckd_code")
     if (row in PREVENT_ROWS or (row is None and set(ind.row_set) & PREVENT_ROWS)) \
             and not prevent_ok:
         ex.append("prevent_input_missing_or_out_of_range")
     needs_prevent = row in PREVENT_ROWS or (row is None and bool(set(ind.row_set) & PREVENT_ROWS))
-    if needs_prevent and f.egfr is not None and not f.egfr_imputed and float(f.egfr.value) > 150:
-        ex.append("native_egfr_gt150")
+    if needs_prevent and f.egfr is not None and not f.egfr_imputed \
+            and float(f.egfr.value) > NATIVE_EGFR_CHECKED_MAX:
+        # The oracle computes with eGFR up to 150 (Tables S12A, S12F), but both packages and
+        # the AHA online calculator accept only 15-140 (SPEC 3.5).
+        ex.append("native_egfr_gt140")
 
     tied = {"lipid_panel": f.lipid_panel is not None and f.lipid_panel.tied,
             "sbp": f.sbp is not None and f.sbp.n_tied > 1,

@@ -178,7 +178,7 @@ def test_row7_rule_checked_over_p1_egfr_range():
 
 
 def test_prevent_input_out_of_range_where_needed():
-    hi = dict(age=70, sex="M", tc=260.0, hdl=40.0, ldl=170.0)  # >= 5% at any SBP or eGFR
+    hi = dict(age=70, sex="M", tc=255.0, hdl=40.0, ldl=170.0)  # >= 5% at any SBP or eGFR
     for kw in (dict(sbp=85.0), dict(sbp=None), dict(sbp=150.0, egfr=None)):
         s = st(make(**hi, **kw))
         assert s.indication_status == oracle.GAP and s.candidate == "S4"
@@ -187,14 +187,20 @@ def test_prevent_input_out_of_range_where_needed():
     assert s.stratum == "S3"
 
 
-def test_native_egfr_above_150_only_where_prevent_needed():
-    s = st(make(age=50, diabetes=True, egfr=155.0))
-    assert s.stratum == "S3"
-    s = st(make(age=50, ascvd=("MI",), egfr=155.0))
-    assert s.stratum == "S1"
-    hi = dict(age=70, sex="M", tc=260.0, hdl=40.0, ldl=170.0, sbp=150.0)  # >= 5% at any eGFR
+def test_native_egfr_above_140_only_where_prevent_needed():
+    """The oracle computes with eGFR up to 150 (PREVENT Tables S12A, S12F), but the packages
+    and the AHA online calculator accept only 15-140, so a native eGFR above 140 where PREVENT
+    is needed is not sampled."""
+    for e in (145.0, 155.0):
+        assert st(make(age=50, diabetes=True, egfr=e)).stratum == "S3"
+        assert st(make(age=50, ascvd=("MI",), egfr=e)).stratum == "S1"
+    hi = dict(age=70, sex="M", tc=255.0, hdl=40.0, ldl=170.0, sbp=150.0)  # >= 5% at any eGFR
     s = st(make(**hi, egfr=155.0))
-    assert s.candidate == "S4" and "native_egfr_gt150" in s.blocking()
+    assert s.candidate == "S4" and "native_egfr_gt140" in s.blocking()
+    s = st(make(**hi, egfr=141.0))
+    assert s.candidate == "S4" and s.blocking() == ("native_egfr_gt140",)
+    assert oracle.usable(oracle.inputs_from_facts(make(**hi, egfr=141.0)))["egfr"]
+    assert st(make(**hi, egfr=140.0)).stratum == "S4"
 
 
 def test_s2_meeting_row3_not_sampled():
@@ -238,3 +244,73 @@ def test_anthracycline_within_365_days_not_sampled():
 def test_aids_code_is_hiv():
     from gapcheck import codes
     assert "62479008" in codes.HIV and "86406008" in codes.HIV
+
+
+def test_pregnancy_within_5_years_not_sampled():
+    """Sec. 4.2.8.4 supportive text 2: statins may be deferred 'for a period of 1 year, and
+    possibly, several years'. A pregnancy whose stop (start if it has no stop) is within
+    1,826 days before index removes the patient from every stratum, at any age or sex; the
+    oracle's reason window stays 365 days."""
+    s2 = dict(age=35, sex="F", ldl=200.0, tc=290.0, ldl_earlier_ge190=(195.0,))
+    assert st(make(**s2)).stratum == "S2"
+    for days in (418, 773, 1826):
+        stop = INDEX - timedelta(days=days)
+        f = make(**s2, pregnancy_past=((stop - timedelta(days=280), stop),))
+        s = st(f)
+        assert s.candidate == "S2" and s.blocking() == ("pregnancy_5y",), days
+    stop = INDEX - timedelta(days=1827)
+    assert st(make(**s2, pregnancy_past=((stop - timedelta(days=280), stop),))).stratum == "S2"
+    # no stop date: the start counts
+    f = make(**s2, pregnancy_past=((INDEX - timedelta(days=1000), None),))
+    assert "pregnancy_5y" in st(f).exclusions
+    # any stratum, any age or sex
+    stop = INDEX - timedelta(days=600)
+    preg = ((stop - timedelta(days=280), stop),)
+    s = st(make(age=60, sex="M", ascvd=("MI",), pregnancy_past=preg))
+    assert s.candidate == "S1" and s.blocking() == ("pregnancy_5y",)
+    s = st(make(age=50, diabetes=True, pregnancy_past=preg))
+    assert s.candidate == "S3" and s.blocking() == ("pregnancy_5y",)
+    # the oracle still counts a pregnancy reason only within 365 days
+    f = make(**s2, structured=(("pregnancy", 418),))
+    assert oracle.label(f).status == oracle.GAP
+    f = make(**s2, structured=(("pregnancy", 300),))
+    assert oracle.label(f).status == oracle.DOCUMENTED_REASON
+
+
+def test_nonhdl_ge220_with_ldl_lt190_not_sampled_in_s4_s5():
+    """Footnote * of the sec. 4.2.4.3 recommendations reads severe hypercholesterolemia as
+    'LDL-C >190 mg/dL, non-HDL-C >220 mg/dL, and/or apoB >140 mg/dL'; row 2 reads LDL-C only.
+    Latest LDL-C < 190 with TC - HDL-C >= 220 is not sampled in S4-S5 (S1 and S3 are GAP or
+    ON_THERAPY either way)."""
+    s4 = dict(age=55, sex="M", hdl=50.0, ldl=120.0, sbp=170.0)
+    s = st(make(**s4, tc=270.0))  # non-HDL-C 220
+    assert s.candidate == "S4" and s.blocking() == ("nonhdl_ge220_ldl_lt190",)
+    assert st(make(**s4, tc=269.9)).stratum == "S4"
+    s5 = dict(age=62, sex="F", hdl=70.0, ldl=100.0, sbp=105.0)
+    s = st(make(**s5, tc=290.0))
+    assert (s.indication_row, s.candidate) == ("11b", "S5")
+    assert s.blocking() == ("nonhdl_ge220_ldl_lt190",)
+    assert st(make(**s5, tc=289.9)).stratum == "S5"
+    for kw, stratum in ((dict(ascvd=("MI",)), "S1"), (dict(diabetes=True), "S3")):
+        s = st(make(age=50, tc=280.0, hdl=50.0, ldl=120.0, **kw))
+        assert "nonhdl_ge220_ldl_lt190" in s.exclusions and s.stratum == stratum
+    # LDL-C >= 190 is row 2 (S2), not this rule
+    s = st(make(ldl=190.0, tc=290.0, ldl_earlier_ge190=(195.0,)))
+    assert s.stratum == "S2" and "nonhdl_ge220_ldl_lt190" not in s.exclusions
+
+
+def test_egfr_lt60_without_ckd_code_not_sampled_in_s4_s5():
+    """CKD stage 3 is defined by eGFR and sec. 4.2.8.8 rec 1 is COR 1, while the oracle reads
+    the CKD stage from codes: a latest eGFR < 60 with no active CKD stage 3-4 code is not
+    sampled in S4-S5."""
+    s4 = dict(age=55, sex="M", tc=200.0, hdl=50.0, ldl=120.0, sbp=170.0)
+    for kw in (dict(egfr=55.0), dict(egfr=55.0, ckd=2)):
+        s = st(make(**s4, **kw))
+        assert s.candidate == "S4" and s.blocking() == ("egfr_lt60_no_ckd_code",), kw
+    assert st(make(**s4, egfr=60.0)).stratum == "S4"
+    s = st(make(**s4, egfr=55.0, ckd=3))  # coded: row 3b, not this rule
+    assert s.indication_row == "3b" and "egfr_lt60_no_ckd_code" not in s.exclusions
+    s = st(make(**LOW, egfr=50.0))
+    assert s.candidate == "S5" and s.blocking() == ("egfr_lt60_no_ckd_code",)
+    s = st(make(age=50, ascvd=("MI",), egfr=50.0))
+    assert "egfr_lt60_no_ckd_code" in s.exclusions and s.stratum == "S1"
