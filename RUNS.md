@@ -2,7 +2,7 @@
 
 Append-only log for `PROTOCOL.md` (secs. 11, 13 and 14). Times are UTC. A `pending` field is filled once, when the event happens, in its own commit; nothing else is edited afterwards. Corrections are added as new dated lines, not by rewriting.
 
-**Status (2026-11-23): protocol released at tag `protocol-v1`; test seed derived. Test set not built yet; no test run.**
+**Status (2026-11-23): protocol released at tag `protocol-v1`; test seed derived; test set built. No test run.**
 
 ## 1. Protocol release
 
@@ -38,17 +38,17 @@ Built by the tag commit, unchanged, before any model is called.
 
 | Field | Value |
 |---|---|
-| Commit used for the build (must equal the tag commit) | pending |
-| Working tree clean (`git status --porcelain` empty) | pending |
-| Generation batch: seed, `-p` (40000, one batch), sha256 of its `run_manifest.json` | pending |
-| Cohort size (alive, aged 30–79 at index) | pending |
-| Gate report | pending (`reports/gate_test_*.md`) |
-| Clusters by stratum × statin status | pending |
-| Cases by condition (C0, C1, C2a, C2b, C3a, C3b, C4, C5) | pending |
-| Shortfalls by cell; rejected twins | pending |
+| Commit used for the build (must equal the tag commit) | `f2f30d9b76f626c9397d9624ae69867dee165063` (the tag commit, checked out detached) |
+| Working tree clean (`git status --porcelain` empty) | Yes, empty at 2026-11-23T12:03:25Z, before the build started |
+| Generation batch: seed, `-p` (40000, one batch), sha256 of its `run_manifest.json` | seed 1314604188, `-p` 40000, one batch (2026-11-23T12:03Z to 13:12Z); `run_manifest.json` sha256 `8b8bdf494595cd5be5718354cb9d28b8a2712fab1684c24ba64045c681a1edd2` |
+| Cohort size (alive, aged 30–79 at index) | 39,553 |
+| Gate report | `results/gate_test_s1314604188_p40000_utc.md` (gate.py writes it to `reports/`; moved to `results/`, because commits after the tag may touch only the run records) |
+| Clusters by stratum × statin status | 260: S1 20 on, 20 off; S2 20 on, 20 off; S3 20 on, 20 off; S4 20 on, 20 off; S5 40 off; near-threshold sources 40; LDL-C threshold sources 20 |
+| Cases by condition (C0, C1, C2a, C2b, C3a, C3b, C4, C5) | 798: C0 200, C1 79, C2a 120, C2b 34, C3a 80, C3b 40, C4 120, C5 125 (65 C5 pairs) |
+| Shortfalls by cell; rejected twins | No cell short. Rejected twins: C1 1, C2b 9 |
 | L1 build-stop check (largest prompt in tokens; context limit) | pending |
-| Phrase file and its sha256 | pending |
-| **Test set sha256** (sha256 of the case set's `manifest.json`, which lists the sha256 of every file) | pending |
+| Phrase file and its sha256 | `src/gapcheck/phrases/test.json` (version `test-1`), sha256 `e786194c6941e82dfdbc4c5730c3bc858c2c0bcc5d399777e0b160d8bf162995`, as in `PROTOCOL.md` sec. 4 |
+| **Test set sha256** (sha256 of the case set's `manifest.json`, which lists the sha256 of every file) | `be6af5fd7e4cfcdb499a14037a83ec560fbbcce94a27ff10b5ad993ebb9b7df7` (`data/cases/test_s1314604188_n40/manifest.json`, 2026-11-23T13:43:10Z) |
 | Commit that recorded this section (must precede every model call) | pending |
 
 **Hand labels** (`PROTOCOL.md` sec. 3).
