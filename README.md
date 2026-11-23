@@ -6,10 +6,9 @@ A care-gap agent. No alert until code re-checks the evidence.
 
 ![A care-gap alert from a development run: the code verifier rejects the agent's first draft, then the evidence rows it checked](site/figures/card.gif)
 
-<!-- PUBLISH: page URL -->
-[Page](PAGE_URL) · [Protocol](PROTOCOL.md) · [Design](SPEC.md) · [Reproduce](docs/REPRODUCE.md)
+[Page](https://starriet9.github.io/gapcheck/) · [Protocol](PROTOCOL.md) · [Design](SPEC.md) · [Reproduce](docs/REPRODUCE.md)
 
-**Status:** the protocol is a draft and has not been released, so the test set does not exist and there are no test results. [RUNS.md](RUNS.md) logs each step when it happens.
+**Status:** the protocol is frozen at tag [`protocol-v1`](https://github.com/starriet9/gapcheck/releases/tag/protocol-v1) (2026-11-23). The test set is built after the release, so there are no test results yet. [RUNS.md](RUNS.md) logs each step when it happens.
 
 ## How it works
 
@@ -41,7 +40,6 @@ Synthea is the open-source generator behind the synthetic patients (status at th
 - [synthetichealth/synthea#1794](https://github.com/synthetichealth/synthea/pull/1794) (merged): patients with hypertension never got a kidney-function result; the wellness check tested a diagnosis code that no module has created since 2019.
 - [synthetichealth/synthea#1795](https://github.com/synthetichealth/synthea/pull/1795): kidney function was one CKD stage off, and end-stage patients got normal values (from the discussion in [#1793](https://github.com/synthetichealth/synthea/issues/1793)).
 - [synthetichealth/synthea#1796](https://github.com/synthetichealth/synthea/pull/1796): the same seed produced different patients in different time zones.
-<!-- PUBLISH: add PR 3 only after it is posted -->
 
 <!-- USER: 1-2 sentences -->
 

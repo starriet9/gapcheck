@@ -2,7 +2,7 @@
 
 Reporting guideline: Gallifant J, et al. The TRIPOD-LLM reporting guideline for studies using large language models. Nat Med 2025;31(1):60–69. doi:10.1038/s41591-024-03425-5. The item list below was checked against Table 2 (checklist) and Table 3 (abstracts) of the published statement on 2026-11-19. Item wording is abbreviated here; the statement has the full text.
 
-**Status: draft, written before any test result.** "At tag" means the answer is fixed when the protocol is frozen. "With results" means it can only be filled after run 1. "Planned" marks a file that does not exist yet. `[FILL]` marks a statement only the author can make.
+**Status: frozen at tag `protocol-v1` (2026-11-23), written before any test result.** "At tag" means the answer is fixed when the protocol is frozen. "With results" means it can only be filled after run 1. "Planned" marks a file that does not exist yet. `[FILL]` marks a statement only the author can make.
 
 ## Study type
 

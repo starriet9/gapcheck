@@ -1,10 +1,8 @@
 # gapcheck: pre-registration protocol
 
-**Status: DRAFT (2026-11-20). Not frozen. The test set does not exist.**
+**Status: frozen at tag `protocol-v1` (2026-11-23), before the test set exists.**
 
 This file is frozen by a tagged commit and a GitHub Release before the test set is determined (secs. 13–14). `SPEC.md` is the design and holds the full text of rules that are summarized here; at the tag the two must agree, and where they differ this file governs. Every departure from this protocol after the tag goes in `DEVIATIONS.md`. What happens after the tag is logged in `RUNS.md`.
-
-Open fields carry the word FILL in square brackets and are completed before the tag. At the tag this paragraph and the status line above are replaced by the frozen status, and a search for "FILL" in this file finds nothing.
 
 Synthetic patients. Ground truth is a guideline encoded as a decision table, not clinical judgment. The test-case mix is designed, so no count is a prevalence. Research prototype, not medical advice.
 
@@ -73,12 +71,12 @@ Encoding choices where the guideline leaves room, the reason taxonomy, the open-
 
 | File | sha256 |
 |---|---|
-| `src/gapcheck/oracle.py` | `[FILL]` |
-| `src/gapcheck/prevent.py` | `[FILL]` |
-| `src/gapcheck/prevent_coefficients.json` | `[FILL]` |
-| `src/gapcheck/codes.py` | `[FILL]` |
-| `src/gapcheck/facts.py` | `[FILL]` |
-| `reports/oracle_rules.md` | `[FILL]` |
+| `src/gapcheck/oracle.py` | `4b0324c843a3443e3b2f328c2eee666931b439f80ac92ec5fd8103a1e28c9166` |
+| `src/gapcheck/prevent.py` | `f5e4b8dd8a5e24091f00739d9a2a47a833dcf6cfb39bc8268e6cae7e5d95fb75` |
+| `src/gapcheck/prevent_coefficients.json` | `c925ddbfc56e7a6fa3e48e1b3fd0de4b928ae65369797fa2a26486cff3d16166` |
+| `src/gapcheck/codes.py` | `3c514b86ec1bac43f528128899ac217b07b5dc4d51ea0f4c6c6077c8ac721829` |
+| `src/gapcheck/facts.py` | `fa86c93a5897a244013cbd342db9c87cbe8a2d9c50a008dcbce58ac10c99adc1` |
+| `reports/oracle_rules.md` | `3f16057a5cf533970f3b24d1a29470ef27d857046b909aa55213e9d00d4437ec` |
 
 Last commit that changed the decision table before the tag: `b95a4e0` (2026-11-23, row X: AIDS code 62479008 added to the HIV list).
 
@@ -116,7 +114,7 @@ Last commit that changed the decision table before the tag: `b95a4e0` (2026-11-2
 
 C1 and C2a use one deletion per base patient; if several inputs qualify, one is chosen by the `edits` sub-seed. C2b is kept.
 
-**Phrases.** 30 test phrasings per planted fact type, each used at most once, disjoint from the 20 development phrasings per type. A phrasing whose words state the patient's sex (a pronoun, a spouse, pregnancy) is planted only in patients of that sex (`SPEC.md` sec. 5.2). Test phrasings are written by an author who reads neither the prompts, the R1 rules nor any run output, and the authors of the prompts and R1 never read the test phrasings; R1 was frozen before they were written (its last change predates the phrase file's first commit). Test phrasings are used in no run before the tag. The test phrasings were written by a separate agent (Claude Opus 5.5, commit `e8d3352`) that was told not to open the prompts, the R1 rules or any run output. Two reviews for clinical plausibility by separate LLM agents (Claude Fable 5.2) under the same rule read all 300, and no physician reviewed them: the first reworded 17 (`61d892a`); the second, made before reading the first, found none wrong and 4 open to clinical dispute, and one of the 4 was reworded by a third such agent (`b05c7f5`). None was removed. The agent that wrote the prompts has read none of them; the project author, who wrote none of the prompts, was shown the 4 disputed phrasings in the second review (2026-11-20). Phrase file `src/gapcheck/phrases/test.json` (version `test-1`), sha256 at the tag: `[FILL]`.
+**Phrases.** 30 test phrasings per planted fact type, each used at most once, disjoint from the 20 development phrasings per type. A phrasing whose words state the patient's sex (a pronoun, a spouse, pregnancy) is planted only in patients of that sex (`SPEC.md` sec. 5.2). Test phrasings are written by an author who reads neither the prompts, the R1 rules nor any run output, and the authors of the prompts and R1 never read the test phrasings; R1 was frozen before they were written (its last change predates the phrase file's first commit). Test phrasings are used in no run before the tag. The test phrasings were written by a separate agent (Claude Opus 5.5, commit `e8d3352`) that was told not to open the prompts, the R1 rules or any run output. Two reviews for clinical plausibility by separate LLM agents (Claude Fable 5.2) under the same rule read all 300, and no physician reviewed them: the first reworded 17 (`61d892a`); the second, made before reading the first, found none wrong and 4 open to clinical dispute, and one of the 4 was reworded by a third such agent (`b05c7f5`). None was removed. The agent that wrote the prompts has read none of them; the project author, who wrote none of the prompts, was shown the 4 disputed phrasings in the second review (2026-11-20). Phrase file `src/gapcheck/phrases/test.json` (version `test-1`), sha256 at the tag: `e786194c6941e82dfdbc4c5730c3bc858c2c0bcc5d399777e0b160d8bf162995`.
 
 **Expected counts.** The exact counts are fixed by the tagged code and the seed, not by the author, and are entered in `RUNS.md` before any model call.
 
@@ -163,20 +161,20 @@ A reply that is not one schema-valid JSON object gets one re-ask; the re-ask may
 
 | File | sha256 |
 |---|---|
-| `src/gapcheck/prompts/system.txt` | `[FILL]` |
-| `src/gapcheck/prompts/task_l1.txt` | `[FILL]` |
-| `src/gapcheck/prompts/task_agent.txt` | `[FILL]` |
-| `src/gapcheck/prompts/reask.txt` | `[FILL]` |
-| `src/gapcheck/prompts/repair.txt` | `[FILL]` |
-| `src/gapcheck/prompts/limit.txt` | `[FILL]` |
-| `src/gapcheck/prompts/round_counter.txt` | `[FILL]` |
-| `src/gapcheck/prompts/rounds_left.txt` (loaded, not used: `rounds_left_notice` is 0) | `[FILL]` |
-| Conventions page (`gapcheck.conventions.sha256()`) | `[FILL]` |
-| `src/gapcheck/baselines.py` (R0, R1) | `[FILL]` |
-| `src/gapcheck/verifier.py` | `[FILL]` |
-| `src/gapcheck/tools.py` | `[FILL]` |
-| `src/gapcheck/serialize.py` | `[FILL]` |
-| `src/gapcheck/score.py` | `[FILL]` |
+| `src/gapcheck/prompts/system.txt` | `b096d6783512eba9d6174ab017467bacf8f3f20fc8da2ce8fbb79d2a046a2ac3` |
+| `src/gapcheck/prompts/task_l1.txt` | `2ce646403f895731ae825b2fc9b2bd3b16ba4eb845f2d81e7623044f7f197531` |
+| `src/gapcheck/prompts/task_agent.txt` | `96b3c4dc8544fc69eb17fc2e7c3595c8313d0149ebcc0f7703ce298a9d777f92` |
+| `src/gapcheck/prompts/reask.txt` | `e387fb738616a92ed44939efa69ddc05b0bf811d6cc2150311d0efa58ed5c81d` |
+| `src/gapcheck/prompts/repair.txt` | `a9d7417b2e76cf3251f6156ea0ae88d654ad95c3e9b4463ca8eb6df8c6c404ea` |
+| `src/gapcheck/prompts/limit.txt` | `abab3790d19b3d328f3466d29b093aa64297c4d8a64bdd594dde7c0c6da287e6` |
+| `src/gapcheck/prompts/round_counter.txt` | `9727bf3eab6380873c0485611560f5590b19fcbe50c8f5f345a72d5448420285` |
+| `src/gapcheck/prompts/rounds_left.txt` (loaded, not used: `rounds_left_notice` is 0) | `483a628d527956b621e9ef9abf3d6960f51b4b2776985de0a4ff1fb660936586` |
+| Conventions page (`gapcheck.conventions.sha256()`) | `a6ad3ab5eebf74f989e4c6ab516f86a9d57a93cd286a58575f15b80b8395376f` |
+| `src/gapcheck/baselines.py` (R0, R1) | `ebe13c57873726b5fe7555639e8cfba184acd81194aac5e35b04d230511fda8f` |
+| `src/gapcheck/verifier.py` | `cee04ec361565114f7d01ec505cac8604460b8561064b3b246f2fcdeacb00f43` |
+| `src/gapcheck/tools.py` | `a61074a9e5e6fee981485c729caa686087a74dce31fdf07a34a1093609f1cdce` |
+| `src/gapcheck/serialize.py` | `9a012d65506654147aab0038127160ba75c287b97c7a92db5e5e14aaa3c3245c` |
+| `src/gapcheck/score.py` | `4ff7674c4c8ee20cee86a98575a2bc7c01552fa9b923ce9a53fe559205f19500` |
 
 Prompts were developed on the development sets only. The repair prompt was revised once on the development set, by a rule written before that run (`RUNS.md` sec. 8).
 
@@ -352,7 +350,7 @@ Visible in the commit history and in `RUNS.md`:
 
 External registration: none.
 
-Approved by the author: `[FILL: name, date]`.
+Approved by the author: Jun-Young Cha, 2026-11-23.
 
 ## 15. Released with the results
 
