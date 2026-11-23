@@ -2,17 +2,17 @@
 
 Append-only log for `PROTOCOL.md` (secs. 11, 13 and 14). Times are UTC. A `pending` field is filled once, when the event happens, in its own commit; nothing else is edited afterwards. Corrections are added as new dated lines, not by rewriting.
 
-**Status (2026-11-20): protocol not released. No test seed, no test set, no test run.**
+**Status (2026-11-23): protocol released at tag `protocol-v1`; test seed derived. Test set not built yet; no test run.**
 
 ## 1. Protocol release
 
 | Field | Value |
 |---|---|
-| Tag | pending |
-| Tag commit (40 hex characters, lowercase) | pending |
-| GitHub Release URL | pending |
-| Release `published_at` (UTC, from the GitHub API) | pending |
-| External registration (optional) | pending |
+| Tag | `protocol-v1` |
+| Tag commit (40 hex characters, lowercase) | `f2f30d9b76f626c9397d9624ae69867dee165063` |
+| GitHub Release URL | https://github.com/starriet9/gapcheck/releases/tag/protocol-v1 |
+| Release `published_at` (UTC, from the GitHub API) | 2026-11-23T11:57:17Z |
+| External registration (optional) | None. Internet Archive snapshots: https://web.archive.org/web/20261123115830/https://github.com/starriet9/gapcheck/blob/protocol-v1/PROTOCOL.md ; https://web.archive.org/web/20261123115940/https://github.com/starriet9/gapcheck/releases/tag/protocol-v1 ; https://web.archive.org/web/20261123120023/https://github.com/starriet9/gapcheck/tree/protocol-v1 ; https://web.archive.org/web/20261123120004/https://starriet9.github.io/gapcheck/ |
 
 ## 2. Beacon pulse and test seed
 
@@ -20,17 +20,17 @@ Rule: `PROTOCOL.md` sec. 13.
 
 | Field | Value |
 |---|---|
-| T = `published_at` rounded up to a whole minute, plus 2 minutes (UTC) | pending |
-| T in milliseconds since the Unix epoch | pending |
-| Source used (primary NIST Randomness Beacon 2.0; fallback drand quicknet) | pending |
-| Request URL | pending |
-| Pulse URI (NIST) or round number (drand) | pending |
-| Pulse `timeStamp` (NIST) or round time (drand) | pending |
-| Previous pulse `timeStamp` (must be earlier than T) | pending |
-| `beacon_value` (NIST `outputValue`, or drand `randomness`) | pending |
-| `sha256(tag commit + beacon_value)` | pending |
-| Test seed = first 8 hex characters as an integer | pending |
-| Retrieved at; number of attempts; failed attempts with HTTP status | pending |
+| T = `published_at` rounded up to a whole minute, plus 2 minutes (UTC) | 2026-11-23T12:00:00.000Z |
+| T in milliseconds since the Unix epoch | 1795435200000 |
+| Source used (primary NIST Randomness Beacon 2.0; fallback drand quicknet) | NIST Randomness Beacon 2.0 (primary) |
+| Request URL | https://beacon.nist.gov/beacon/2.0/pulse/time/1795435200000 |
+| Pulse URI (NIST) or round number (drand) | https://beacon.nist.gov/beacon/2.0/chain/2/pulse/2040305 (`statusCode` 0) |
+| Pulse `timeStamp` (NIST) or round time (drand) | 2026-11-23T12:00:00.000Z |
+| Previous pulse `timeStamp` (must be earlier than T) | 2026-11-23T11:59:00.000Z (chain 2, pulse 2040304) |
+| `beacon_value` (NIST `outputValue`, or drand `randomness`) | `72582BB1FD2799CFBB7AF5C0208FBB01C49CE2874BA9052A1E8B59D9151592B7310716E9F3752DD00F557AB208BEC47957DEED456DFE5961FEFACBB3ACAA3625` |
+| `sha256(tag commit + beacon_value)` | `4e5b449c41cb1dccee3990af7a1ae4f77d6ba8a7af394165a78962bdb2c03ab6` |
+| Test seed = first 8 hex characters as an integer | `4e5b449c` = 1314604188 |
+| Retrieved at; number of attempts; failed attempts with HTTP status | 2026-11-23T12:01:24Z; 2 requests for the pulse at T: 12:00:20Z HTTP 404 ("Pulse Not Available": the latest pulse, fetched at 12:00:53Z, was 11:59:00), then 12:01:24Z HTTP 200. The previous pulse was fetched at 12:01:44Z as a check (HTTP 200) |
 
 ## 3. Test set
 
@@ -55,7 +55,7 @@ Built by the tag commit, unchanged, before any model is called.
 
 | Field | Value |
 |---|---|
-| sha256 of the cards file (`scripts/hand_label_cards.py` at the tag commit), entered before labeling starts | pending |
+| sha256 of the cards file (`scripts/hand_label_cards.py` at the tag commit), entered before labeling starts | `882a7ba533d68f515ccb5bf199934b3603ae0a31d789858282a10cad011e1f3b` (30 cards, built at the tag commit, 2026-11-23) |
 | sha256 of the label file, and the commit that holds it (before the key is opened and before run 1 is complete) | pending |
 | Time the key was opened | pending |
 | Commit that records the cause of each disagreement (before any run 1 output is read) | pending |
