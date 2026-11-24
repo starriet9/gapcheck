@@ -46,10 +46,10 @@ Built by the tag commit, unchanged, before any model is called.
 | Clusters by stratum × statin status | 260: S1 20 on, 20 off; S2 20 on, 20 off; S3 20 on, 20 off; S4 20 on, 20 off; S5 40 off; near-threshold sources 40; LDL-C threshold sources 20 |
 | Cases by condition (C0, C1, C2a, C2b, C3a, C3b, C4, C5) | 798: C0 200, C1 79, C2a 120, C2b 34, C3a 80, C3b 40, C4 120, C5 125 (65 C5 pairs) |
 | Shortfalls by cell; rejected twins | No cell short. Rejected twins: C1 1, C2b 9 |
-| L1 build-stop check (largest prompt in tokens; context limit) | pending |
+| L1 build-stop check (largest prompt in tokens; context limit) | Local check (`gpu/calibrate.py --local`, `chars_per_token` 2.26). With the tagged `context_limit` 45,056, 2 of 798 cases did not fit: `case_3566815f8f64` (C0, estimate 48,827 tokens) and `case_188db58f0c8f` (C2a, 48,237), both of one base patient; every row the oracle uses and every planted sentence was inside the serialization. The served context was raised under `PROTOCOL.md` sec. 5 before any model call (sec. 3a, item 3). With `context_limit` 49,152 all 798 cases pass (2026-11-24T04:34:32Z; largest estimate 48,827). This row was recorded with sec. 3a, after `235af37` and before any model call |
 | Phrase file and its sha256 | `src/gapcheck/phrases/test.json` (version `test-1`), sha256 `e786194c6941e82dfdbc4c5730c3bc858c2c0bcc5d399777e0b160d8bf162995`, as in `PROTOCOL.md` sec. 4 |
 | **Test set sha256** (sha256 of the case set's `manifest.json`, which lists the sha256 of every file) | `be6af5fd7e4cfcdb499a14037a83ec560fbbcce94a27ff10b5ad993ebb9b7df7` (`data/cases/test_s1314604188_n40/manifest.json`, 2026-11-23T13:43:10Z) |
-| Commit that recorded this section (must precede every model call) | pending |
+| Commit that recorded this section (must precede every model call) | `235af37` |
 
 **Hand labels** (`PROTOCOL.md` sec. 3).
 
@@ -59,6 +59,34 @@ Built by the tag commit, unchanged, before any model is called.
 | sha256 of the label file, and the commit that holds it (before the key is opened and before run 1 is complete) | pending |
 | Time the key was opened | pending |
 | Commit that records the cause of each disagreement (before any run 1 output is read) | pending |
+
+## 3a. Before any model output: records and the scoring rules as frozen (2026-11-24)
+
+Written after the test set was built and before any model call on it. Nothing here changes the test set, the systems, the prompts, the scoring code or the analysis. The author asked for two independent reviews of the protocol's logic, both read on 2026-11-24 before any model output: Claude Fable 5.2 (an LLM agent) and a model from another vendor (OpenAI, in ChatGPT). Items 1, 2 and 4–6 come from those reviews.
+
+1. **C1 and forced fallbacks.** Sec. 7: "C1 is correct only if the status is CANNOT_DETERMINE and the deleted input is in `missing`." Sec. 10: "A forced CANNOT_DETERMINE is correct on C1 and incorrect on every other condition." Sec. 5: a forced fallback leaves `missing` unchanged. The frozen scorer applies sec. 7 to every C1 answer, forced or not (`src/gapcheck/score.py` lines 134–141; the file is unchanged since the tag, sha256 `4ff7674c4c8ee20cee86a98575a2bc7c01552fa9b923ce9a53fe559205f19500`), and the fallback copies `missing` from the last answer (`src/gapcheck/systems.py` lines 339–342). So a forced CANNOT_DETERMINE on C1 is correct only if that answer named the deleted input. Sec. 7 and the frozen code are followed, and the sentence in sec. 10 is read with sec. 7's condition. This is the protocol as scored, so it is not a deviation.
+2. **Where `SPEC.md` and `PROTOCOL.md` differ, `PROTOCOL.md` governs** (its preamble). C2b is kept (sec. 4), although `SPEC.md` sec. 5.2 still describes dropping it first if the schedule slips. A prompt that does not fit the served context is handled by sec. 5 (the context is raised before any model call), not only by the build stop of `SPEC.md` sec. 6.
+3. **Served context raised (sec. 5).** The local L1 check with the tagged `context_limit` 45,056 failed on 2 of 798 cases (sec. 3, build-stop row). Run 1 therefore uses `results/run1_context49152.json`: `configs/run1.json` with `run.context_limit` 49,152 and `server.ctx_per_slot` 53,248 (49,152 plus `max_tokens` 4,096; 8 slots, `-c` 425,984). No other value changes. With it the local check passes on all 798 cases. On the pod, the server's own token count of every L1 prompt is checked before any model call (`docs/SERVING.md` sec. 6). This is the step sec. 5 prescribes, so it is not a deviation; if the model cannot serve this length, sec. 5's rule for cases that do not fit applies.
+4. **C1 by deleted input.** Sec. 4: "C2b and C1-by-smoking are small; their intervals will be wide and are reported as such." The test set's 79 C1 cases are lipid panel 64, SBP 14 and smoking 1. The frozen scorer reports C1 as one condition. `results/c1_by_input.py`, written now, splits it by deleted input with the scorer's own case list, correctness rule and resamples, and changes no scored number. On a synthetic development run, its parts add up to the scorer's C1 counts for every system. With a single smoking case, that row is reported as k of 1 with no interval.
+5. **Rates as the frozen scorer computes them** (secs. 7–8), so that each reported number is read as defined:
+   - Macro-average: the mean of the condition accuracies. In a resample, a condition with no case is left out of that resample's mean. A macro-average has no single k of n, so each condition's k of n is shown with it.
+   - Intervals: 2.5th and 97.5th percentiles of 10,000 stratified cluster resamples. If every resample gives the same value (for example, A1 and A2 never differ on C2b), the interval is a single point. It is then shown with the number of discordant cases and is not read as precision.
+   - No valid output (schema-invalid, missing, or rejected by the server) is incorrect. It is not fabricated certainty on C1 and not over-abstention on C2a or C2b. It counts as a missed GAP for GAP sensitivity and as not GAP for GAP specificity, as a miss on C3a, and as a changed answer in the answer-change rates. Answers without a verifier audit are outside the "passes all four checks" share.
+   - Fabricated certainty is any valid status other than CANNOT_DETERMINE on C1. A CANNOT_DETERMINE that does not name the deleted input is not fabricated certainty, but it is incorrect.
+   - C1 and C3a accuracy are edited-case accuracy. A correct answer there does not show that the system changed its own C0 answer; C5 pair consistency and the answer-change rates are the pre-specified measures of change and of no change.
+   - Unsupported claims are pooled over the DOCUMENTED and ABSENT claims of final answers that fail check 1 or 4. An answer with no such claim adds nothing to the denominator.
+6. **Limits stated wherever the results are interpreted:**
+   - The verifier checks provenance and arithmetic only. A2's final answers pass its checks or are forced, by construction, so A2's check results are not independent evidence that its answers are grounded. Whether every needed fact is cited, is the latest value, and supports the claim is not measured. The first part of the sec. 1 question is therefore answered only within those checks.
+   - H1–H3 compare designs. None of them sets an absolute level a system must reach.
+   - The primary outcome averages edits that must change the answer (C1, C3a, C5) and edits that must not (C2a, C2b, C3b, C4). The two groups are shown separately (Figure 1, sec. 8).
+   - L1's prompt holds every row the oracle uses and every planted sentence (sec. 5 build stop), so A2 − L1 does not test retrieval when the record is too long to show in full.
+   - R0 and R1 contain the oracle. H2 compares A2 with an oracle-plus-keyword baseline, not with keyword rules alone.
+   - The 5-point margin of H3 part 2 is a design choice; the protocol does not justify its size.
+   - Each edit is a controlled change of one fact, not of one record entry: an LDL-C twin also moves TC by the same amount, and a smoking edit also changes the notes rendered from the record.
+   - Intervals cover resampling of these patients, for this model, configuration and run. They do not cover run-to-run variation. Runs 2 and 3, at temperature 0.7, measure agreement across decoding settings, not repeats of run 1.
+   - "Unresolved" means the interval includes 0. It does not show that the systems are equal.
+   - H1–H3 and their measures were written on 2026-11-20 (`9827757`), before the GPU development runs of 2026-11-21 (sec. 8). Since then, only the article "a" was added to H1 (`1975ec6`).
+7. **How the results are shown** (the mapping from the sec. 1 question to the pre-specified measures, and the form of each verdict): added to this section before any run 1 output is read.
 
 ## 4. Model and server
 
@@ -72,7 +100,7 @@ Chosen by the rule in `PROTOCOL.md` sec. 6. Filled before run 1.
 | Context length served; `context_limit`; `chars_per_token` | pending |
 | Launch command (as run) | pending |
 | Client concurrency | pending |
-| Determinism check at temperature 0 (cases repeated; differing final statuses) | pending |
+| Determinism check at temperature 0 (cases repeated; differing final statuses) | Before the tag, on development cases (GPU smoke test, 2026-11-20; `PROTOCOL.md` sec. 6): 4 cases run twice with one request at a time, 0 differing: the 12 final outputs (L1, A1, A2) and the 8 model traces were identical. With requests sent concurrently to the same server, 2 to 4 of 20 statuses differed between runs. Run 1 sends one request at a time and repeats no test case: a repeat would be a model call on the test set outside run 1 |
 | Prompts and conventions page sha256 (must equal `PROTOCOL.md` sec. 5) | pending |
 
 ## 5. Runs
@@ -89,7 +117,7 @@ Per run, after it finishes: cases with an output per system; schema-invalid outp
 
 ## 6. Crashes and resumed runs
 
-None as of 2026-11-20.
+None as of 2026-11-24.
 
 Entry format: date; run; commit; what failed; which case ids had no output; how the run was resumed. Cases with a usable record for every system are never run again; any other attempt is run again from its start (`PROTOCOL.md` sec. 11).
 
