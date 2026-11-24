@@ -8,7 +8,7 @@ A care-gap agent. No alert until code re-checks the evidence.
 
 [Page](https://starriet9.github.io/gapcheck/) · [Protocol](PROTOCOL.md) · [Design](SPEC.md) · [Reproduce](docs/REPRODUCE.md)
 
-**Status:** the protocol is frozen at tag [`protocol-v1`](https://github.com/starriet9/gapcheck/releases/tag/protocol-v1) (2026-11-23). The test set is built after the release, so there are no test results yet. [RUNS.md](RUNS.md) logs each step when it happens.
+**Status:** the protocol is frozen at tag [`protocol-v1`](https://github.com/starriet9/gapcheck/releases/tag/protocol-v1) (2026-11-23). The test set was built after the release (798 cases, 2026-11-23); no model has been run on it yet. [RUNS.md](RUNS.md) logs each step when it happens.
 
 ## How it works
 

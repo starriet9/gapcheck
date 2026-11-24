@@ -2,7 +2,7 @@
 
 Departures from `PROTOCOL.md` after the protocol tag (policy: `PROTOCOL.md` sec. 12).
 
-**None as of 2026-11-20.** The protocol is not frozen yet, so there is nothing to deviate from. This line is re-dated every time results or this file are updated.
+**None as of 2026-11-24.** This line is re-dated every time results or this file are updated. Records made after the tag and before any model output, none of which departs from the protocol, are in `RUNS.md` sec. 3a.
 
 ## What counts
 
