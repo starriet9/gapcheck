@@ -18,7 +18,7 @@ A care-gap agent. No alert until code re-checks the evidence.
 
 ## How it is tested
 
-Each base patient is a synthetic longitudinal record (Synthea v4.0.0, with the patches listed in [SPEC sec. 4.1](SPEC.md#41-known-synthea-limits-measured-at-day-0-9862-adults-aged-3079-and-patches)). Each edited twin changes one thing in that record. Ground truth is the 2026 ACC/AHA dyslipidemia guideline written as a decision table in code, with the quoted sentence behind every row ([reports/oracle_rules.md](reports/oracle_rules.md)), plus a ledger of every edit. No LLM grades any output.
+Each base patient is a synthetic longitudinal record (Synthea v4.0.0, with the patches listed in [SPEC sec. 4.1](SPEC.md#41-known-synthea-limits-measured-at-day-0-9862-adults-aged-3079-and-patches)). Each edited twin changes one thing in that record. Ground truth is the 2026 ACC/AHA dyslipidemia guideline written as a decision table in code, with the quoted sentence behind every row ([reports/oracle_rules.md](reports/oracle_rules.md)), plus a ledger of every edit. No LLM grades any output. An answer is scored on its status alone (on C1 it must also name the deleted input); its cited evidence is measured separately ([PROTOCOL sec. 8](PROTOCOL.md#8-secondary-outcomes)).
 
 | Edit | Correct answer |
 |---|---|

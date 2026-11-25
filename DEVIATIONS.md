@@ -2,7 +2,7 @@
 
 Departures from `PROTOCOL.md` after the protocol tag (policy: `PROTOCOL.md` sec. 12).
 
-**None as of 2026-11-24.** This line is re-dated every time results or this file are updated. Records made after the tag and before any model output, none of which departs from the protocol, are in `RUNS.md` sec. 3a.
+**1 entry as of 2026-11-25: D-1 adds three exploratory measures, decided before any model output; no protocol-specified result changes.** This line is re-dated every time results or this file are updated. Records made after the tag and before any model output are in `RUNS.md` sec. 3a.
 
 ## What counts
 
@@ -25,3 +25,14 @@ Departures from `PROTOCOL.md` after the protocol tag (policy: `PROTOCOL.md` sec.
 ```
 
 Entries are numbered in the order they are written and are never removed. A deviation decided after model outputs were seen is marked as such wherever its result is shown.
+
+## Entries
+
+### D-1: Three exploratory measures added to what is reported (2026-11-25)
+- Protocol says: sec. 8, "All pre-specified, all with 95% intervals from the same bootstrap, all on run 1 unless stated", followed by secondary outcomes 1–10. Secs. 7–9 name no other measure.
+- Done instead: nothing pre-specified is changed or dropped. Three measures are added and reported as exploratory, for L1, A1 and A2 on run 1, each as k of n with the interval of sec. 7, with no verdict and no comparison between systems: (a) row agreement, the row the system names (`benefit_group`) is the oracle's row; (b) latest entry, a cited lipid, systolic BP, smoking or eGFR entry is the latest on record; (c) C1 and C3a pair consistency, the same system is correct on the patient's C0 case and on the edited case. Definitions: `RUNS.md` sec. 3a item 8. Code: `results/exploratory.py`, sha256 in `RUNS.md`.
+- Reason: the sec. 1 question asks whether each part of the statement is documented and whether the answer changes with the deciding entry. Two reviews of the protocol's logic (2026-11-24) and the author's own reading found parts that the pre-specified measures leave open: correctness is scored on the status alone, the verifier does not check the named row or whether a cited value is the latest (`SPEC.md` sec. 6.2), and C1 and C3a are scored on the edited case alone. All three can be computed from the saved outputs without a model call.
+- Decided: after the seed, before any model output. Known at the time: every development output (the definitions were checked on development runs) and counts of the test set that involve no model output: cases per condition and, from `--inputs-only`, the cases left out of row agreement, the row-0 cases, the cases with no entry per input, the cases with a tie, and the C1 and C3a pairs.
+- Affects: analysis | reporting (additions only)
+- Effect on results: none on any protocol-specified result. No pre-specified number, interval or verdict is computed differently, and `src/gapcheck/score.py` is unchanged. The added measures have no protocol-specified counterpart, so nothing is shown side by side. They are shown after the pre-specified outcomes, marked "exploratory, not pre-specified (D-1)".
+- Commit: `b3413b5`
