@@ -56,7 +56,7 @@ Built by the tag commit, unchanged, before any model is called.
 | Field | Value |
 |---|---|
 | sha256 of the cards file (`scripts/hand_label_cards.py` at the tag commit), entered before labeling starts | `882a7ba533d68f515ccb5bf199934b3603ae0a31d789858282a10cad011e1f3b` (30 cards, built at the tag commit, 2026-11-23) |
-| sha256 of the label file, and the commit that holds it (before the key is opened and before run 1 is complete) | pending |
+| sha256 of the label file, and the commit that holds it (before the key is opened and before run 1 is complete) | `dc190648428f667dcb0abf9f5eeb21b0479f02f336f2ebd593de123611f2a7d1` (`results/hand_labels.json`, 30 labels), in `789d11c`; committed and pushed 2026-11-26, before the key was opened and before run 1 started |
 | Time the key was opened | pending |
 | Commit that records the cause of each disagreement (before any run 1 output is read) | pending |
 
