@@ -12,7 +12,7 @@
 | `queue_run.py` | Case queue: one `run_systems.py` process per case, client concurrency from the config, retries, the rule for usable records, the record written after exhausted attempts, resume, merge. |
 | `calibrate.py` | Context checks before any model call: `--local` runs the harness's L1 build stop on every case; server mode checks the template, slots and that every L1 prompt counted by the server fits one slot. Derives nothing. |
 | `watchdog.py` | Detached budget watchdog: terminates the pod at its deadline, on estimated spend or balance drop at the cap, or when the session stops writing its heartbeat. |
-| `rpapi.py` | Minimal RunPod REST client (standard library). Reads the API key from `~/.config/runpod/api_key` inside the process; never prints or passes it on. |
+| `rpapi.py` | Minimal RunPod REST client (standard library). Reads the API key from `~/.config/runpod/api_key`, or from the file named by `GAPCHECK_RUNPOD_KEY_FILE` (another account), inside the process; never prints or passes it on. |
 | `gpu_check.py` | Read-only: GPU availability and price on Community and Secure, balance, pods; `--summary` prints one line without account data. |
 | `collect.py` | Copies the pod's logs before termination (exec API, time-limited). |
 | `wait_launch.sh` | Waits for stock (one check every 5 minutes, up to 24 hours, each logged to `<run dir>/wait.log`), then launches `session.py` with a pod; after a host problem (GPU busy before use, download too slow, server never healthy) it tries a new pod, up to 2 times. |

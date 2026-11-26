@@ -439,6 +439,7 @@ def test_rehearsal_is_dev_only_and_in_its_folder(repo):
 
 def test_real_run_refusals_before_any_network(repo, tmp_path):
     env = dict(os.environ, HOME=str(tmp_path / "home"))  # no API key file: nothing can reach RunPod
+    env.pop("GAPCHECK_RUNPOD_KEY_FILE", None)
     port = session.free_port()
     d = repo / "data" / "runs" / "real"
     p = run(repo, cmd(repo, d, port, 45, 0, dry=False), env=env)
@@ -464,6 +465,91 @@ def test_real_run_refusals_before_any_network(repo, tmp_path):
     p = run(repo, cmd(repo, d, port, 45, 0, "--protocol-tag", "v-test", dry=False), env=env)
     assert "uncommitted changes" in p.stdout + p.stderr
     assert not (d / "ledger.json").exists()
+
+
+def test_key_file_of_another_account(tmp_path):
+    home = tmp_path / "home"
+    (home / ".config" / "runpod").mkdir(parents=True)
+    code = "import rpapi; print(rpapi.key_file_shown(), rpapi.key_present())"
+    env = dict(os.environ, HOME=str(home), PYTHONPATH=str(REPO / "gpu"))
+    env.pop("GAPCHECK_RUNPOD_KEY_FILE", None)
+    show = lambda: subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True,
+                                  check=True).stdout.split()
+    assert show() == ["~/.config/runpod/api_key", "False"]
+    env["GAPCHECK_RUNPOD_KEY_FILE"] = "~/.config/runpod/api_key_2"
+    assert show() == ["~/.config/runpod/api_key_2", "False"]
+    (home / ".config" / "runpod" / "api_key_2").write_text("not a key")
+    assert show() == ["~/.config/runpod/api_key_2", "True"]
+    env["GAPCHECK_RUNPOD_KEY_FILE"] = "api_key_2"  # relative: another file in each process's folder
+    (home / "api_key_2").write_text("not a key")
+    assert show() == ["api_key_2", "False"]
+
+
+def test_runner_fix_before_the_first_session_is_refused_without_the_flag(repo, tmp_path):
+    env = dict(os.environ, HOME=str(tmp_path / "home"))  # no API key file: nothing can reach RunPod
+    env.pop("GAPCHECK_RUNPOD_KEY_FILE", None)
+    port = session.free_port()
+    d = repo / "data" / "runs" / "real"
+    git(repo, "tag", "-a", "-m", "protocol", "v-test")
+    g = repo / "gpu" / "README.md"
+    g.write_text(g.read_text() + "\nA runner fix before the first session.\n")
+    git(repo, "commit", "-q", "-am", "runner fix after the tag")
+    real = cmd(repo, d, port, 45, 0, "--protocol-tag", "v-test", dry=False)
+    out = (lambda p: p.stdout + p.stderr)(run(repo, real, env=env))
+    assert "commits after the tag v-test" in out and "gpu/README.md" in out
+    out = (lambda p: p.stdout + p.stderr)(run(repo, real + ["--runner-fix"], env=env))
+    assert "commits after the tag" not in out and "no RunPod API key file (~/.config/runpod/api_key)" in out
+    f = repo / "src" / "gapcheck" / "__init__.py"
+    f.write_text(f.read_text() + "\n# changed after the tag\n")
+    git(repo, "commit", "-q", "-am", "harness change")
+    p = run(repo, real + ["--runner-fix"], env=env)
+    out = p.stdout + p.stderr
+    assert p.returncode != 0 and "commits after the tag v-test" in out and "src/gapcheck/__init__.py" in out
+    assert not (d / "ledger.json").exists() and not (d / "session.json").exists()
+
+
+def test_runner_fix_before_the_first_session_is_logged_and_kept(repo, run_dir, monkeypatch):
+    # every process of the session, the detached watchdog included, reads the second account's key file
+    monkeypatch.setenv("GAPCHECK_RUNPOD_KEY_FILE", "~/.config/runpod/account2_api_key")
+    port, n = session.free_port(), 3
+    ids = case_ids(n)
+    git(repo, "tag", "-a", "-m", "protocol", "v-test")
+    tag = git(repo, "rev-parse", "v-test^{commit}")
+    g = repo / "gpu" / "README.md"
+    g.write_text(g.read_text() + "\nA runner fix before the first session.\n")
+    git(repo, "commit", "-q", "-am", "runner fix after the tag")
+    fixed = git(repo, "rev-parse", "HEAD")
+    c = cmd(repo, run_dir, port, 12, n, "--protocol-tag", "v-test", "--runner-fix")
+    stop_after_first_case(repo, run_dir, c, ids)
+    st = json.loads((run_dir / "session.json").read_text())
+    fx = st["tag_runner_fix"]
+    assert fx["from"] == tag and fx["to"] == fixed and fx["files"] == ["gpu/README.md"], fx
+    assert st["key_file"] == st["launches"][0]["key_file"] == "~/.config/runpod/account2_api_key"
+    wd = (run_dir / "account" / "watchdog.log").read_text()
+    assert "START" in wd and "key_file=~/.config/runpod/account2_api_key" in wd
+    (run_dir / "STOP").unlink()
+    # a resume that reads another account's key file is refused
+    other = dict(os.environ, GAPCHECK_RUNPOD_KEY_FILE="~/.config/runpod/another_key")
+    p = run(repo, cmd(repo, run_dir, port, 12, n, "--protocol-tag", "v-test", "--resume"), env=other)
+    out = p.stdout + p.stderr
+    assert p.returncode != 0 and "the session's RunPod key file is" in out
+    assert "teardown done" not in (run_dir / "logs" / "timeline.txt").read_text().split("session end")[-1]
+    assert len(json.loads((run_dir / "session.json").read_text())["launches"]) == 1  # refused before the launch
+    # wait.log (written by gpu/wait_launch.sh) is scrubbed before release
+    (run_dir / "wait.log").write_text(f"check rc=1 FileNotFoundError: '{Path.home()}/x'\n")
+    # the resume needs no flag: the runner fix at the first session is kept in the state
+    p = run(repo, cmd(repo, run_dir, port, 12, n, "--protocol-tag", "v-test", "--resume"))
+    assert p.returncode == 0, p.stdout[-3000:]
+    stt = json.loads((run_dir / "status.json").read_text())
+    assert stt["complete"] and stt["scored"] and stt["deviation"] is None and stt["runner_fixes"] == []
+    assert stt["tag_runner_fix"] == fx and stt["first_run_commit"] == fixed
+    assert "runner fix after the tag" in json.loads((run_dir / "run1" / "merged" / "manifest.json").read_text())["note"]
+    tl = (run_dir / "logs" / "timeline.txt").read_text()
+    assert "runner fix: the first run commit" in tl and "gpu/README.md" in tl
+    starts = [x for x in tl.splitlines() if " start pid=" in x]
+    assert len(starts) == 2 and all("key_file=~/.config/runpod/account2_api_key" in x for x in starts)
+    assert str(Path.home()) not in (run_dir / "wait.log").read_text()
+    assert not left_running(run_dir)
 
 
 def test_flags_are_checked(repo, run_dir):

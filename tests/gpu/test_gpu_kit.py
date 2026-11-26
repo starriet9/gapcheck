@@ -294,6 +294,26 @@ def test_tag_and_runner_fix_rules(tmp_path):
     for c in (c2, c3):
         tc, probs = session.tag_check("v1", c, cwd=r)
         assert probs and "src/gapcheck/a.py" in probs[0]
+    # a runner fix before the first session (--runner-fix): the runner-fix paths are accepted after
+    # the tag, nothing else
+    subprocess.run(["git", "reset", "-q", "--hard", c1], cwd=r, check=True)
+    g1 = commit(r, {"gpu/session.py": "2", "tests/gpu/t.py": "x", "docs/x.md": "fix"}, "runner fix after the tag")
+    assert session.tag_check("v1", g1, cwd=r)[1]
+    assert session.tag_check("v1", g1, cwd=r, extra=session.RUNNER_FIX) == (base, [])
+    for files in ({"src/gapcheck/a.py": "3"}, {"configs/run1.json": "{}"}, {"scripts/s.py": "x"},
+                  {"tests/t.py": "x"}, {"PROTOCOL.md": "x"}):
+        subprocess.run(["git", "reset", "-q", "--hard", g1], cwd=r, check=True)
+        bad = commit(r, files, "not a runner fix")
+        probs = session.tag_check("v1", bad, cwd=r, extra=session.RUNNER_FIX)[1]
+        assert probs and list(files)[0] in probs[0], files
+    # a rename counts as both paths: moving harness code into gpu/ is refused
+    subprocess.run(["git", "reset", "-q", "--hard", g1], cwd=r, check=True)
+    subprocess.run(["git", "mv", "src/gapcheck/a.py", "gpu/a.py"], cwd=r, check=True)
+    subprocess.run(["git", *GIT_ID, "commit", "-q", "-m", "rename"], cwd=r, check=True)
+    mv = subprocess.run(["git", "rev-parse", "HEAD"], cwd=r, capture_output=True, text=True).stdout.strip()
+    probs = session.tag_check("v1", mv, cwd=r, extra=session.RUNNER_FIX)[1]
+    assert probs and "src/gapcheck/a.py" in probs[0]
+    assert "src/gapcheck/a.py" in session.runner_fix_check(g1, mv, cwd=r)[1]
     # runner fix: gpu/ and docs/ only
     subprocess.run(["git", "reset", "-q", "--hard", c1], cwd=r, check=True)
     f1 = commit(r, {"gpu/session.py": "2", "docs/x.md": "fix"}, "runner fix")

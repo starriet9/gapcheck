@@ -99,7 +99,8 @@ def main():
             log(lf, f"balance error at start: {e}")
             time.sleep(5)
     log(lf, f"{tag}START pid={os.getpid()} prefix={a.prefix} cap=${cap:.2f} hard_deadline="
-            f"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(a.hard_deadline))} balance0={bal0}")
+            f"{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(a.hard_deadline))} balance0={bal0} "
+            f"key_file={rpapi.key_file_shown()}")
     seen = {}  # id -> {"created", "hourly", "last_seen", "gone"}
     while True:
         now = time.time()

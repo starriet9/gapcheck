@@ -1,5 +1,6 @@
 """Minimal RunPod REST v2 client (stdlib). The API key is read from
-~/.config/runpod/api_key inside the process and never printed, logged or put in argv.
+~/.config/runpod/api_key, or from the file named by GAPCHECK_RUNPOD_KEY_FILE (another RunPod
+account), inside the process and never printed, logged or put in argv.
 
 Dry mode: `use_fake(state_path)` switches every function in this module to an offline
 fake (fakerp.py) that keeps pods and balance in a JSON file. Nothing is sent to RunPod.
@@ -11,7 +12,10 @@ import urllib.error
 import urllib.request
 
 API = "https://api.runpod.io"
-KEYF = os.path.expanduser("~/.config/runpod/api_key")
+KEY_ENV = "GAPCHECK_RUNPOD_KEY_FILE"  # runner fix 2026-11-26: the key file of another account
+KEYF = os.path.expanduser(os.environ.get(KEY_ENV) or "~/.config/runpod/api_key")
+# a relative path would name a different file in each process's working folder (the watchdog runs in gpu/)
+KEYF_OK = os.path.isabs(KEYF)
 UA = "gapcheck/1"
 _FAKE = None
 
@@ -27,11 +31,21 @@ def is_fake() -> bool:
 
 
 def _key() -> str:
+    if not KEYF_OK:
+        raise ValueError(f"{KEY_ENV} must be an absolute path or start with ~/")
     with open(KEYF) as f:
         return f.read().strip()
 
 
+def key_file_shown() -> str:
+    """The key file's path for messages and logs, with the home folder as ~ (never the key)."""
+    home = os.path.expanduser("~")
+    return "~" + KEYF[len(home):] if KEYF.startswith(home + os.sep) else KEYF
+
+
 def key_present() -> bool:
+    if not KEYF_OK:
+        return False
     try:
         return os.path.getsize(KEYF) > 0
     except OSError:

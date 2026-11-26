@@ -9,7 +9,9 @@ Steps (each logged to <run dir>/logs/timeline.txt; state in <run dir>/session.js
               pages/ or site/; the run commit is
               HEAD and the checkout is clean; a resume at a later commit only with --runner-fix
               (changes in gpu/, tests/gpu/, docs/, RUNS.md, DEVIATIONS.md, results/ only, a logged
-              deviation). Always: worktree of the commit (clean); the harness at that commit
+              deviation); a first session with --runner-fix may also follow the tag by commits to
+              those paths (logged as a runner fix, kept for every resume). Always: worktree of
+              the commit (clean); the harness at that commit
               accepts the run settings exactly; case set: every file matches its manifest,
               split as the config says (a --rehearsal: dev, under data/runs/rehearsal/),
               manifest sha256 in RUNS.md at the commit; relay self-test; the harness's L1 build
@@ -89,7 +91,8 @@ DISK_RATE = 0.10 / 730.0  # USD per GB-hour, container disk of a running pod
 DRY_TEMPLATE = "{#- gapcheck dry run: a stand-in, not the model's chat template -#}\n"
 # After the protocol tag only these may change before a run: the run records (the test set's
 # sha256 goes into RUNS.md) and the page and README (release link, test-step ticks). PROTOCOL.md,
-# SPEC.md, src/, configs/, scripts/ and gpu/ stay as tagged.
+# SPEC.md, src/, configs/, scripts/ and gpu/ stay as tagged, except a runner fix in RUNNER_FIX
+# accepted with --runner-fix at the first session (PROTOCOL.md sec. 12; logged as tag_runner_fix).
 AFTER_TAG = ("RUNS.md", "DEVIATIONS.md", "results/", "README.md", "pages/", "site/")
 # A resume at a later commit (--runner-fix, a logged deviation) may change only these: never the
 # harness (src/), the scripts, the run config or the prompts.
@@ -291,24 +294,25 @@ def touched(c0: str, c1: str, cwd=REPO) -> list[str]:
     later commit reverts is still listed). c0 must be an ancestor of c1; merges are refused."""
     if subprocess.run(["git", "merge-base", "--is-ancestor", c0, c1], cwd=cwd).returncode:
         return [f"<{c1[:10]} does not descend from {c0[:10]}>"]
-    out = set(git("log", "--format=", "--name-only", f"{c0}..{c1}", cwd=cwd).split())
-    out |= set(git("diff", "--name-only", c0, c1, cwd=cwd).split())
+    out = set(git("log", "--format=", "--name-only", "--no-renames", f"{c0}..{c1}", cwd=cwd).split())
+    out |= set(git("diff", "--name-only", "--no-renames", c0, c1, cwd=cwd).split())
     if git("rev-list", "--merges", f"{c0}..{c1}", cwd=cwd):
         out.add("<merge commits>")
     return sorted(out)
 
 
-def tag_check(tag: str, commit: str, cwd=REPO) -> tuple[str | None, list[str]]:
+def tag_check(tag: str, commit: str, cwd=REPO, extra: tuple = ()) -> tuple[str | None, list[str]]:
     """(tag commit, problems): the run commit is the tagged commit, or follows it by commits
-    that touch only RUNS.md, DEVIATIONS.md and results/."""
+    that touch only AFTER_TAG (and `extra`: RUNNER_FIX for a runner fix at the first session)."""
     try:
         tc = git("rev-parse", "--verify", f"{tag}^{{commit}}", cwd=cwd)
     except subprocess.CalledProcessError:
         return None, [f"protocol tag {tag!r} does not exist here"]
     if tc == commit:
         return tc, []
-    bad = [f for f in touched(tc, commit, cwd) if not under(f, AFTER_TAG)]
-    return tc, ([f"commits after the tag {tag} ({tc[:10]}) touch {bad}; only {list(AFTER_TAG)} may change"]
+    allowed = AFTER_TAG + tuple(x for x in extra if x not in AFTER_TAG)
+    bad = [f for f in touched(tc, commit, cwd) if not under(f, allowed)]
+    return tc, ([f"commits after the tag {tag} ({tc[:10]}) touch {bad}; only {list(allowed)} may change"]
                 if bad else [])
 
 
@@ -486,7 +490,7 @@ def worktree(a, commit: str) -> Path:
 
 def preflight(a, st: dict) -> dict:
     """Local checks; the worktree (under data/, git-ignored) is created unless plan-only."""
-    out = {"warnings": [], "runner_fix": None}
+    out = {"warnings": [], "runner_fix": None, "tag_runner_fix": None}
     head = git("rev-parse", "HEAD")
     commit = git("rev-parse", a.commit)
     first = st.get("commit") or commit
@@ -510,9 +514,16 @@ def preflight(a, st: dict) -> dict:
     out["case_ids"] = ids
     out["tag"] = {"protocol_tag": a.protocol_tag, "tag_commit": None}
     if a.protocol_tag:
-        tc, tp = tag_check(a.protocol_tag, first)
+        # a runner fix between the tag and the first run commit: asked for at the first session
+        # (--runner-fix), then kept in the session state for every resume
+        at_start = (st.get("tag_runner_fix") is not None) if st else bool(a.runner_fix)
+        tc, tp = tag_check(a.protocol_tag, first, extra=RUNNER_FIX if at_start else ())
         out["tag"]["tag_commit"] = tc
         probs += tp
+        if at_start and tc and not tp:
+            files = [f for f in touched(tc, first) if not under(f, AFTER_TAG)]
+            out["tag_runner_fix"] = (st.get("tag_runner_fix") if st else
+                                     ({"t_utc": utc(), "from": tc, "to": first, "files": files} if files else None))
     elif not a.dry and not a.rehearsal:
         probs.append("--protocol-tag <tag> is required for a real run")
     if not a.dry:
@@ -520,7 +531,8 @@ def preflight(a, st: dict) -> dict:
         if dirty:
             probs.append(f"the checkout has uncommitted changes: {dirty.splitlines()[:5]}")
         if not rpapi.key_present():
-            probs.append("no RunPod API key file (~/.config/runpod/api_key)")
+            probs.append(f"{rpapi.KEY_ENV} must be an absolute path or start with ~/" if not rpapi.KEYF_OK
+                         else f"no RunPod API key file ({rpapi.key_file_shown()})")
     hard = []
     if a.rehearsal:  # a rehearsal never runs on the test set, and stays in its own folder
         if cs["split"] != "dev":
@@ -970,7 +982,7 @@ def finalize(a, st: dict, wt: Path) -> dict:
            "pods": b["pods"], "clouds": [x.get("cloud") for x in st.get("launches", [])],
            "protocol_tag": st.get("protocol_tag"), "tag_commit": st.get("tag_commit"),
            "first_run_commit": st.get("commit"), "run_commit": st.get("run_commit", st.get("commit")),
-           "runner_fixes": st.get("runner_fixes", []),
+           "runner_fixes": st.get("runner_fixes", []), "tag_runner_fix": st.get("tag_runner_fix"),
            "deviation": "runner fix" if st.get("runner_fixes") else None,
            "rehearsal": a.rehearsal, "dry": a.dry}
     write_release()
@@ -990,6 +1002,9 @@ def finalize(a, st: dict, wt: Path) -> dict:
             f"REHEARSAL on development cases ({rel(cases)})" if a.rehearsal else "") if x) + "; not a result"
     else:
         note = f"{name}: pre-registered run (PROTOCOL.md sec. 11); merged from one process per case"
+    if st.get("tag_runner_fix"):
+        fx = st["tag_runner_fix"]
+        note += f"; runner fix after the tag {fx['from'][:10]}->{fx['to'][:10]}"
     if st.get("runner_fixes"):
         note += "; deviation: runner fix " + ", ".join(f"{x['from'][:10]}->{x['to'][:10]}" for x in st["runner_fixes"])
     m = queue_run.merge(SESS, name, sy, ids, note, accept_4xx(), git_equiv=same_code(st["commit"]))
@@ -1054,6 +1069,7 @@ def write_release() -> None:
     for d in ("R", f"{CFG['name']}/merged"):
         if (SESS / d).is_dir():
             queue_run.scrub_tree(SESS, SESS / d)
+    scrub_file(SESS / "wait.log")  # written by wait_launch.sh, which logs errors as they come
     for pat, what in release_list():
         found = sorted(SESS.glob(pat.rstrip("/"))) if "*" in pat else [SESS / pat.rstrip("/")]
         for f in found:
@@ -1081,7 +1097,8 @@ def parse_args(argv=None):
                                            "README.md, pages/, site/")
     ap.add_argument("--runner-fix", action="store_true",
                     help="resume at a later commit that changes only gpu/, tests/gpu/, docs/, RUNS.md, DEVIATIONS.md, "
-                         "results/ (a logged deviation)")
+                         "results/ (a logged deviation); at a first session, accept commits to those paths "
+                         "after the protocol tag (a logged runner fix)")
     ap.add_argument("--rehearsal", action="store_true",
                     help="a real-pod rehearsal on development cases under data/runs/rehearsal/; no tag needed")
     ap.add_argument("--cloud", choices=("COMMUNITY", "SECURE"),
@@ -1140,6 +1157,7 @@ def plan(a) -> None:
         est = {"hours": [round(x, 2) for x in h], "usd": [round(x * price, 2) for x in h], "usd_per_hour": round(price, 4)}
     print(json.dumps({"plan_only": True, "commit": pf["commit"], "config": CFG["name"],
                       "case_set": pf["case_set"], "n_cases": len(pf["case_ids"]), "problems": pf["problems"],
+                      "tag_runner_fix": pf["tag_runner_fix"], "key_file": rpapi.key_file_shown(),
                       "cloud": a.cloud, "gpu": row, "available": ok, "max_hourly": a.max_hourly,
                       "balance": g["balance"],
                       "pods_now": g["pods"], "balance_needed": a.cap + 0.5,
@@ -1187,6 +1205,10 @@ def main(argv=None):
             raise SystemExit("resume: --rehearsal differs from the session's")
         if st.get("protocol_tag") != a.protocol_tag:
             raise SystemExit(f"resume: --protocol-tag {a.protocol_tag} differs from the session's {st.get('protocol_tag')}")
+        kf = rpapi.key_file_shown()  # one RunPod account per session: checked before any API call or teardown
+        if st.get("key_file") not in (None, kf):
+            raise SystemExit(f"resume: the session's RunPod key file is {st['key_file']}, this process reads {kf} "
+                             f"(set {rpapi.KEY_ENV} as at the first launch)")
     elif a.finalize_only:
         raise SystemExit(f"{SESS}: no session to finalize")
     SESS.mkdir(parents=True, exist_ok=True)
@@ -1222,21 +1244,23 @@ def main(argv=None):
     try:
         timeline(f"session {SESS.name} start pid={os.getpid()} {'DRY ' if a.dry else ''}config={CFG['name']} "
                  f"cloud={a.cloud} max_hourly=${a.max_hourly} cap=${a.cap} resume={a.resume} "
-                 f"finalize_only={a.finalize_only}")
+                 f"finalize_only={a.finalize_only} key_file={rpapi.key_file_shown()}")
         pf = preflight(a, st)
         wt = Path(pf["wt"])
         if not st:
             st = {"run_dir": rel(SESS), "dry": a.dry, "rehearsal": a.rehearsal, "created_utc": utc(),
                   "commit": pf["commit"], "run_commit": pf["commit"], "protocol_tag": a.protocol_tag,
                   "tag_commit": pf["tag"]["tag_commit"], "runner_fixes": [],
+                  "tag_runner_fix": pf["tag_runner_fix"],
                   "prefix": f"gapcheck-{SESS.name}-{secrets.token_hex(3)}", "config": CFG,
                   "config_file": rel(Path(a.config)), "cases": rel(Path(a.cases)), "case_set": pf["case_set"],
                   "case_ids": pf["case_ids"], "prompts": pf["prompts"], "launches": []}
         if st["case_ids"] != pf["case_ids"] or st["case_set"]["manifest_sha256"] != pf["case_set"]["manifest_sha256"]:
             raise SystemExit("resume: the case set (or --dry-cases) differs from the session's")
+        st.setdefault("key_file", rpapi.key_file_shown())
         args = {k: (rel(Path(v)) if k in ("cases", "run_dir", "config") else v) for k, v in vars(a).items()}
         st["launches"].append({"t": utc(), "pid": os.getpid(), "cloud": a.cloud, "commit": pf["commit"],
-                               "args": args, "warnings": pf["warnings"]})
+                               "args": args, "warnings": pf["warnings"], "key_file": rpapi.key_file_shown()})
         if pf["runner_fix"]:
             st["runner_fixes"].append(pf["runner_fix"])
             st["run_commit"] = pf["commit"]
@@ -1248,6 +1272,10 @@ def main(argv=None):
                      f"files changed: {fx['files']}")
         if a.protocol_tag:
             timeline(f"protocol tag {a.protocol_tag} -> {st['tag_commit']}; first run commit {st['commit']}")
+        if st.get("tag_runner_fix"):
+            fx = st["tag_runner_fix"]
+            timeline(f"runner fix: the first run commit {fx['to']} follows the tag commit {fx['from']} by "
+                     f"commits to the runner-fix paths; files changed: {fx['files']}")
         for w in pf["warnings"]:
             timeline(f"WARNING {w}")
         timeline(f"preflight ok: commit {pf['commit'][:10]}, {len(pf['case_ids'])} cases, {pf['relay_test']}; "
