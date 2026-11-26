@@ -1,0 +1,356 @@
+{
+ "what": "Comparison of the author's hand labels with the key (the tagged oracle), PROTOCOL.md sec. 3, check 2. Recorded before any run 1 output was read (run 1 had not started).",
+ "key_opened_at": "2026-11-26T13:49:05Z",
+ "labels_file": "results/hand_labels.json",
+ "labels_sha256": "dc190648428f667dcb0abf9f5eeb21b0479f02f336f2ebd593de123611f2a7d1",
+ "labels_commit": "789d11c",
+ "key_file": "results/hand_label_key.json",
+ "key_sha256": "b7a3e9e01f3d4395e1ff656cd1ce5e913c148fdeddd77c89222d558a76ff6bda",
+ "status_agreement": {
+  "k": 30,
+  "n": 30
+ },
+ "status_agreement_without_recognised_cards": {
+  "k": 30,
+  "n": 30,
+  "note": "the author recognised no card"
+ },
+ "row_agreement_where_named": {
+  "k": 25,
+  "n": 25,
+  "note": "the row field was optional; the 5 cards left empty are the 5 CANNOT_DETERMINE cards, which have no oracle row"
+ },
+ "disagreements": [],
+ "cards": [
+  {
+   "n": 1,
+   "case_id": "case_99e856b10e1e",
+   "condition": "C2a",
+   "label": "GAP",
+   "label_row": "3",
+   "expected_status": "GAP",
+   "expected_row": "3",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 2,
+   "case_id": "case_622e658a2fdf",
+   "condition": "C1",
+   "label": "CANNOT_DETERMINE",
+   "label_row": null,
+   "expected_status": "CANNOT_DETERMINE",
+   "expected_row": null,
+   "status_agrees": true,
+   "row_agrees": null
+  },
+  {
+   "n": 3,
+   "case_id": "case_7b0e07a7c3ac",
+   "condition": "C3b",
+   "label": "NOT_INDICATED",
+   "label_row": "11b",
+   "expected_status": "NOT_INDICATED",
+   "expected_row": "11b",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 4,
+   "case_id": "case_7e7937aca852",
+   "condition": "C1",
+   "label": "CANNOT_DETERMINE",
+   "label_row": null,
+   "expected_status": "CANNOT_DETERMINE",
+   "expected_row": null,
+   "status_agrees": true,
+   "row_agrees": null
+  },
+  {
+   "n": 5,
+   "case_id": "case_c6d78ad4162d",
+   "condition": "C5",
+   "label": "DISCUSS",
+   "label_row": "10",
+   "expected_status": "DISCUSS",
+   "expected_row": "10",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 6,
+   "case_id": "case_94e18049edb9",
+   "condition": "C5",
+   "label": "DISCUSS",
+   "label_row": "10",
+   "expected_status": "DISCUSS",
+   "expected_row": "10",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 7,
+   "case_id": "case_d496b6a830ab",
+   "condition": "C1",
+   "label": "CANNOT_DETERMINE",
+   "label_row": null,
+   "expected_status": "CANNOT_DETERMINE",
+   "expected_row": null,
+   "status_agrees": true,
+   "row_agrees": null
+  },
+  {
+   "n": 8,
+   "case_id": "case_efdfbc8c6ed2",
+   "condition": "C5",
+   "label": "DISCUSS",
+   "label_row": "10",
+   "expected_status": "DISCUSS",
+   "expected_row": "10",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 9,
+   "case_id": "case_7631776f531a",
+   "condition": "C5",
+   "label": "DISCUSS",
+   "label_row": "10",
+   "expected_status": "DISCUSS",
+   "expected_row": "10",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 10,
+   "case_id": "case_b0f02a2c9c79",
+   "condition": "C4",
+   "label": "GAP",
+   "label_row": "2",
+   "expected_status": "GAP",
+   "expected_row": "2",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 11,
+   "case_id": "case_47b5efaa6883",
+   "condition": "C0",
+   "label": "ON_THERAPY",
+   "label_row": "0",
+   "expected_status": "ON_THERAPY",
+   "expected_row": "0",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 12,
+   "case_id": "case_b5a22e693fcc",
+   "condition": "C2a",
+   "label": "ON_THERAPY",
+   "label_row": "0",
+   "expected_status": "ON_THERAPY",
+   "expected_row": "0",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 13,
+   "case_id": "case_883a458c099f",
+   "condition": "C5",
+   "label": "GAP",
+   "label_row": "9",
+   "expected_status": "GAP",
+   "expected_row": "9",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 14,
+   "case_id": "case_c68531ed6c1d",
+   "condition": "C0",
+   "label": "NOT_INDICATED",
+   "label_row": "11b",
+   "expected_status": "NOT_INDICATED",
+   "expected_row": "11b",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 15,
+   "case_id": "case_5b79744bcc21",
+   "condition": "C3a",
+   "label": "DOCUMENTED_REASON",
+   "label_row": "3",
+   "expected_status": "DOCUMENTED_REASON",
+   "expected_row": "3",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 16,
+   "case_id": "case_392a1c491859",
+   "condition": "C2a",
+   "label": "ON_THERAPY",
+   "label_row": "0",
+   "expected_status": "ON_THERAPY",
+   "expected_row": "0",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 17,
+   "case_id": "case_0aa118fddf2a",
+   "condition": "C0",
+   "label": "ON_THERAPY",
+   "label_row": "0",
+   "expected_status": "ON_THERAPY",
+   "expected_row": "0",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 18,
+   "case_id": "case_5387b59a0fc6",
+   "condition": "C1",
+   "label": "CANNOT_DETERMINE",
+   "label_row": null,
+   "expected_status": "CANNOT_DETERMINE",
+   "expected_row": null,
+   "status_agrees": true,
+   "row_agrees": null
+  },
+  {
+   "n": 19,
+   "case_id": "case_610b70019ef7",
+   "condition": "C0",
+   "label": "NOT_INDICATED",
+   "label_row": "11b",
+   "expected_status": "NOT_INDICATED",
+   "expected_row": "11b",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 20,
+   "case_id": "case_a9e457973bfd",
+   "condition": "C1",
+   "label": "CANNOT_DETERMINE",
+   "label_row": null,
+   "expected_status": "CANNOT_DETERMINE",
+   "expected_row": null,
+   "status_agrees": true,
+   "row_agrees": null
+  },
+  {
+   "n": 21,
+   "case_id": "case_180706087f33",
+   "condition": "C2a",
+   "label": "GAP",
+   "label_row": "1",
+   "expected_status": "GAP",
+   "expected_row": "1",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 22,
+   "case_id": "case_b9eebc2a1a22",
+   "condition": "C3a",
+   "label": "DOCUMENTED_REASON",
+   "label_row": "1",
+   "expected_status": "DOCUMENTED_REASON",
+   "expected_row": "1",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 23,
+   "case_id": "case_30c89b0bc6e4",
+   "condition": "C5",
+   "label": "GAP",
+   "label_row": "2",
+   "expected_status": "GAP",
+   "expected_row": "2",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 24,
+   "case_id": "case_41841b68abc2",
+   "condition": "C2b",
+   "label": "NOT_INDICATED",
+   "label_row": "11b",
+   "expected_status": "NOT_INDICATED",
+   "expected_row": "11b",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 25,
+   "case_id": "case_e5cae12eeebf",
+   "condition": "C3a",
+   "label": "DOCUMENTED_REASON",
+   "label_row": "1",
+   "expected_status": "DOCUMENTED_REASON",
+   "expected_row": "1",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 26,
+   "case_id": "case_8095f060dfce",
+   "condition": "C5",
+   "label": "DISCUSS",
+   "label_row": "11a",
+   "expected_status": "DISCUSS",
+   "expected_row": "11a",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 27,
+   "case_id": "case_1fc8a2ad5090",
+   "condition": "C3b",
+   "label": "NOT_INDICATED",
+   "label_row": "11b",
+   "expected_status": "NOT_INDICATED",
+   "expected_row": "11b",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 28,
+   "case_id": "case_49537a1aca9c",
+   "condition": "C3a",
+   "label": "DOCUMENTED_REASON",
+   "label_row": "9",
+   "expected_status": "DOCUMENTED_REASON",
+   "expected_row": "9",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 29,
+   "case_id": "case_7c51fdbb6a35",
+   "condition": "C3a",
+   "label": "DOCUMENTED_REASON",
+   "label_row": "3",
+   "expected_status": "DOCUMENTED_REASON",
+   "expected_row": "3",
+   "status_agrees": true,
+   "row_agrees": true
+  },
+  {
+   "n": 30,
+   "case_id": "case_b515fe3d76f0",
+   "condition": "C0",
+   "label": "ON_THERAPY",
+   "label_row": "0",
+   "expected_status": "ON_THERAPY",
+   "expected_row": "0",
+   "status_agrees": true,
+   "row_agrees": true
+  }
+ ]
+}
