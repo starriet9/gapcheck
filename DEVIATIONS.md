@@ -2,7 +2,7 @@
 
 Departures from `PROTOCOL.md` after the protocol tag (policy: `PROTOCOL.md` sec. 12).
 
-**1 entry as of 2026-11-25: D-1 adds three exploratory measures, decided before any model output; no protocol-specified result changes.** This line is re-dated every time results or this file are updated. Records made after the tag and before any model output are in `RUNS.md` sec. 3a.
+**2 entries as of 2026-11-26, both made before any model output: D-1 adds three exploratory measures; D-2 is a runner fix (not a departure from the protocol) so that run 1 can use a second RunPod account. No protocol-specified result changes.** This line is re-dated every time results or this file are updated. Records made after the tag and before any model output are in `RUNS.md` sec. 3a.
 
 ## What counts
 
@@ -36,3 +36,12 @@ Entries are numbered in the order they are written and are never removed. A devi
 - Affects: analysis | reporting (additions only)
 - Effect on results: none on any protocol-specified result. No pre-specified number, interval or verdict is computed differently, and `src/gapcheck/score.py` is unchanged. The added measures have no protocol-specified counterpart, so nothing is shown side by side. They are shown after the pre-specified outcomes, marked "exploratory, not pre-specified (D-1)".
 - Commit: `b3413b5`
+
+### D-2: Runner fix, so that run 1 can use a second RunPod account (2026-11-26)
+- Protocol says: sec. 12, "A code change that alters neither the test set nor the scoring (for example a crash fix in the runner) is logged in `RUNS.md` and `DEVIATIONS.md` with its commit. Such a fix may change only `gpu/`, `tests/gpu/`, `docs/`, `RUNS.md`, `DEVIATIONS.md` and `results/`". The protocol names no RunPod account. This entry is that log; it is not a departure from the protocol.
+- Done instead: (1) `gpu/rpapi.py` reads the API key from the file named by `GAPCHECK_RUNPOD_KEY_FILE` when it is set, and from `~/.config/runpod/api_key` otherwise, as before. A session records the file's path (never the key) and refuses a resume that reads another file. (2) The runner refused a first session at a commit that changes `gpu/` after the tag, and allowed such a commit only for a resume (`--runner-fix`). With `--runner-fix`, a first session now accepts commits after the tag that change only the paths sec. 12 allows, and records them (`tag_runner_fix` in `session.json` and `status.json`, and the merged manifest's note). A change to `src/`, `scripts/`, `configs/`, the prompts or the protocol is still refused. (3) Two related fixes: a rename after the tag is now checked under its old path as well as its new one (before, moving a file into `gpu/` would have been checked as a `gpu/` change only), and the key file must be an absolute path or start with `~/`, so that the watchdog, which runs in `gpu/`, reads the same file. (4) `wait.log`, released with the run, is scrubbed of local paths like the other released files. Tests in `tests/gpu/`; `docs/SERVING.md`, `gpu/README.md`.
+- Reason: another project uses the RunPod account the runner read, and two runs on one account would mix the balance that each run's watchdog watches (`docs/SERVING.md`). Run 1 therefore uses a second account. Its key path was fixed in the code, and the runner's first-session check was stricter than sec. 12.
+- Decided: after the seed, before any model output.
+- Affects: none of the listed (the runner only: which RunPod account the pods are billed to)
+- Effect on results: none. The test set, the systems, the prompts, the model, the server and decoding settings, the GPU type and the scoring are unchanged.
+- Commit: b80be62
